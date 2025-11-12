@@ -2,6 +2,7 @@ from app import config
 import os
 import sqlite3
 import asyncio
+from app.events import bus
 
 def _aiomysql():
     try:
@@ -67,6 +68,9 @@ async def init_sqlite():
         await _sqlite.execute(
             "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
         )
+        await _sqlite.execute(
+            "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
+        )
         await _sqlite.commit()
     else:
         _sqlite = None
@@ -77,6 +81,9 @@ def _init_sqlite_sync():
     try:
         conn.execute(
             "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
         )
         conn.commit()
     finally:
@@ -106,6 +113,11 @@ async def save_device_data(d):
                 ),
             )
             await _sqlite.commit()
+            await bus.publish(d.get("uuid"), {
+                "type": "update",
+                "data": d,
+            })
+            await _maybe_alert(d)
             return
         else:
             await asyncio.to_thread(_sqlite_exec_sync,
@@ -119,6 +131,11 @@ async def save_device_data(d):
                     d.get("signal_status"),
                 )
             )
+            await bus.publish(d.get("uuid"), {
+                "type": "update",
+                "data": d,
+            })
+            await _maybe_alert(d)
             return
     global _pool
     if _pool is None:
@@ -138,6 +155,11 @@ async def save_device_data(d):
                     d.get("signal_status"),
                 ),
             )
+            await bus.publish(d.get("uuid"), {
+                "type": "update",
+                "data": d,
+            })
+            await _maybe_alert(d)
 
 async def fetch_latest(uuid: str):
     if use_sqlite():
@@ -574,3 +596,63 @@ async def admin_create_record(d: dict):
                 (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"]),
             )
             return cur.lastrowid if hasattr(cur, "lastrowid") else None
+async def _maybe_alert(d: dict):
+    uuid = d.get("uuid")
+    bat = d.get("battery_level")
+    sig = d.get("signal_status")
+    msgs = []
+    if bat is not None and bat < 20:
+        msgs.append(("battery_low", bat, f"battery={bat}%"))
+    if sig is not None and sig == 0:
+        msgs.append(("signal_lost", sig, "signal lost"))
+    if not msgs:
+        return
+    if use_sqlite():
+        if _sqlite:
+            for t, lv, info in msgs:
+                await _sqlite.execute("INSERT INTO alerts(uuid,type,level,info) VALUES(?,?,?,?)", (uuid, t, lv, info))
+            await _sqlite.commit()
+        else:
+            for t, lv, info in msgs:
+                await asyncio.to_thread(_sqlite_exec_sync, "INSERT INTO alerts(uuid,type,level,info) VALUES(?,?,?,?)", (uuid, t, lv, info))
+        return
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            for t, lv, info in msgs:
+                await cur.execute("INSERT INTO alerts(uuid,type,level,info,time) VALUES(%s,%s,%s,%s,NOW())", (uuid, t, lv, info))
+
+async def list_alerts(uuid: str | None, limit: int = 100):
+    if use_sqlite():
+        if _sqlite is None:
+            await init_sqlite()
+        sql = "SELECT id,uuid,type,level,info,time FROM alerts"
+        params = []
+        if uuid:
+            sql += " WHERE uuid=?"; params.append(uuid)
+        sql += " ORDER BY id DESC LIMIT ?"; params.append(limit)
+        if _sqlite:
+            cur = await _sqlite.execute(sql, tuple(params))
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+        return await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return []
+    sql = "SELECT id,uuid,type,level,info,time FROM alerts"
+    params = []
+    if uuid:
+        sql += " WHERE uuid=%s"; params.append(uuid)
+    sql += " ORDER BY id DESC LIMIT %s"; params.append(limit)
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(sql, params)
+            rows = await cur.fetchall()
+            return [
+                {"id": r[0], "uuid": r[1], "type": r[2], "level": r[3], "info": r[4], "time": r[5]}
+                for r in rows
+            ]

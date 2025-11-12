@@ -8,7 +8,7 @@ from starlette.staticfiles import StaticFiles
 import os
 from app import config
 from fastapi import Body
-from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts
 
 pass
 
@@ -45,6 +45,19 @@ async def get_latest(uuid: str = Query(...)):
         "time": row.get("time"),
         "battery_level": row.get("battery_level"),
         "signal_status": row.get("signal_status"),
+    }
+
+# 文档兼容：/api/data/latest
+@app.get("/api/data/latest")
+async def get_latest_compat(uuid: str = Query(...)):
+    row = await fetch_latest(uuid)
+    if not row:
+        return {}
+    return {
+        "uuid": row.get("uuid"),
+        "in": row.get("in_count"),
+        "out": row.get("out_count"),
+        "time": row.get("time"),
     }
 
 @app.get("/api/v1/data/history")
@@ -435,6 +448,29 @@ async def admin_record_create(request: Request, payload: dict = Body(...)):
         return Response(status_code=403)
     rid = await admin_create_record(payload)
     return {"id": rid}
+
+@app.get("/api/v1/alerts")
+async def alerts(uuid: Optional[str] = None, limit: int = 100):
+    return await list_alerts(uuid, limit)
+
+@app.websocket("/ws/live")
+async def ws_live(ws: WebSocket):
+    await ws.accept()
+    uuid = None
+    q = None
+    try:
+        msg = await ws.receive_json()
+        uuid = msg.get("uuid")
+        q = await bus.subscribe(uuid)
+        await ws.send_json({"type": "subscribed", "uuid": uuid})
+        while True:
+            item = await q.get()
+            await ws.send_json(item)
+    except Exception:
+        pass
+    finally:
+        if uuid and q:
+            await bus.unsubscribe(uuid, q)
 
 # 导出CSV
 def _csv_response(name: str, csv_text: str):
