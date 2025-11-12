@@ -3,13 +3,17 @@
 基于 Python 异步 TCP 服务与 FastAPI 构建的人流计数设备后端，支持设备数据接入、协议解析、MySQL 入库、统计聚合与可视化展示，同时提供数据导出能力。
 
 ## 快速开始
-- 环境要求：`Python 3.10+`、`MySQL 5.7+`、`pip`
+- 环境要求：`Python 3.10+`、`pip`；数据库可选：`SQLite(本地文件)` 或 `MySQL`
 - 安装依赖：
   - `pip install -r requirements.txt`
   - 如网络受限可使用国内源：`pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
-- 初始化数据库：在 MySQL 执行 `schema.sql`
+- 初始化数据库：
+  - 使用SQLite（默认）：无需手工建库，首次启动自动在 `data/infrared.db` 创建
+  - 使用MySQL：在 MySQL 执行 `schema.sql`
 - 配置环境变量（可选）：
-  - `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`
+  - `DB_DRIVER`：`sqlite` 或 `mysql`（默认 `sqlite` 本地文件存储）
+  - 当 `mysql`：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`
+  - 当 `sqlite`：`DB_SQLITE_PATH`（默认 `./data/infrared.db`）
   - `TCP_HOST`、`TCP_PORT`（默认 `0.0.0.0:8085`）
 - 启动服务：
   - TCP接入：`python tcp_server.py`

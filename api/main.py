@@ -2,16 +2,18 @@ from fastapi import FastAPI, Query
 from typing import Optional
 from starlette.responses import HTMLResponse
 from starlette.responses import Response
-from app.db import init_pool, close_pool
+from starlette.responses import FileResponse
+from fastapi import Body, UploadFile, Request
+from starlette.staticfiles import StaticFiles
+import os
+from app import config
+from fastapi import Body
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record
 
-def _aiomysql():
-    try:
-        import aiomysql  # type: ignore
-        return aiomysql
-    except Exception:
-        return None
+pass
 
 app = FastAPI(title="Infrared Counter API", version="1.0")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup():
@@ -25,8 +27,7 @@ async def shutdown():
     await close_pool()
 
 async def get_pool():
-    from app.db import _pool
-    return _pool
+    return None
 
 @app.get("/api/v1/health")
 async def health():
@@ -34,129 +35,41 @@ async def health():
 
 @app.get("/api/v1/data/latest")
 async def get_latest(uuid: str = Query(...)):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE uuid=%s ORDER BY id DESC LIMIT 1",
-                (uuid,),
-            )
-            row = await cur.fetchone()
-            if not row:
-                return {}
-            return {
-                "uuid": row[0],
-                "in": row[1],
-                "out": row[2],
-                "time": row[3],
-                "battery_level": row[4],
-                "signal_status": row[5],
-            }
+    row = await fetch_latest(uuid)
+    if not row:
+        return {}
+    return {
+        "uuid": row.get("uuid"),
+        "in": row.get("in_count"),
+        "out": row.get("out_count"),
+        "time": row.get("time"),
+        "battery_level": row.get("battery_level"),
+        "signal_status": row.get("signal_status"),
+    }
 
 @app.get("/api/v1/data/history")
 async def get_history(uuid: str, start: Optional[str] = None, end: Optional[str] = None, limit: int = 500):
-    pool = await get_pool()
-    if not pool:
-        return []
-    where = ["uuid=%s"]
-    params = [uuid]
-    if start:
-        where.append("time>=%s")
-        params.append(start)
-    if end:
-        where.append("time<=%s")
-        params.append(end)
-    sql = "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
-    params.append(limit)
-    async with pool.acquire() as conn:
-        aio = _aiomysql()
-        cursor_kwargs = {}
-        if aio:
-            cursor_kwargs = {"cursor": aio.DictCursor}
-        async with conn.cursor(**cursor_kwargs) as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return rows
+    rows = await fetch_history(uuid, start, end, limit)
+    return rows
 
 @app.get("/api/v1/devices")
 async def list_devices(limit: int = 200):
-    pool = await get_pool()
-    if not pool:
-        return []
-    sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT %s"
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, (limit,))
-            rows = await cur.fetchall()
-            data = []
-            for r in rows:
-                data.append({"uuid": r[0], "last_time": r[1], "last_id": r[2]})
-            return data
+    return await db_list_devices(limit)
 
 # 统计聚合：按天
 @app.get("/api/v1/stats/daily")
 async def stats_daily(uuid: str, start: Optional[str] = None, end: Optional[str] = None):
-    pool = await get_pool()
-    if not pool:
-        return []
-    sql = "SELECT DATE(time) AS day, SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE uuid=%s"
-    params = [uuid]
-    if start:
-        sql += " AND time>=%s"
-        params.append(start)
-    if end:
-        sql += " AND time<=%s"
-        params.append(end)
-    sql += " GROUP BY day ORDER BY day ASC"
-    async with pool.acquire() as conn:
-        aio = _aiomysql()
-        cursor_kwargs = {}
-        if aio:
-            cursor_kwargs = {"cursor": aio.DictCursor}
-        async with conn.cursor(**cursor_kwargs) as cur:
-            await cur.execute(sql, params)
-            return await cur.fetchall()
+    return await db_stats_daily(uuid, start, end)
 
 # 统计聚合：按小时
 @app.get("/api/v1/stats/hourly")
 async def stats_hourly(uuid: str, date: str):
-    pool = await get_pool()
-    if not pool:
-        return []
-    sql = (
-        "SELECT DATE_FORMAT(time, '%H:00') AS hour, SUM(in_count) AS in_total, SUM(out_count) AS out_total "
-        "FROM device_data WHERE uuid=%s AND DATE(time)=%s GROUP BY hour ORDER BY hour ASC"
-    )
-    async with pool.acquire() as conn:
-        aio = _aiomysql()
-        cursor_kwargs = {}
-        if aio:
-            cursor_kwargs = {"cursor": aio.DictCursor}
-        async with conn.cursor(**cursor_kwargs) as cur:
-            await cur.execute(sql, (uuid, date))
-            return await cur.fetchall()
+    return await db_stats_hourly(uuid, date)
 
 # 统计概览
 @app.get("/api/v1/stats/summary")
 async def stats_summary(uuid: str):
-    pool = await get_pool()
-    if not pool:
-        return {"in_total": 0, "out_total": 0, "last_in": None, "last_out": None, "last_time": None}
-    sql_total = "SELECT SUM(in_count), SUM(out_count) FROM device_data WHERE uuid=%s"
-    sql_last = "SELECT in_count,out_count,time FROM device_data WHERE uuid=%s ORDER BY id DESC LIMIT 1"
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql_total, (uuid,))
-            totals = await cur.fetchone()
-            await cur.execute(sql_last, (uuid,))
-            last = await cur.fetchone()
-            return {
-                "in_total": (totals[0] or 0) if totals else 0,
-                "out_total": (totals[1] or 0) if totals else 0,
-                "last_in": last[0] if last else None,
-                "last_out": last[1] if last else None,
-                "last_time": last[2] if last else None,
-            }
+    return await db_stats_summary(uuid)
 
 # 可视化Dashboard（HTMLResponse，无需模板）
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -167,7 +80,7 @@ async def dashboard():
 <head>
   <meta charset='utf-8'>
   <title>红外计数可视化</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/chart.min.js"></script>
   <style>
     body{font-family:system-ui,Arial;margin:24px}
     .row{display:flex;gap:24px;flex-wrap:wrap}
@@ -176,6 +89,14 @@ async def dashboard():
     .mini{border:1px solid #eee;border-radius:6px;padding:10px;background:#fafafa}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #eee;padding:8px;text-align:left;font-size:13px}
+    .tabs{display:flex;gap:12px;margin:12px 0}
+    .tab{padding:8px 12px;border-radius:6px;background:#e9ecef;cursor:pointer}
+    .tab.active{background:#ced4da}
+    .hidden{display:none}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .btn{padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .btn-primary{background:#2b8a3e;color:#fff;border:0}
+    .btn-danger{background:#d9480f;color:#fff;border:0}
   </style>
 </head>
 <body>
@@ -195,6 +116,31 @@ async def dashboard():
     <div class="card"><canvas id="dailyChart" style="height:320px"></canvas></div>
     <div class="card"><canvas id="hourChart" style="height:320px"></canvas></div>
   </div>
+  <div class="card" style="margin-top:16px">
+    <div class="toolbar">
+      <h3 style="margin:0">设备对比</h3>
+      <button class="btn" id="downloadDaily">下载日图PNG</button>
+      <button class="btn" id="downloadHour">下载小时图PNG</button>
+    </div>
+    <div id="compareDevices" class="toolbar"></div>
+    <canvas id="compareChart" style="height:320px"></canvas>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>排行榜</h3>
+    <div class="toolbar">
+      <button class="btn" id="rankRefresh">刷新排行榜</button>
+    </div>
+    <div class="row">
+      <div style="flex:1">
+        <h4>IN Top</h4>
+        <table><thead><tr><th>UUID</th><th>Total IN</th></tr></thead><tbody id="rankIn"></tbody></table>
+      </div>
+      <div style="flex:1">
+        <h4>OUT Top</h4>
+        <table><thead><tr><th>UUID</th><th>Total OUT</th></tr></thead><tbody id="rankOut"></tbody></table>
+      </div>
+    </div>
+  </div>
   <div class="grid" style="margin-top:16px">
     <div class="mini" id="sum_in"></div>
     <div class="mini" id="sum_out"></div>
@@ -207,6 +153,30 @@ async def dashboard():
       <thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th></tr></thead>
       <tbody id="tbl"></tbody>
     </table>
+  </div>
+  <div class="tabs">
+    <div class="tab" data-tab="db">数据库管理</div>
+  </div>
+  <div id="pane_db" class="card hidden">
+    <div class="toolbar">
+      <input id="filterUuid" placeholder="设备UUID" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;"> 
+      <input id="filterStart" type="datetime-local"> 
+      <input id="filterEnd" type="datetime-local"> 
+      <button class="btn btn-primary" id="query">查询</button>
+      <button class="btn" id="reset">重置</button>
+      <button class="btn btn-primary" id="add">新增记录</button>
+      <input id="adminToken" placeholder="Admin Token" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
+      <button class="btn" id="backup">备份数据库</button>
+      <input id="restoreFile" type="file">
+      <button class="btn" id="restore">还原数据库</button>
+    </div>
+    <table>
+      <thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</</thead></tr>
+      <tbody id="adminTbl"></tbody>
+    </table>
+    <div class="toolbar">
+      <button class="btn" id="prev">上一页</button> <span id="pageInfo"></span> <button class="btn" id="next">下一页</button>
+    </div>
   </div>
   <script>
     const deviceSel = document.getElementById('device');
@@ -313,12 +283,158 @@ async def dashboard():
       const q = new URLSearchParams({uuid}); if(start) q.append('start', start); if(end) q.append('end', end);
       window.open('/api/v1/export/history?' + q.toString(), '_blank');
     });
-    (async()=>{ await loadDevices(); await loadStats(); })();
+    (async()=>{ await loadDevices(); await loadStats(); await buildCompareDevices(); await loadRank(); })();
+    document.getElementById('downloadDaily').addEventListener('click', ()=>{
+      const url = document.getElementById('dailyChart').toDataURL('image/png');
+      const a = document.createElement('a'); a.href = url; a.download = 'daily.png'; a.click();
+    });
+    document.getElementById('downloadHour').addEventListener('click', ()=>{
+      const url = document.getElementById('hourChart').toDataURL('image/png');
+      const a = document.createElement('a'); a.href = url; a.download = 'hour.png'; a.click();
+    });
+    let compareChart;
+    async function buildCompareDevices(){
+      const list = await (await fetch('/api/v1/devices')).json();
+      const wrap = document.getElementById('compareDevices');
+      wrap.innerHTML = '';
+      for(const d of list){
+        const id = 'chk_'+d.uuid;
+        const label = document.createElement('label');
+        label.style.marginRight = '8px';
+        label.innerHTML = `<input type='checkbox' id='${id}' value='${d.uuid}'> ${d.uuid}`;
+        wrap.appendChild(label);
+      }
+      wrap.addEventListener('change', loadCompare);
+    }
+    async function loadCompare(){
+      const wrap = document.getElementById('compareDevices');
+      const chks = wrap.querySelectorAll('input[type=checkbox]:checked');
+      const selected = Array.from(chks).map(x=>x.value).slice(0,6);
+      const start = startEl.value? startEl.value + ' 00:00:00' : '';
+      const end = endEl.value? endEl.value + ' 23:59:59' : '';
+      const labelsSet = new Set();
+      const datasets = [];
+      for(const u of selected){
+        const q = new URLSearchParams({uuid:u}); if(start) q.append('start', start); if(end) q.append('end', end);
+        const res = await fetch('/api/v1/stats/daily?' + q.toString());
+        const rows = await res.json();
+        rows.forEach(r=>labelsSet.add(r.day));
+        datasets.push({label:u, data: rows.map(r=>r.in_total||0), borderColor:'#'+Math.floor(Math.random()*16777215).toString(16)});
+      }
+      const labels = Array.from(labelsSet).sort();
+      const ctx = document.getElementById('compareChart').getContext('2d');
+      if(compareChart) compareChart.destroy();
+      compareChart = new Chart(ctx, {type:'line', data:{labels, datasets}, options:{responsive:true, maintainAspectRatio:false}});
+    }
+    async function loadRank(){
+      const rIn = await (await fetch('/api/v1/stats/top?metric=in&limit=10')).json();
+      const rOut = await (await fetch('/api/v1/stats/top?metric=out&limit=10')).json();
+      const rankIn = document.getElementById('rankIn'); const rankOut = document.getElementById('rankOut');
+      rankIn.innerHTML = ''; rankOut.innerHTML = '';
+      for(const r of rIn){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.uuid}</td><td>${r.total}</td>`; rankIn.appendChild(tr);} 
+      for(const r of rOut){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.uuid}</td><td>${r.total}</td>`; rankOut.appendChild(tr);} 
+    }
+    document.getElementById('rankRefresh').addEventListener('click', loadRank);
+    const tabs = document.querySelectorAll('.tab');
+    function showTab(name){
+      document.getElementById('pane_db').classList.toggle('hidden', name!=='db');
+      tabs.forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+    }
+    tabs.forEach(t=>t.addEventListener('click', ()=>showTab(t.dataset.tab)));
+    const adminTbl = document.getElementById('adminTbl');
+    const filterUuid = document.getElementById('filterUuid');
+    const filterStart = document.getElementById('filterStart');
+    const filterEnd = document.getElementById('filterEnd');
+    const pageInfo = document.getElementById('pageInfo');
+    let page = 1, pageSize = 20, total = 0;
+    async function loadAdmin(){
+      const q = new URLSearchParams();
+      if(filterUuid.value) q.append('uuid', filterUuid.value);
+      if(filterStart.value) q.append('start', filterStart.value.replace('T',' '));
+      if(filterEnd.value) q.append('end', filterEnd.value.replace('T',' '));
+      q.append('page', page); q.append('page_size', pageSize);
+      const res = await fetch('/api/v1/admin/records?' + q.toString(), {headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}});
+      const data = await res.json();
+      total = data.total || 0;
+      adminTbl.innerHTML = '';
+      for(const r of (data.items||[])){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count||''}</td><td>${r.out_count||''}</td><td>${r.battery_level||''}</td><td>${r.signal_status||''}</td>`;
+        adminTbl.appendChild(tr);
+      }
+      const pages = Math.max(1, Math.ceil(total/pageSize));
+      pageInfo.textContent = `第 ${page}/${pages} 页，共 ${total} 条`;
+    }
+    document.getElementById('query').addEventListener('click', ()=>{ page=1; loadAdmin(); });
+    document.getElementById('reset').addEventListener('click', ()=>{ filterUuid.value=''; filterStart.value=''; filterEnd.value=''; page=1; loadAdmin(); });
+    document.getElementById('prev').addEventListener('click', ()=>{ if(page>1){ page--; loadAdmin(); }});
+    document.getElementById('next').addEventListener('click', ()=>{ page++; loadAdmin(); });
+    document.getElementById('add').addEventListener('click', async ()=>{
+      const uuid = prompt('UUID'); if(!uuid) return;
+      const time = prompt('时间 YYYY-MM-DD HH:MM:SS', new Date().toISOString().slice(0,19).replace('T',' '));
+      const inc = parseInt(prompt('IN', '0')||'0');
+      const outc = parseInt(prompt('OUT', '0')||'0');
+      const bat = parseInt(prompt('电量', '80')||'0');
+      const sig = parseInt(prompt('信号', '1')||'0');
+      await fetch('/api/v1/admin/record/create', {method:'POST', headers:{'Content-Type':'application/json','X-Admin-Token': document.getElementById('adminToken').value || ''}, body: JSON.stringify({uuid, time, in_count: inc, out_count: outc, battery_level: bat, signal_status: sig})});
+      loadAdmin();
+    });
+    document.getElementById('backup').addEventListener('click', async ()=>{
+      const res = await fetch('/api/v1/admin/backup', {headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}});
+      if(!res.ok){ alert('备份失败'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'infrared.db'; a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('restore').addEventListener('click', async ()=>{
+      const f = document.getElementById('restoreFile').files[0]; if(!f){ alert('请选择文件'); return; }
+      const fd = new FormData(); fd.append('file', f);
+      const res = await fetch('/api/v1/admin/restore', {method:'POST', headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}, body: fd});
+      if(res.ok){ alert('还原成功'); } else { alert('还原失败'); }
+      loadAdmin();
+    });
+    // 默认隐藏管理面板
+    showTab('recent');
   </script>
 </body>
 </html>
 """
     return HTMLResponse(content=html)
+
+@app.get("/api/v1/admin/records")
+async def admin_records(request: Request, uuid: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None, page: int = 1, page_size: int = 20):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    if page < 1: page = 1
+    if page_size < 1: page_size = 20
+    total = await admin_count_records(uuid, start, end)
+    offset = (page - 1) * page_size
+    items = await admin_list_records(uuid, start, end, offset, page_size)
+    return {"total": total, "items": items, "page": page, "page_size": page_size}
+
+@app.post("/api/v1/admin/record/update")
+async def admin_record_update(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    rid = int(payload.get("id"))
+    fields = {k: payload.get(k) for k in ["uuid","in_count","out_count","time","battery_level","signal_status"] if k in payload}
+    ok = await admin_update_record(rid, fields)
+    return {"ok": ok}
+
+@app.post("/api/v1/admin/record/delete")
+async def admin_record_delete(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    rid = int(payload.get("id"))
+    ok = await admin_delete_record(rid)
+    return {"ok": ok}
+
+@app.post("/api/v1/admin/record/create")
+async def admin_record_create(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    rid = await admin_create_record(payload)
+    return {"id": rid}
 
 # 导出CSV
 def _csv_response(name: str, csv_text: str):
@@ -326,19 +442,19 @@ def _csv_response(name: str, csv_text: str):
 
 @app.get("/api/v1/export/daily")
 async def export_daily(uuid: str, start: Optional[str] = None, end: Optional[str] = None):
-    rows = await stats_daily(uuid, start, end)
+    rows = await db_stats_daily(uuid, start, end)
     csv = "day,in_total,out_total,net\n" + "\n".join([f"{r['day']},{r['in_total'] or 0},{r['out_total'] or 0},{(r['in_total'] or 0)-(r['out_total'] or 0)}" for r in rows])
     return _csv_response("daily.csv", csv)
 
 @app.get("/api/v1/export/hourly")
 async def export_hourly(uuid: str, date: str):
-    rows = await stats_hourly(uuid, date)
+    rows = await db_stats_hourly(uuid, date)
     csv = "hour,in_total,out_total,net\n" + "\n".join([f"{r['hour']},{r['in_total'] or 0},{r['out_total'] or 0},{(r['in_total'] or 0)-(r['out_total'] or 0)}" for r in rows])
     return _csv_response("hourly.csv", csv)
 
 @app.get("/api/v1/export/history")
 async def export_history(uuid: str, start: Optional[str] = None, end: Optional[str] = None, limit: int = 10000):
-    rows = await get_history(uuid, start, end, limit)
+    rows = await fetch_history(uuid, start, end, limit)
     def row_to_csv(r):
         t = r.get('time') if isinstance(r, dict) else r[3]
         inc = r.get('in_count') if isinstance(r, dict) else r[1]
@@ -352,19 +468,36 @@ async def export_history(uuid: str, start: Optional[str] = None, end: Optional[s
 # Top榜统计
 @app.get("/api/v1/stats/top")
 async def stats_top(metric: str = "in", start: Optional[str] = None, end: Optional[str] = None, limit: int = 10):
-    pool = await get_pool()
-    if not pool:
-        return []
-    field = "in_count" if metric == "in" else "out_count"
-    sql = f"SELECT uuid, SUM({field}) AS total FROM device_data WHERE 1=1"
-    params = []
-    if start:
-        sql += " AND time>=%s"; params.append(start)
-    if end:
-        sql += " AND time<=%s"; params.append(end)
-    sql += " GROUP BY uuid ORDER BY total DESC LIMIT %s"; params.append(limit)
-    async with pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [{"uuid": r[0], "total": r[1]} for r in rows]
+    return await db_stats_top(metric, start, end, limit)
+
+def _require_admin(req: Request):
+    if config.ADMIN_TOKEN:
+        t = req.headers.get("X-Admin-Token", "")
+        return t == config.ADMIN_TOKEN
+    return True
+
+@app.get("/api/v1/admin/backup")
+async def admin_backup(req: Request):
+    if not _require_admin(req):
+        return Response(status_code=403)
+    if str(getattr(config, "DB_DRIVER", "sqlite")).lower() != "sqlite":
+        return Response(status_code=400)
+    p = config.DB_SQLITE_PATH
+    if not os.path.exists(p):
+        return Response(status_code=404)
+    return FileResponse(path=p, filename="infrared.db", media_type="application/octet-stream")
+
+@app.post("/api/v1/admin/restore")
+async def admin_restore(req: Request, file: UploadFile):
+    if not _require_admin(req):
+        return Response(status_code=403)
+    if str(getattr(config, "DB_DRIVER", "sqlite")).lower() != "sqlite":
+        return Response(status_code=400)
+    data = await file.read()
+    from app.db import close_sqlite, init_sqlite
+    await close_sqlite()
+    os.makedirs(os.path.dirname(config.DB_SQLITE_PATH), exist_ok=True)
+    with open(config.DB_SQLITE_PATH, "wb") as f:
+        f.write(data)
+    await init_sqlite()
+    return {"ok": True}
