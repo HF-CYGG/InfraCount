@@ -1,6 +1,7 @@
 import struct
 from datetime import datetime
 import xml.etree.ElementTree as ET
+from app import config
 
 HEAD = b"\xFA\xF5\xF6"
 TAIL = b"\xFA\xF6\xF5"
@@ -48,6 +49,20 @@ def parse_sensor_xml(xml_str: str):
 def build_ack_xml(uuid: str):
     return f"<UP_SENSOR_DATA_RES><uuid>{uuid}</uuid><ret>0</ret></UP_SENSOR_DATA_RES>"
 
-def build_time_sync_xml():
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return f"<TIME_SYNC_RES><ret>0</ret><time>{now}</time></TIME_SYNC_RES>"
+def build_time_sync_xml(uuid: str):
+    now = datetime.now().strftime("%Y%m%d%H%M%S")
+    return (
+        f"<TIME_SYSNC_RES>"
+        f"<uuid>{uuid}</uuid>"
+        f"<ret>0</ret>"
+        f"<time>{now}</time>"
+        f"<uploadInterval>{getattr(config,'UPLOAD_INTERVAL','0005')}</uploadInterval>"
+        f"<dataStartTime>{getattr(config,'DATA_START_TIME','0000')}</dataStartTime>"
+        f"<dataEndTime>{getattr(config,'DATA_END_TIME','2359')}</dataEndTime>"
+        f"</TIME_SYSNC_RES>"
+    )
+
+def build_frame(typ: int, xml: str, seq: int = 0) -> bytes:
+    data = xml.encode("utf-8")
+    hdr = struct.pack(">HBH", seq & 0xFFFF, typ & 0xFF, len(data))
+    return HEAD + hdr + data + TAIL

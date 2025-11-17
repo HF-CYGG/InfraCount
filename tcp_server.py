@@ -1,12 +1,16 @@
 import asyncio
 import logging
+import os
+import xml.etree.ElementTree as ET
 from app import config
-from app.protocol import HEAD, TAIL, parse_packet, parse_sensor_xml, build_ack_xml, build_time_sync_xml
+from app.protocol import HEAD, TAIL, parse_packet, parse_sensor_xml, build_ack_xml, build_time_sync_xml, build_frame
 from app.logging import setup as setup_logging
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     buffer = b""
     try:
+        peer = writer.get_extra_info("peername")
+        raw_lg = logging.getLogger("device.raw")
         while True:
             data = await reader.read(1024)
             if not data:
@@ -32,7 +36,15 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 buffer = buffer[start+total:]
                 msg = parse_packet(frame)
                 if not msg:
+                    try:
+                        raw_lg.info(f"peer={peer} invalid_frame={frame.hex()}")
+                    except Exception:
+                        pass
                     continue
+                try:
+                    raw_lg.info(f"peer={peer} seq={msg['seq']} type={msg['type']} xml={msg['xml']}")
+                except Exception:
+                    pass
                 if msg["type"] == 0x21:
                     try:
                         d = parse_sensor_xml(msg["xml"])
@@ -45,12 +57,46 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                             ack = build_ack_xml(d["uuid"])
                             writer.write(ack.encode())
                             await writer.drain()
+                            try:
+                                os.makedirs(os.path.join("data", "sync"), exist_ok=True)
+                                flag = os.path.join("data", "sync", f"{d['uuid']}.flag")
+                                if os.path.exists(flag):
+                                    res = build_time_sync_xml(d["uuid"]) 
+                                    writer.write(build_frame(0x22, res, msg["seq"]))
+                                    await writer.drain()
+                                    try:
+                                        raw_lg.info(f"peer={peer} time_sync_sent xml={res}")
+                                    except Exception:
+                                        pass
+                                    try:
+                                        os.remove(flag)
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
                     except Exception as e:
                         logging.error("parse_sensor_xml error: %s", e)
                 elif msg["type"] == 0x22:
-                    res = build_time_sync_xml()
-                    writer.write(res.encode())
-                    await writer.drain()
+                    try:
+                        root = ET.fromstring(msg["xml"]) if msg.get("xml") else None
+                        uuid_el = root.find("uuid") if root is not None else None
+                        uuid = (uuid_el.text.strip() if (uuid_el is not None and uuid_el.text) else "")
+                        os.makedirs(os.path.join("data", "sync"), exist_ok=True)
+                        flag = os.path.join("data", "sync", f"{uuid}.flag") if uuid else None
+                        if flag and os.path.exists(flag):
+                            res = build_time_sync_xml(uuid)
+                            writer.write(build_frame(0x22, res, msg["seq"]))
+                            await writer.drain()
+                            try:
+                                raw_lg.info(f"peer={peer} time_sync_sent xml={res}")
+                            except Exception:
+                                pass
+                            try:
+                                os.remove(flag)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
     finally:
         try:
             writer.close()

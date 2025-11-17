@@ -13,3 +13,7 @@ TCP_PORT = int(os.getenv("TCP_PORT", "8085"))
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 CSRF_ENABLE = os.getenv("CSRF_ENABLE", "1") == "1"
 CSRF_TTL = int(os.getenv("CSRF_TTL", "600"))
+TIME_SYNC_DIGITS = os.getenv("TIME_SYNC_DIGITS", "1") == "1"
+UPLOAD_INTERVAL = os.getenv("UPLOAD_INTERVAL", "0005")
+DATA_START_TIME = os.getenv("DATA_START_TIME", "0000")
+DATA_END_TIME = os.getenv("DATA_END_TIME", "2359")

@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS device_data (
     signal_status TINYINT,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data (uuid, time);

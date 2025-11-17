@@ -69,6 +69,9 @@ async def init_sqlite():
             "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
         )
         await _sqlite.execute(
+            "CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)"
+        )
+        await _sqlite.execute(
             "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
         )
         await _sqlite.execute(
@@ -88,6 +91,10 @@ def _init_sqlite_sync():
         conn.execute(
             "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
         )
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)")
+        except Exception:
+            pass
         conn.execute(
             "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
         )

@@ -1,0 +1,48 @@
+
+<!doctype html><html><head><meta charset='utf-8'><title>设备管理</title>
+<link rel='stylesheet' href='/static/style.css'>
+</head><body>
+  <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/admin/db'>数据管理</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a><a class='nav-link' href='/device'>设备编辑</a></div>
+  <div class='main'>
+  <div class="card" style='max-width:920px'>
+    <h2>设备名称自定义</h2>
+    <div class="row">
+      <input id="dev_uuid" placeholder="设备UUID">
+      <input id="dev_name" placeholder="显示名称(<=32)">
+      <input id="dev_category" placeholder="设备分类">
+    </div>
+    <div class="row">
+      <button class="btn" id="dev_reset">重置</button>
+      <button class="btn btn-primary" id="dev_save">保存</button>
+      <span id="dev_loading" style="display:none">保存中...</span>
+    </div>
+    <div class="row">
+      <input id="dev_adminToken" placeholder="Admin Token">
+    </div>
+    <div id="dev_toast" class="toast" style="display:none"></div>
+  </div>
+  <script>
+    let csrfToken='';
+    function toastMsg(t){const el=document.getElementById('dev_toast');el.textContent=t;el.style.display='block';setTimeout(()=>el.style.display='none',2000)}
+    function validName(nm){if(!nm) return true; if(nm.length>32) return false; return /^[一-龥A-Za-z0-9 _-]{0,32}$/.test(nm)}
+    async function fetchCsrf(){try{const r=await fetch('/api/v1/csrf');const j=await r.json();csrfToken=j.token||'';}catch(e){}}
+    document.getElementById('dev_reset').addEventListener('click',()=>{document.getElementById('dev_name').value='';document.getElementById('dev_category').value='';});
+    document.getElementById('dev_save').addEventListener('click',async()=>{
+      const uuid=document.getElementById('dev_uuid').value.trim();
+      const name=document.getElementById('dev_name').value.trim();
+      const category=document.getElementById('dev_category').value.trim();
+      const adminToken=document.getElementById('dev_adminToken').value||'';
+      if(!uuid){toastMsg('请输入UUID');return}
+      if(!validName(name)){toastMsg('名称不合法');return}
+      document.getElementById('dev_loading').style.display='inline';
+      try{
+        const res=await fetch('/api/v1/admin/device/registry/upsert',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':adminToken,'X-CSRF-Token':csrfToken},body:JSON.stringify({uuid,name,category})});
+        if(res.ok){toastMsg('保存成功'); await fetchCsrf()}else{toastMsg('保存失败')}
+      }finally{document.getElementById('dev_loading').style.display='none'}
+    });
+    (async()=>{await fetchCsrf()})()
+  </script>
+</div>
+<script>document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});</script>
+</body></html>
+
