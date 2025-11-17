@@ -11,3 +11,5 @@ DB_SQLITE_PATH = os.getenv("DB_SQLITE_PATH", r"e:\项目\书院人流计数器�
 TCP_HOST = os.getenv("TCP_HOST", "0.0.0.0")
 TCP_PORT = int(os.getenv("TCP_PORT", "8085"))
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+CSRF_ENABLE = os.getenv("CSRF_ENABLE", "1") == "1"
+CSRF_TTL = int(os.getenv("CSRF_TTL", "600"))

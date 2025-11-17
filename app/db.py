@@ -71,6 +71,12 @@ async def init_sqlite():
         await _sqlite.execute(
             "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
         )
+        await _sqlite.execute(
+            "CREATE TABLE IF NOT EXISTS device_registry (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT UNIQUE, name TEXT, category TEXT, create_time TEXT DEFAULT (datetime('now')))"
+        )
+        await _sqlite.execute(
+            "CREATE TABLE IF NOT EXISTS ops_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, target_uuid TEXT, payload TEXT, time TEXT DEFAULT (datetime('now')))"
+        )
         await _sqlite.commit()
     else:
         _sqlite = None
@@ -84,6 +90,12 @@ def _init_sqlite_sync():
         )
         conn.execute(
             "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS device_registry (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT UNIQUE, name TEXT, category TEXT, create_time TEXT DEFAULT (datetime('now')))"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS ops_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, target_uuid TEXT, payload TEXT, time TEXT DEFAULT (datetime('now')))"
         )
         conn.commit()
     finally:
@@ -246,11 +258,11 @@ async def list_devices(limit: int):
         global _sqlite
         if _sqlite is None:
             await init_sqlite()
-        sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT ?"
+        sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id, (SELECT name FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS name, (SELECT category FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS category FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT ?"
         if _sqlite:
             cur = await _sqlite.execute(sql, (limit,))
             rows = await cur.fetchall()
-            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2]} for r in rows]
+            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
         else:
             rows = await asyncio.to_thread(_sqlite_query_all, sql, (limit,))
             return rows
@@ -261,11 +273,11 @@ async def list_devices(limit: int):
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT %s",
+                "SELECT t.uuid, t.last_time, t.last_id, r.name, r.category FROM (SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid) t LEFT JOIN device_registry r ON r.uuid=t.uuid ORDER BY t.last_time DESC LIMIT %s",
                 (limit,),
             )
             rows = await cur.fetchall()
-            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2]} for r in rows]
+            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
 
 async def stats_daily(uuid: str, start: str | None, end: str | None):
     if use_sqlite():
@@ -656,3 +668,90 @@ async def list_alerts(uuid: str | None, limit: int = 100):
                 {"id": r[0], "uuid": r[1], "type": r[2], "level": r[3], "info": r[4], "time": r[5]}
                 for r in rows
             ]
+
+async def admin_list_registry(category: str | None, search: str | None, offset: int, limit: int):
+    if use_sqlite():
+        if _sqlite is None:
+            await init_sqlite()
+        sql = "SELECT id,uuid,name,category,create_time FROM device_registry WHERE 1=1"
+        params = []
+        if category:
+            sql += " AND category=?"; params.append(category)
+        if search:
+            sql += " AND (uuid LIKE ? OR name LIKE ?)"; params.extend([f"%{search}%", f"%{search}%"]) 
+        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
+        if _sqlite:
+            cur = await _sqlite.execute(sql, tuple(params))
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+        return await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return []
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            sql = "CREATE TABLE IF NOT EXISTS device_registry (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64) UNIQUE, name VARCHAR(128), category VARCHAR(64), create_time DATETIME DEFAULT CURRENT_TIMESTAMP)"
+            await cur.execute(sql)
+            sql = "SELECT id,uuid,name,category,create_time FROM device_registry WHERE 1=1"
+            params = []
+            if category:
+                sql += " AND category=%s"; params.append(category)
+            if search:
+                sql += " AND (uuid LIKE %s OR name LIKE %s)"; params.extend([f"%{search}%", f"%{search}%"]) 
+            sql += " ORDER BY id DESC LIMIT %s OFFSET %s"; params.extend([limit, offset])
+            await cur.execute(sql, params)
+            rows = await cur.fetchall()
+            return [
+                {"id": r[0], "uuid": r[1], "name": r[2], "category": r[3], "create_time": r[4]}
+                for r in rows
+            ]
+
+async def admin_upsert_registry(uuid: str, name: str | None, category: str | None):
+    if use_sqlite():
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            cur = await _sqlite.execute("SELECT id FROM device_registry WHERE uuid=?", (uuid,))
+            row = await cur.fetchone()
+            if row:
+                await _sqlite.execute("UPDATE device_registry SET name=?, category=? WHERE uuid=?", (name, category, uuid))
+            else:
+                await _sqlite.execute("INSERT INTO device_registry(uuid,name,category) VALUES(?,?,?)", (uuid, name, category))
+            await _sqlite.commit()
+            return True
+        await asyncio.to_thread(_sqlite_exec_sync, "INSERT OR REPLACE INTO device_registry(uuid,name,category) VALUES(?,?,?)", (uuid, name, category))
+        return True
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return False
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("CREATE TABLE IF NOT EXISTS device_registry (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64) UNIQUE, name VARCHAR(128), category VARCHAR(64), create_time DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            await cur.execute("SELECT id FROM device_registry WHERE uuid=%s", (uuid,))
+            row = await cur.fetchone()
+            if row:
+                await cur.execute("UPDATE device_registry SET name=%s, category=%s WHERE uuid=%s", (name, category, uuid))
+            else:
+                await cur.execute("INSERT INTO device_registry(uuid,name,category) VALUES(%s,%s,%s)", (uuid, name, category))
+            return True
+
+async def admin_write_op(actor: str | None, action: str, target_uuid: str | None, payload: str | None):
+    if use_sqlite():
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            await _sqlite.execute("INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(?,?,?,?)", (actor, action, target_uuid, payload))
+            await _sqlite.commit()
+            return
+        await asyncio.to_thread(_sqlite_exec_sync, "INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(?,?,?,?)", (actor, action, target_uuid, payload))
+        return
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("CREATE TABLE IF NOT EXISTS ops_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, actor VARCHAR(128), action VARCHAR(64), target_uuid VARCHAR(64), payload TEXT, time DATETIME DEFAULT CURRENT_TIMESTAMP)")
+            await cur.execute("INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(%s,%s,%s,%s)", (actor, action, target_uuid, payload))
