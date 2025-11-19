@@ -66,8 +66,20 @@ async def init_sqlite():
         _sqlite = await aio.connect(config.DB_SQLITE_PATH)
         _sqlite.row_factory = aio.Row
         await _sqlite.execute(
-            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
+            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, warn_status INTEGER, batterytx_level INTEGER, rec_type INTEGER, create_time TEXT DEFAULT (datetime('now')))"
         )
+        try:
+            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN warn_status INTEGER")
+        except Exception:
+            pass
+        try:
+            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN batterytx_level INTEGER")
+        except Exception:
+            pass
+        try:
+            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN rec_type INTEGER")
+        except Exception:
+            pass
         await _sqlite.execute(
             "CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)"
         )
@@ -89,8 +101,20 @@ def _init_sqlite_sync():
     conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
     try:
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, create_time TEXT DEFAULT (datetime('now')))"
+            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, warn_status INTEGER, batterytx_level INTEGER, rec_type INTEGER, create_time TEXT DEFAULT (datetime('now')))"
         )
+        try:
+            conn.execute("ALTER TABLE device_data ADD COLUMN warn_status INTEGER")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE device_data ADD COLUMN batterytx_level INTEGER")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE device_data ADD COLUMN rec_type INTEGER")
+        except Exception:
+            pass
         try:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)")
         except Exception:
@@ -121,7 +145,7 @@ async def save_device_data(d):
             await init_sqlite()
         if _sqlite:
             await _sqlite.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status) VALUES(?,?,?,?,?,?)",
+                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
                 (
                     d.get("uuid"),
                     d.get("in"),
@@ -129,6 +153,9 @@ async def save_device_data(d):
                     d.get("time"),
                     d.get("battery_level"),
                     d.get("signal_status"),
+                    d.get("warn_status"),
+                    d.get("batterytx_level"),
+                    d.get("rec_type"),
                 ),
             )
             await _sqlite.commit()
@@ -140,7 +167,7 @@ async def save_device_data(d):
             return
         else:
             await asyncio.to_thread(_sqlite_exec_sync,
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status) VALUES(?,?,?,?,?,?)",
+                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
                 (
                     d.get("uuid"),
                     d.get("in"),
@@ -148,6 +175,9 @@ async def save_device_data(d):
                     d.get("time"),
                     d.get("battery_level"),
                     d.get("signal_status"),
+                    d.get("warn_status"),
+                    d.get("batterytx_level"),
+                    d.get("rec_type"),
                 )
             )
             await bus.publish(d.get("uuid"), {
@@ -164,7 +194,10 @@ async def save_device_data(d):
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status) VALUES(%s,%s,%s,%s,%s,%s)",
+                "CREATE TABLE IF NOT EXISTS device_data (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64), in_count INT, out_count INT, time VARCHAR(32), battery_level INT, signal_status INT, warn_status INT, batterytx_level INT, rec_type INT, create_time DATETIME DEFAULT CURRENT_TIMESTAMP)"
+            )
+            await cur.execute(
+                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (
                     d.get("uuid"),
                     d.get("in"),
@@ -172,6 +205,9 @@ async def save_device_data(d):
                     d.get("time"),
                     d.get("battery_level"),
                     d.get("signal_status"),
+                    d.get("warn_status"),
+                    d.get("batterytx_level"),
+                    d.get("rec_type"),
                 ),
             )
             await bus.publish(d.get("uuid"), {
@@ -509,7 +545,7 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
             await init_sqlite()
         if _sqlite is None:
             return []
-        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE 1=1"
+        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE 1=1"
         params = []
         if uuid:
             sql += " AND uuid=?"; params.append(uuid)
@@ -525,7 +561,7 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
         await init_pool()
     if _pool is None:
         return []
-    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE 1=1"
+    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE 1=1"
     params = []
     if uuid:
         sql += " AND uuid=%s"; params.append(uuid)
@@ -539,12 +575,12 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
             await cur.execute(sql, params)
             rows = await cur.fetchall()
             return [
-                {"id": r[0], "uuid": r[1], "in_count": r[2], "out_count": r[3], "time": r[4], "battery_level": r[5], "signal_status": r[6]}
+                {"id": r[0], "uuid": r[1], "in_count": r[2], "out_count": r[3], "time": r[4], "battery_level": r[5], "signal_status": r[6], "warn_status": r[7], "batterytx_level": r[8], "rec_type": r[9]}
                 for r in rows
             ]
 
 async def admin_update_record(record_id: int, fields: dict):
-    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status"]
+    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return False
@@ -610,7 +646,7 @@ async def admin_delete_range(uuid: str, start: str, end: str):
             return getattr(cur, "rowcount", 0)
 
 async def admin_create_record(d: dict):
-    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status"]
+    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
     data = {k: d.get(k) for k in allowed}
     if use_sqlite():
         global _sqlite
@@ -619,8 +655,8 @@ async def admin_create_record(d: dict):
         if _sqlite is None:
             return None
         cur = await _sqlite.execute(
-            "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status) VALUES(?,?,?,?,?,?)",
-            (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"]),
+            "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
+            (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"], data.get("warn_status"), data.get("batterytx_level"), data.get("rec_type")),
         )
         await _sqlite.commit()
         return cur.lastrowid
@@ -631,19 +667,28 @@ async def admin_create_record(d: dict):
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status) VALUES(%s,%s,%s,%s,%s,%s)",
-                (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"]),
+                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"], data.get("warn_status"), data.get("batterytx_level"), data.get("rec_type")),
             )
             return cur.lastrowid if hasattr(cur, "lastrowid") else None
 async def _maybe_alert(d: dict):
     uuid = d.get("uuid")
     bat = d.get("battery_level")
     sig = d.get("signal_status")
+    ws = d.get("warn_status")
+    btx = d.get("batterytx_level")
+    rt = d.get("rec_type")
     msgs = []
     if bat is not None and bat < 20:
         msgs.append(("battery_low", bat, f"battery={bat}%"))
-    if sig is not None and sig == 0:
-        msgs.append(("signal_lost", sig, "signal lost"))
+    if sig is not None and sig == 1:
+        msgs.append(("signal_offline", sig, "signal offline"))
+    if ws is not None and ws != 0:
+        msgs.append(("device_warn", ws, f"warn_status={ws}"))
+    if btx is not None and btx < 30:
+        msgs.append(("battery_tx_low", btx, f"batterytx={btx}%"))
+    if rt is not None and rt == 1:
+        msgs.append(("record_backlog", rt, "rec_type=1"))
     if not msgs:
         return
     if use_sqlite():

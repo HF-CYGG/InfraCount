@@ -13,10 +13,13 @@ async def send_once(host: str = "127.0.0.1", port: int = 8085):
     xml = (
         "<UP_SENSOR_DATA>"
         "<uuid>SIM-ABC</uuid>"
+        "<rec_type>1</rec_type>"
         "<in>12</in>"
         "<out>7</out>"
         "<time>2025-11-12 12:00:00</time>"
-        "<battery>88</battery>"
+        "<battery>18</battery>"
+        "<warn_status>2</warn_status>"
+        "<batterytx_level>25</batterytx_level>"
         "<signal_status>1</signal_status>"
         "</UP_SENSOR_DATA>"
     )

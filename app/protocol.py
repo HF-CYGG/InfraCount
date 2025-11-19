@@ -36,6 +36,9 @@ def parse_sensor_xml(xml_str: str):
     out_count = to_int(_get_text(root, ["out", "OUT", "out_count"]))
     battery = to_int(_get_text(root, ["battery", "battery_level", "power"]))
     signal = to_int(_get_text(root, ["signal_status", "signal"]))
+    warn_status = to_int(_get_text(root, ["warn_status", "warn"]))
+    batterytx_level = to_int(_get_text(root, ["batterytx_level", "battery_tx", "btx"]))
+    rec_type = to_int(_get_text(root, ["rec_type"]))
     ts = _get_text(root, ["time", "timestamp", "datetime"]) or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return {
         "uuid": uuid,
@@ -44,6 +47,9 @@ def parse_sensor_xml(xml_str: str):
         "time": ts,
         "battery_level": battery,
         "signal_status": signal,
+        "warn_status": warn_status,
+        "batterytx_level": batterytx_level,
+        "rec_type": rec_type,
     }
 
 def build_ack_xml(uuid: str, ret: int = 0):

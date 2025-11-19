@@ -17,3 +17,4 @@ TIME_SYNC_DIGITS = os.getenv("TIME_SYNC_DIGITS", "1") == "1"
 UPLOAD_INTERVAL = os.getenv("UPLOAD_INTERVAL", "0005")
 DATA_START_TIME = os.getenv("DATA_START_TIME", "0000")
 DATA_END_TIME = os.getenv("DATA_END_TIME", "2359")
+BTX_LOW = int(os.getenv("BTX_LOW", "30"))
