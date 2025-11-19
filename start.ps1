@@ -14,7 +14,7 @@ Write-Host "Upgrading pip..."
 $mirror = if ($env:PIP_INDEX_URL -and $env:PIP_INDEX_URL -ne "") { $env:PIP_INDEX_URL } else { "https://pypi.tuna.tsinghua.edu.cn/simple" }
 & $py -m pip install --upgrade pip -i $mirror
 Write-Host "Installing dependencies..."
-& $py -m pip install fastapi "uvicorn[standard]" aiosqlite -i $mirror
+& $py -m pip install fastapi "uvicorn[standard]" aiosqlite python-multipart -i $mirror
 if ($env:DB_DRIVER -and $env:DB_DRIVER.ToLower() -eq "mysql") { & $py -m pip install aiomysql -i $mirror }
 if (-not $env:DB_SQLITE_PATH -or $env:DB_SQLITE_PATH -eq "") { $env:DB_SQLITE_PATH = (Join-Path $root "data\infrared.db") }
 New-Item -ItemType Directory -Force -Path (Join-Path $root "data") | Out-Null

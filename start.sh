@@ -13,7 +13,7 @@ echo "Upgrading pip..."
 MIRROR="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 "$PY" -m pip install --upgrade pip -i "$MIRROR"
 echo "Installing dependencies..."
-"$PY" -m pip install fastapi "uvicorn[standard]" aiosqlite -i "$MIRROR"
+"$PY" -m pip install fastapi "uvicorn[standard]" aiosqlite python-multipart -i "$MIRROR"
 if [ "${DB_DRIVER:-sqlite}" = "mysql" ]; then "$PY" -m pip install aiomysql -i "$MIRROR"; fi
 mkdir -p "$ROOT/data"
 export DB_SQLITE_PATH="$ROOT/data/infrared.db"
