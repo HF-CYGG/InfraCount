@@ -343,12 +343,24 @@ async def stats_daily(uuid: str, start: str | None, end: str | None):
         global _sqlite
         if _sqlite is None:
             await init_sqlite()
-        sql = "SELECT substr(time,1,10) AS day, SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE uuid=?"
-        params = [uuid]
+        # 统一按天分组，兼容 "YYYY-MM-DD HH:MM:SS" 与 "YYYYMMDDHHMMSS"
+        sql = (
+            "SELECT "
+            "CASE WHEN instr(time,'-')=0 THEN substr(time,1,4)||'-'||substr(time,5,2)||'-'||substr(time,7,2) "
+            "     ELSE substr(time,1,10) END AS day, "
+            "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
+            "FROM device_data WHERE uuid=?"
+        )
+        params: list = [uuid]
+        # 兼容开始/结束时间过滤（两种格式）
         if start:
-            sql += " AND time>=?"; params.append(start)
+            start_digits = str(start).replace('-', '').replace(' ', '').replace(':', '')
+            sql += " AND ((instr(time,'-')=0 AND time>=?) OR (instr(time,'-')>0 AND time>=?))"
+            params.extend([start_digits, start])
         if end:
-            sql += " AND time<=?"; params.append(end)
+            end_digits = str(end).replace('-', '').replace(' ', '').replace(':', '')
+            sql += " AND ((instr(time,'-')=0 AND time<=?) OR (instr(time,'-')>0 AND time<=?))"
+            params.extend([end_digits, end])
         sql += " GROUP BY day ORDER BY day ASC"
         if _sqlite:
             cur = await _sqlite.execute(sql, params)
@@ -361,12 +373,22 @@ async def stats_daily(uuid: str, start: str | None, end: str | None):
         await init_pool()
     if _pool is None:
         return []
-    sql = "SELECT DATE(time) AS day, SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE uuid=%s"
+    # MySQL: time 为 VARCHAR，兼容两种时间格式，统一按天分组
+    sql = (
+        "SELECT "
+        "CASE WHEN INSTR(time,'-')=0 THEN CONCAT(SUBSTR(time,1,4),'-',SUBSTR(time,5,2),'-',SUBSTR(time,7,2)) "
+        "     ELSE SUBSTR(time,1,10) END AS day, "
+        "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
+        "FROM device_data WHERE uuid=%s"
+    )
     params = [uuid]
     if start:
-        sql += " AND time>=%s"; params.append(start)
+        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') <= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time>=%s))"
+        # 注意：使用参数两次，顺序与 SQL 对应
+        params.extend([start, start])
     if end:
-        sql += " AND time<=%s"; params.append(end)
+        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') >= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time<=%s))"
+        params.extend([end, end])
     sql += " GROUP BY day ORDER BY day ASC"
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -379,24 +401,41 @@ async def stats_hourly(uuid: str, date: str):
         global _sqlite
         if _sqlite is None:
             await init_sqlite()
-        sql = "SELECT substr(time,12,2) || ':00' AS hour, SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE uuid=? AND substr(time,1,10)=? GROUP BY hour ORDER BY hour ASC"
+        # 统一小时分组并兼容日期过滤（date 格式为 YYYY-MM-DD）
+        sql = (
+            "SELECT "
+            "CASE WHEN instr(time,'-')=0 THEN substr(time,9,2) || ':00' ELSE substr(time,12,2) || ':00' END AS hour, "
+            "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
+            "FROM device_data WHERE uuid=? AND ("
+            "(instr(time,'-')=0 AND substr(time,1,8)=?) OR (instr(time,'-')>0 AND substr(time,1,10)=?)"
+            ") GROUP BY hour ORDER BY hour ASC"
+        )
+        date_digits = str(date).replace('-', '')
+        params = (uuid, date_digits, date)
         if _sqlite:
-            cur = await _sqlite.execute(sql, (uuid, date))
+            cur = await _sqlite.execute(sql, params)
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
         else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, (uuid, date))
+            rows = await asyncio.to_thread(_sqlite_query_all, sql, params)
             return rows
     if _pool is None:
         await init_pool()
     if _pool is None:
         return []
+    # MySQL: 兼容字符串时间格式的日期匹配与小时分组
     sql = (
-        "SELECT DATE_FORMAT(time, '%H:00') AS hour, SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE uuid=%s AND DATE(time)=%s GROUP BY hour ORDER BY hour ASC"
+        "SELECT "
+        "CASE WHEN INSTR(time,'-')=0 THEN CONCAT(SUBSTR(time,9,2), ':00') ELSE DATE_FORMAT(time, '%H:00') END AS hour, "
+        "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
+        "FROM device_data WHERE uuid=%s AND ("
+        "(INSTR(time,'-')=0 AND SUBSTR(time,1,8)=%s) OR (INSTR(time,'-')>0 AND SUBSTR(time,1,10)=%s)"
+        ") GROUP BY hour ORDER BY hour ASC"
     )
+    date_digits_mysql = date.replace('-', '')
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
-            await cur.execute(sql, (uuid, date))
+            await cur.execute(sql, (uuid, date_digits_mysql, date))
             rows = await cur.fetchall()
             return [{"hour": r[0], "in_total": r[1], "out_total": r[2]} for r in rows]
 

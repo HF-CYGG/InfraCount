@@ -229,55 +229,105 @@ async def dashboard():
     }
     async function loadStats(){
       const uuid = deviceSel.value;
-      const start = startEl.value? startEl.value + ' 00:00:00' : '';
-      const end = endEl.value? endEl.value + ' 23:59:59' : '';
-      const q = new URLSearchParams({uuid});
-      if(start) q.append('start', start);
-      if(end) q.append('end', end);
-      const res = await fetch('/api/v1/stats/daily?' + q.toString());
-      const daily = await res.json();
-      const lab = daily.map(x=>x.day);
-      const inData = daily.map(x=>x.in_total || 0);
-      const outData = daily.map(x=>x.out_total || 0);
-      const ctx = document.getElementById('dailyChart').getContext('2d');
-      if(dailyChart) dailyChart.destroy();
-      dailyChart = new Chart(ctx, {
-        type: 'line',
-        data: {labels: lab, datasets:[
-          {label:'IN', data: inData, borderColor:'#2b8a3e'},
-          {label:'OUT', data: outData, borderColor:'#d9480f'}
-        ]},
-        options: {responsive:true, maintainAspectRatio:false}
-      });
-      const sumRes = await fetch('/api/v1/stats/summary?' + new URLSearchParams({uuid}).toString());
-      const sum = await sumRes.json();
-      document.getElementById('sum_in').innerText = 'IN总计：' + (sum.in_total||0);
-      document.getElementById('sum_out').innerText = 'OUT总计：' + (sum.out_total||0);
-      document.getElementById('sum_net').innerText = '净流量：' + ((sum.in_total||0)-(sum.out_total||0));
-      document.getElementById('sum_last').innerText = '最近上报：' + fmtTime(sum.last_time||'') + ' IN=' + (sum.last_in??'') + ' OUT=' + (sum.last_out??'');
-      const endDate = endEl.value || new Date().toISOString().slice(0,10);
-      const hq = new URLSearchParams({uuid, date: endDate});
-      const hres = await fetch('/api/v1/stats/hourly?' + hq.toString());
-      const hourly = await hres.json();
-      const hLab = hourly.map(x=>x.hour);
-      const hIn = hourly.map(x=>x.in_total||0);
-      const hOut = hourly.map(x=>x.out_total||0);
-      const hctx = document.getElementById('hourChart').getContext('2d');
-      if(hourChart) hourChart.destroy();
-      hourChart = new Chart(hctx, {
-        type: 'bar',
-        data: {labels: hLab, datasets:[
-          {label:'IN', data: hIn, backgroundColor:'#74c69d'},
-          {label:'OUT', data: hOut, backgroundColor:'#f4a261'}
-        ]},
-        options: {responsive:true, maintainAspectRatio:false}
-      });
-      const hist = await (await fetch('/api/v1/data/history?' + new URLSearchParams({uuid, limit: 50}).toString())).json();
-      tbl.innerHTML = '';
-      for(const r of hist){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td>`;
-        tbl.appendChild(tr);
+      if (!uuid) {
+        console.log('No device selected, skipping loadStats.');
+        return;
+      }
+      console.log('--- Running loadStats for', uuid, '---');
+      try {
+        // --- 统一日期范围 ---
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10) + ' 00:00:00';
+        const monthEnd = (endEl.value || now.toISOString().slice(0,10)) + ' 23:59:59';
+        
+        // --- 左侧图表：当月每日IN/OUT ---
+        console.log('Fetching daily stats for left chart...');
+        const dailyQ = new URLSearchParams({uuid, start: monthStart, end: monthEnd});
+        const dailyRes = await fetch('/api/v1/stats/daily?' + dailyQ.toString());
+        if (!dailyRes.ok) throw new Error(`Failed to fetch daily stats: ${dailyRes.status}`);
+        const daily = await dailyRes.json();
+        console.log('Daily stats data:', daily);
+
+        const lab = daily.map(x=>x.day);
+        const inData = daily.map(x=>x.in_total || 0);
+        const outData = daily.map(x=>x.out_total || 0);
+        
+        const ctx = document.getElementById('dailyChart').getContext('2d');
+        if(dailyChart) dailyChart.destroy();
+        dailyChart = new Chart(ctx, {
+          type: 'line',
+          data: {labels: lab, datasets:[
+            {label:'IN', data: inData, borderColor:'#2b8a3e'},
+            {label:'OUT', data: outData, borderColor:'#d9480f'}
+          ]},
+          options: {responsive:true, maintainAspectRatio:false}
+        });
+        console.log('Left chart (dailyChart) rendered.');
+
+        // --- 右侧图表：各设备当月IN总量 ---
+        console.log('Fetching device list for right chart...');
+        const devicesRes = await fetch('/api/v1/devices');
+        if (!devicesRes.ok) throw new Error(`Failed to fetch devices: ${devicesRes.status}`);
+        const devices = await devicesRes.json();
+        console.log('Device list:', devices);
+
+        const labels = devices.map(d=> (d.name ? d.name : d.uuid));
+        const totals = [];
+        console.log('Fetching monthly totals for each device...');
+        for(const d of devices){
+          const dq = new URLSearchParams({uuid: d.uuid, start: monthStart, end: monthEnd});
+          const rowsRes = await fetch('/api/v1/stats/daily?' + dq.toString());
+          if (!rowsRes.ok) {
+            console.error(`Failed to fetch daily stats for device ${d.uuid}: ${rowsRes.status}`);
+            totals.push(0); // Push 0 if fetch fails
+            continue;
+          }
+          const rows = await rowsRes.json();
+          const sumIn = rows.reduce((acc, r)=> acc + (r.in_total||0), 0);
+          totals.push(sumIn);
+        }
+        console.log('Right chart data:', {labels, totals});
+
+        const hctx = document.getElementById('hourChart').getContext('2d');
+        if(hourChart) hourChart.destroy();
+        hourChart = new Chart(hctx, {
+          type: 'bar',
+          data: {labels: labels, datasets:[
+            {label:'IN', data: totals, backgroundColor:'#74c69d'}
+          ]},
+          options: {responsive:true, maintainAspectRatio:false}
+        });
+        console.log('Right chart (hourChart) rendered.');
+
+        // --- 统计概览 & 最近记录 ---
+        console.log('Fetching summary and history...');
+        const sumRes = await fetch('/api/v1/stats/summary?' + new URLSearchParams({uuid}).toString());
+        if (sumRes.ok) {
+            const sum = await sumRes.json();
+            document.getElementById('sum_in').innerText = 'IN总计：' + (sum.in_total||0);
+            document.getElementById('sum_out').innerText = 'OUT总计：' + (sum.out_total||0);
+            document.getElementById('sum_net').innerText = '净流量：' + ((sum.in_total||0)-(sum.out_total||0));
+            document.getElementById('sum_last').innerText = '最近上报：' + fmtTime(sum.last_time||'') + ' IN=' + (sum.last_in??'') + ' OUT=' + (sum.last_out??'');
+        } else {
+            console.error('Failed to fetch summary stats:', sumRes.status);
+        }
+        
+        const histRes = await fetch('/api/v1/data/history?' + new URLSearchParams({uuid, limit: 50}).toString());
+        if (histRes.ok) {
+            const hist = await histRes.json();
+            tbl.innerHTML = '';
+            for(const r of hist){
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td>`;
+              tbl.appendChild(tr);
+            }
+        } else {
+            console.error('Failed to fetch history:', histRes.status);
+        }
+        console.log('Summary and history loaded.');
+
+      } catch (error) {
+        console.error('Error in loadStats:', error);
       }
     }
     document.getElementById('load').addEventListener('click', loadStats);
@@ -315,7 +365,30 @@ async def dashboard():
       const q = new URLSearchParams({uuid}); if(start) q.append('start', start); if(end) q.append('end', end);
       window.open('/api/v1/export/history?' + q.toString(), '_blank');
     });
-    (async()=>{ await loadDevices(); await loadStats(); await buildCompareDevices(); await loadRank(); })();
+    (async()=>{
+      try {
+        console.log('Initial script execution started.');
+        await loadDevices();
+        if(typeof Chart === 'undefined'){
+          console.log('Chart.js not found, attempting to load from CDN...');
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+          s.onload = async ()=>{ 
+            console.log('Chart.js loaded successfully from CDN.');
+            await loadStats(); await buildCompareDevices(); await loadRank(); 
+          };
+          s.onerror = ()=>{
+            console.error('Failed to load Chart.js from CDN. Please check network connection and ad-blockers.');
+          };
+          document.head.appendChild(s);
+        } else {
+          console.log('Chart.js already loaded.');
+          await loadStats(); await buildCompareDevices(); await loadRank();
+        }
+      } catch (e) {
+        console.error('An error occurred during initial page load:', e);
+      }
+    })();
     document.getElementById('downloadDaily').addEventListener('click', ()=>{
       const url = document.getElementById('dailyChart').toDataURL('image/png');
       const a = document.createElement('a'); a.href = url; a.download = 'daily.png'; a.click();
