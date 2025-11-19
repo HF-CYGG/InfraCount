@@ -261,7 +261,7 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
         global _sqlite
         if _sqlite is None:
             await init_sqlite()
-        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE uuid=?"
+        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE uuid=?"
         params = [uuid]
         if start:
             sql += " AND time>=?"; params.append(start)
@@ -285,14 +285,14 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
         where.append("time>=%s"); params.append(start)
     if end:
         where.append("time<=%s"); params.append(end)
-    sql = "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
+    sql = "SELECT uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
     params.append(limit)
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(sql, params)
             rows = await cur.fetchall()
             return [
-                {"uuid": r[0], "in_count": r[1], "out_count": r[2], "time": r[3], "battery_level": r[4], "signal_status": r[5]}
+                {"uuid": r[0], "in_count": r[1], "out_count": r[2], "time": r[3], "battery_level": r[4], "signal_status": r[5], "warn_status": r[6], "batterytx_level": r[7], "rec_type": r[8]}
                 for r in rows
             ]
 
@@ -502,7 +502,7 @@ def _sqlite_query_all(sql: str, params: tuple = ()):
         conn.close()
 
 # Admin utilities: list with count, CRUD operations
-async def admin_count_records(uuid: str | None, start: str | None, end: str | None):
+async def admin_count_records(uuid: str | None, start: str | None, end: str | None, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
     if use_sqlite():
         global _sqlite
         if _sqlite is None:
@@ -517,6 +517,14 @@ async def admin_count_records(uuid: str | None, start: str | None, end: str | No
             sql += " AND time>=?"; params.append(start)
         if end:
             sql += " AND time<=?"; params.append(end)
+        if warn_status is not None:
+            sql += " AND warn_status=?"; params.append(warn_status)
+        if rec_type is not None:
+            sql += " AND rec_type=?"; params.append(rec_type)
+        if batterytx_min is not None:
+            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
+        if batterytx_max is not None:
+            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
         cur = await _sqlite.execute(sql, params)
         row = await cur.fetchone()
         return row[0] if row else 0
@@ -532,13 +540,21 @@ async def admin_count_records(uuid: str | None, start: str | None, end: str | No
         sql += " AND time>=%s"; params.append(start)
     if end:
         sql += " AND time<=%s"; params.append(end)
+    if warn_status is not None:
+        sql += " AND warn_status=%s"; params.append(warn_status)
+    if rec_type is not None:
+        sql += " AND rec_type=%s"; params.append(rec_type)
+    if batterytx_min is not None:
+        sql += " AND batterytx_level>=%s"; params.append(batterytx_min)
+    if batterytx_max is not None:
+        sql += " AND batterytx_level<=%s"; params.append(batterytx_max)
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(sql, params)
             row = await cur.fetchone()
             return row[0] if row else 0
 
-async def admin_list_records(uuid: str | None, start: str | None, end: str | None, offset: int, limit: int):
+async def admin_list_records(uuid: str | None, start: str | None, end: str | None, offset: int, limit: int, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
     if use_sqlite():
         global _sqlite
         if _sqlite is None:
@@ -553,6 +569,14 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
             sql += " AND time>=?"; params.append(start)
         if end:
             sql += " AND time<=?"; params.append(end)
+        if warn_status is not None:
+            sql += " AND warn_status=?"; params.append(warn_status)
+        if rec_type is not None:
+            sql += " AND rec_type=?"; params.append(rec_type)
+        if batterytx_min is not None:
+            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
+        if batterytx_max is not None:
+            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
         sql += " ORDER BY time DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
         cur = await _sqlite.execute(sql, params)
         rows = await cur.fetchall()
@@ -569,6 +593,14 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
         sql += " AND time>=%s"; params.append(start)
     if end:
         sql += " AND time<=%s"; params.append(end)
+    if warn_status is not None:
+        sql += " AND warn_status=%s"; params.append(warn_status)
+    if rec_type is not None:
+        sql += " AND rec_type=%s"; params.append(rec_type)
+    if batterytx_min is not None:
+        sql += " AND batterytx_level>=%s"; params.append(batterytx_min)
+    if batterytx_max is not None:
+        sql += " AND batterytx_level<=%s"; params.append(batterytx_max)
     sql += " ORDER BY time DESC LIMIT %s OFFSET %s"; params.extend([limit, offset])
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -679,15 +711,15 @@ async def _maybe_alert(d: dict):
     btx = d.get("batterytx_level")
     rt = d.get("rec_type")
     msgs = []
-    if bat is not None and bat < 20:
+    if bat is not None and bat < getattr(config, "BAT_LOW", 20):
         msgs.append(("battery_low", bat, f"battery={bat}%"))
-    if sig is not None and sig == 1:
+    if sig is not None and sig == getattr(config, "SIGNAL_OFFLINE_VALUE", 1):
         msgs.append(("signal_offline", sig, "signal offline"))
     if ws is not None and ws != 0:
         msgs.append(("device_warn", ws, f"warn_status={ws}"))
-    if btx is not None and btx < 30:
+    if btx is not None and btx < getattr(config, "BTX_LOW", 30):
         msgs.append(("battery_tx_low", btx, f"batterytx={btx}%"))
-    if rt is not None and rt == 1:
+    if rt is not None and rt == getattr(config, "REC_TYPE_BACKLOG", 1):
         msgs.append(("record_backlog", rt, "rec_type=1"))
     if not msgs:
         return
