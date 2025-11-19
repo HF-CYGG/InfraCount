@@ -256,7 +256,7 @@ async def fetch_latest(uuid: str):
                 "signal_status": row[5],
             }
 
-async def fetch_history(uuid: str, start: str | None, end: str | None, limit: int):
+async def fetch_history(uuid: str, start: str | None, end: str | None, limit: int, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
     if use_sqlite():
         global _sqlite
         if _sqlite is None:
@@ -267,6 +267,14 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
             sql += " AND time>=?"; params.append(start)
         if end:
             sql += " AND time<=?"; params.append(end)
+        if warn_status is not None:
+            sql += " AND warn_status=?"; params.append(warn_status)
+        if rec_type is not None:
+            sql += " AND rec_type=?"; params.append(rec_type)
+        if batterytx_min is not None:
+            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
+        if batterytx_max is not None:
+            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
         sql += " ORDER BY time DESC LIMIT ?"; params.append(limit)
         if _sqlite:
             cur = await _sqlite.execute(sql, params)
@@ -285,6 +293,14 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
         where.append("time>=%s"); params.append(start)
     if end:
         where.append("time<=%s"); params.append(end)
+    if warn_status is not None:
+        where.append("warn_status=%s"); params.append(warn_status)
+    if rec_type is not None:
+        where.append("rec_type=%s"); params.append(rec_type)
+    if batterytx_min is not None:
+        where.append("batterytx_level>=%s"); params.append(batterytx_min)
+    if batterytx_max is not None:
+        where.append("batterytx_level<=%s"); params.append(batterytx_max)
     sql = "SELECT uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
     params.append(limit)
     async with _pool.acquire() as conn:
