@@ -589,6 +589,26 @@ async def admin_delete_record(record_id: int):
             await cur.execute("DELETE FROM device_data WHERE id=%s", (record_id,))
     return True
 
+async def admin_delete_range(uuid: str, start: str, end: str):
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite is None:
+            return 0
+        cur = await _sqlite.execute("DELETE FROM device_data WHERE uuid=? AND time>=? AND time<=?", (uuid, start, end))
+        rc = cur.rowcount if hasattr(cur, "rowcount") else 0
+        await _sqlite.commit()
+        return rc
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return 0
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM device_data WHERE uuid=%s AND time>=%s AND time<=%s", (uuid, start, end))
+            return getattr(cur, "rowcount", 0)
+
 async def admin_create_record(d: dict):
     allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status"]
     data = {k: d.get(k) for k in allowed}

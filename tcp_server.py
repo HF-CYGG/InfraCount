@@ -49,12 +49,14 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                     try:
                         d = parse_sensor_xml(msg["xml"])
                         if d and d.get("uuid"):
+                            ret = 0
                             try:
                                 from app.db import save_device_data
                                 await save_device_data(d)
                             except Exception as e:
                                 logging.error("save_device_data error: %s", e)
-                            ack = build_ack_xml(d["uuid"])
+                                ret = 1
+                            ack = build_ack_xml(d["uuid"], ret)
                             writer.write(ack.encode())
                             await writer.drain()
                             try:
@@ -76,6 +78,16 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                                 pass
                     except Exception as e:
                         logging.error("parse_sensor_xml error: %s", e)
+                        try:
+                            root = ET.fromstring(msg.get("xml") or "")
+                            uuid_el = root.find("uuid") if root is not None else None
+                            uuid = (uuid_el.text.strip() if (uuid_el is not None and uuid_el.text) else "")
+                            if uuid:
+                                ack = build_ack_xml(uuid, 1)
+                                writer.write(ack.encode())
+                                await writer.drain()
+                        except Exception:
+                            pass
                 elif msg["type"] == 0x22:
                     try:
                         root = ET.fromstring(msg["xml"]) if msg.get("xml") else None

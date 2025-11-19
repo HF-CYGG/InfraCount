@@ -8,7 +8,7 @@ from fastapi import Body, UploadFile, Request, WebSocket
 from starlette.staticfiles import StaticFiles
 import os
 from app import config
-from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range
 from app.security import issue_csrf, validate_csrf
 
 pass
@@ -216,6 +216,7 @@ async def dashboard():
     const tbl = document.getElementById('tbl');
     let dailyChart, hourChart, timer;
     function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
+    function fmtSignal(s){ return (s===0 || s==='0') ? '在线' : '离线'; }
     async function loadDevices(){
       const res = await fetch('/api/v1/devices');
       const list = await res.json();
@@ -275,7 +276,7 @@ async def dashboard():
       tbl.innerHTML = '';
       for(const r of hist){
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${r.signal_status??''}</td>`;
+        tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td>`;
         tbl.appendChild(tr);
       }
     }
@@ -391,7 +392,7 @@ async def dashboard():
       adminTbl.innerHTML = '';
       for(const r of (data.items||[])){
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${r.signal_status??''}</td>`;
+        tr.innerHTML = `<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${(r.signal_status===0||r.signal_status==='0')?'在线':'离线'}</td>`;
         adminTbl.appendChild(tr);
       }
       const pages = Math.max(1, Math.ceil(total/pageSize));
@@ -478,15 +479,15 @@ async def page_board():
   <div class='toolbar'>设备：<select id='device'></select> 日期范围：<input id='start' type='date'> - <input id='end' type='date'> <button id='load' class='btn btn-primary'>加载</button> <button id='refreshLatest' class='btn'>加载最新</button> <label><input type='checkbox' id='auto'>自动刷新</label> <button id='today' class='btn'>今天</button> <button id='last7' class='btn'>最近7天</button> <button id='exportDaily' class='btn'>导出日统计CSV</button> <button id='exportHourly' class='btn'>导出小时统计CSV</button> <button id='exportHistory' class='btn'>导出历史CSV</button> <button id='themeToggle' class='btn'>主题</button></div>
   <div class='row'><div class='card'><canvas id='dailyChart' style='height:320px'></canvas></div><div class='card'><canvas id='hourChart' style='height:320px'></canvas></div></div>
   <div class='grid' style='margin-top:16px'><div class='mini' id='sum_in'>IN总计：</div><div class='mini' id='sum_out'>OUT总计：</div><div class='mini' id='sum_net'>净流量：</div><div class='mini' id='sum_last'>最近上报：</div></div>
-  <div class='card' style='margin-top:16px'><h3>最近记录</h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
+  <div class='card' style='margin-top:16px'><h3><a href='/recent' style='text-decoration:none;color:inherit'>最近记录</a></h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
 </div>
 <script>
 document.body.setAttribute('data-theme',(localStorage.getItem('theme')||'light'));
 document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
 document.getElementById('themeToggle').addEventListener('click',()=>{const cur=document.body.getAttribute('data-theme')||'light';const nxt=cur==='light'?'dark':'light';document.body.setAttribute('data-theme',nxt);localStorage.setItem('theme',nxt);});
-const deviceSel=document.getElementById('device');const startEl=document.getElementById('start');const endEl=document.getElementById('end');const autoEl=document.getElementById('auto');const tbl=document.getElementById('tbl');let dailyChart,hourChart,timer,fetchCtl;function fmtTime(s){if(!s)return'';const t=String(s).trim();if(/^[0-9]{14}$/.test(t))return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14);return t;}window.addEventListener('load',()=>{(async()=>{try{await loadDevices();await loadStats();if(typeof Chart==='undefined'){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';s.onload=()=>loadStats();document.head.appendChild(s);}}catch(e){}})();});
+const deviceSel=document.getElementById('device');const startEl=document.getElementById('start');const endEl=document.getElementById('end');const autoEl=document.getElementById('auto');const tbl=document.getElementById('tbl');let dailyChart,hourChart,timer,fetchCtl;function fmtTime(s){if(!s)return'';const t=String(s).trim();if(/^[0-9]{14}$/.test(t))return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14);return t;}function fmtSignal(s){return (s===0||s==='0')?'在线':'离线'}window.addEventListener('load',()=>{(async()=>{try{await loadDevices();await loadStats();if(typeof Chart==='undefined'){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';s.onload=()=>loadStats();document.head.appendChild(s);}}catch(e){}})();});
 async function loadDevices(){const res=await fetch('/api/v1/devices');const list=await res.json();deviceSel.innerHTML='';for(const d of list){const opt=document.createElement('option');opt.value=d.uuid;opt.textContent=(d.name? `${d.name} (${d.uuid})`:d.uuid);deviceSel.appendChild(opt);}}
-async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${r.signal_status??''}</td>`;tbl.appendChild(tr);}}
+async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td>`;tbl.appendChild(tr);}}
 document.getElementById('load').addEventListener('click',loadStats);document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;loadStats();});document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;loadStats();});autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(loadStats,10000);}else{clearInterval(timer);}});document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/history?'+q.toString(),'_blank');});(async()=>{await loadDevices();await loadStats();})();
 document.getElementById('refreshLatest').addEventListener('click',loadLatest);
 async function loadLatest(){const uuid=deviceSel.value;await loadStats();const r=await fetch('/api/v1/data/latest?'+new URLSearchParams({uuid}).toString());const x=await r.json();const t=fmtTime(x.time||'');const inc=x.in_count??x.in??'';const outc=x.out_count??x.out??'';document.getElementById('sum_last').textContent='最近上报：'+t+' IN='+inc+' OUT='+outc;await fetch('/api/v1/device/time-sync/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uuid})});}
@@ -525,7 +526,7 @@ async def page_admin_db():
 <script>
 document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
 const adminTbl=document.getElementById('adminTbl');const filterUuid=document.getElementById('filterUuid');const filterStart=document.getElementById('filterStart');const filterEnd=document.getElementById('filterEnd');const pageInfo=document.getElementById('pageInfo');let page=1,pageSize=20,total=0,showAll=false;
-async function loadAdmin(){const q=new URLSearchParams();if(filterUuid.value)q.append('uuid',filterUuid.value);if(filterStart.value)q.append('start',filterStart.value.replace('T',' '));if(filterEnd.value)q.append('end',filterEnd.value.replace('T',' '));q.append('page',page);q.append('page_size',pageSize);const res=await fetch('/api/v1/admin/records?'+q.toString(),{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});const data=await res.json();total=data.total||0;adminTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count||''}</td><td>${r.out_count||''}</td><td>${r.battery_level||''}</td><td>${r.signal_status||''}</td><td><button class='btn btn-primary' data-id='${r.id}' data-act='edit'>编辑</button> <button class='btn' data-id='${r.id}' data-act='del'>删除</button></td>`;adminTbl.appendChild(tr);}const pages=Math.max(1,Math.ceil(total/pageSize));pageInfo.textContent=`第 ${page}/${pages} 页，共 ${total} 条`;}
+async function loadAdmin(){const q=new URLSearchParams();if(filterUuid.value)q.append('uuid',filterUuid.value);if(filterStart.value)q.append('start',filterStart.value.replace('T',' '));if(filterEnd.value)q.append('end',filterEnd.value.replace('T',' '));q.append('page',page);q.append('page_size',pageSize);const res=await fetch('/api/v1/admin/records?'+q.toString(),{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});const data=await res.json();total=data.total||0;adminTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count||''}</td><td>${r.out_count||''}</td><td>${r.battery_level||''}</td><td>${(r.signal_status===0||r.signal_status==='0')?'在线':'离线'}</td><td><button class='btn btn-primary' data-id='${r.id}' data-act='edit'>编辑</button> <button class='btn' data-id='${r.id}' data-act='del'>删除</button></td>`;adminTbl.appendChild(tr);}const pages=Math.max(1,Math.ceil(total/pageSize));pageInfo.textContent=`第 ${page}/${pages} 页，共 ${total} 条`;}
 document.getElementById('query').addEventListener('click',()=>{page=1;loadAdmin();});document.getElementById('reset').addEventListener('click',()=>{filterUuid.value='';filterStart.value='';filterEnd.value='';page=1;loadAdmin();});document.getElementById('prev').addEventListener('click',()=>{if(page>1){page--;loadAdmin();}});document.getElementById('next').addEventListener('click',()=>{page++;loadAdmin();});document.getElementById('add').addEventListener('click',async()=>{const uuid=prompt('UUID');if(!uuid)return;const time=prompt('时间 YYYY-MM-DD HH:MM:SS',new Date().toISOString().slice(0,19).replace('T',' '));const inc=parseInt(prompt('IN','0')||'0');const outc=parseInt(prompt('OUT','0')||'0');const bat=parseInt(prompt('电量','80')||'0');const sig=parseInt(prompt('信号','1')||'0');await fetch('/api/v1/admin/record/create',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify({uuid,time,in_count:inc,out_count:outc,battery_level:bat,signal_status:sig})});loadAdmin();});
 document.getElementById('showAll').addEventListener('click',()=>{showAll=true;pageSize=100000;page=1;loadAdmin();});
 document.getElementById('paged').addEventListener('click',()=>{showAll=false;pageSize=20;page=1;loadAdmin();});
@@ -611,6 +612,46 @@ document.getElementById('alertQuery').addEventListener('click',loadAlerts);
 """
     return HTMLResponse(content=html)
 
+@app.get("/recent", response_class=HTMLResponse)
+async def page_recent():
+    html = """
+<!doctype html><html><head><meta charset='utf-8'><title>最近记录</title>
+<link rel='stylesheet' href='/static/style.css'>
+<style>
+body{margin:0}
+.wrap{width:98vw;margin:0 auto;padding:8px}
+h2{margin:8px 0 6px;font-size:18px}
+.toolbar{margin:6px 0}
+.table-wrap{min-height:calc(100vh - 70px);height:auto;overflow:visible;border-radius:10px}
+</style>
+</head><body>
+<div class='wrap'>
+  <h2>最近记录</h2>
+  <div class='toolbar'>
+    <input id='filterUuid' placeholder='设备UUID'>
+    <input id='filterStart' type='datetime-local'>
+    <input id='filterEnd' type='datetime-local'>
+    <input id='adminToken' placeholder='Admin Token'>
+    <button class='btn btn-primary' id='query'>查询</button>
+    <button class='btn' id='reset'>重置</button>
+    <button class='btn btn-danger' id='delRange'>删除区间</button>
+  </div>
+  <div class='table-wrap'><table style='width:100%'><thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th><th>操作</th></tr></thead><tbody id='adminTbl'></tbody></table></div>
+  
+</div>
+<script>
+const adminTbl=document.getElementById('adminTbl');const filterUuid=document.getElementById('filterUuid');const filterStart=document.getElementById('filterStart');const filterEnd=document.getElementById('filterEnd');let pageSize=100000;function fmtSignal(s){return (s===0||s==='0')?'在线':'离线'}
+async function loadAdmin(){const q=new URLSearchParams();if(filterUuid.value)q.append('uuid',filterUuid.value);if(filterStart.value)q.append('start',filterStart.value.replace('T',' '));if(filterEnd.value)q.append('end',filterEnd.value.replace('T',' '));q.append('page_size',pageSize);const res=await fetch('/api/v1/admin/records?'+q.toString(),{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});const data=await res.json();adminTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td><td><button class='btn btn-primary' data-id='${r.id}' data-act='edit'>编辑</button> <button class='btn' data-id='${r.id}' data-act='del'>删除</button></td>`;adminTbl.appendChild(tr);} }
+document.getElementById('query').addEventListener('click',()=>{loadAdmin();});
+document.getElementById('reset').addEventListener('click',()=>{filterUuid.value='';filterStart.value='';filterEnd.value='';loadAdmin();});
+adminTbl.addEventListener('click',async(e)=>{const btn=e.target.closest('button');if(!btn)return;const id=parseInt(btn.dataset.id);if(btn.dataset.act==='del'){if(confirm('确认删除?')){await fetch('/api/v1/admin/record/delete',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify({id})});loadAdmin();}}else if(btn.dataset.act==='edit'){const inc=prompt('IN');const outc=prompt('OUT');const bat=prompt('电量');const sig=prompt('信号');const time=prompt('时间 YYYY-MM-DD HH:MM:SS');const payload={id};if(inc)payload.in_count=parseInt(inc);if(outc)payload.out_count=parseInt(outc);if(bat)payload.battery_level=parseInt(bat);if(sig)payload.signal_status=parseInt(sig);if(time)payload.time=time;await fetch('/api/v1/admin/record/update',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify(payload)});loadAdmin();}});
+document.getElementById('delRange').addEventListener('click',async()=>{const uuid=filterUuid.value.trim();const start=filterStart.value?filterStart.value.replace('T',' '):'';const end=filterEnd.value?filterEnd.value.replace('T',' '):'';if(!uuid||!start||!end){alert('请填写UUID、开始和结束时间');return}const ok=confirm(`确认删除区间 ${start} ~ ${end} 的记录?`);if(!ok)return;const res=await fetch('/api/v1/admin/records/delete-range',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify({uuid,start,end})});if(res.ok){alert('删除完成');page=1;loadAdmin();}else{alert('删除失败')}});
+(async()=>{await loadAdmin();})();
+</script>
+</body></html>
+"""
+    return HTMLResponse(content=html)
+
 @app.get("/api/v1/admin/records")
 async def admin_records(request: Request, uuid: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None, page: int = 1, page_size: int = 20):
     if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
@@ -638,6 +679,18 @@ async def admin_record_delete(request: Request, payload: dict = Body(...)):
     rid = int(payload.get("id"))
     ok = await admin_delete_record(rid)
     return {"ok": ok}
+
+@app.post("/api/v1/admin/records/delete-range")
+async def admin_records_delete_range(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    uuid = str(payload.get("uuid", "") or "")
+    start = str(payload.get("start", "") or "")
+    end = str(payload.get("end", "") or "")
+    if not uuid or not start or not end:
+        return Response(status_code=400)
+    cnt = await admin_delete_range(uuid, start, end)
+    return {"ok": True, "deleted": cnt}
 
 @app.post("/api/v1/admin/record/create")
 async def admin_record_create(request: Request, payload: dict = Body(...)):

@@ -46,8 +46,9 @@ def parse_sensor_xml(xml_str: str):
         "signal_status": signal,
     }
 
-def build_ack_xml(uuid: str):
-    return f"<UP_SENSOR_DATA_RES><uuid>{uuid}</uuid><ret>0</ret></UP_SENSOR_DATA_RES>"
+def build_ack_xml(uuid: str, ret: int = 0):
+    r = 0 if ret is None else int(ret)
+    return f"<UP_SENSOR_DATA_RES><uuid>{uuid}</uuid><ret>{r}</ret></UP_SENSOR_DATA_RES>"
 
 def build_time_sync_xml(uuid: str):
     now = datetime.now().strftime("%Y%m%d%H%M%S")
