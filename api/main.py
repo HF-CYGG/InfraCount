@@ -595,14 +595,86 @@ async def page_board():
 <!doctype html><html><head><meta charset='utf-8'><title>数据看板</title>
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.filters{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+.filter-card{border:1px solid #ddd;border-radius:10px;padding:10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.filter-card h4{margin:0 0 8px 0;font-size:14px;color:#333}
+.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-row label{color:#666;font-size:13px}
+.filter-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ant-picker{display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:8px;padding:4px 8px;background:#fff}
+.ant-picker-input input{border:none;outline:none;background:transparent;padding:4px 6px}
+.ant-picker-range-separator{color:#888}
+.filter-hint{font-size:12px;color:#888;margin-top:6px}
+ .btn{transition:transform .3s ease, background-color .3s ease, opacity .3s ease}
+ .btn:hover{transform:translateY(-1px)}
+ .btn:active{transform:scale(0.98)}
+ .btn.loading{position:relative;pointer-events:none;opacity:.85}
+ .btn.loading::after{content:"";position:absolute;right:-26px;top:50%;width:16px;height:16px;border-radius:50%;border:2px solid #999;border-top-color:transparent;transform:translateY(-50%);animation:spin .9s linear infinite}
+ @keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
+ .toast-root{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(680px, 92vw)}
+ .toast{display:flex;align-items:center;justify-content:space-between;border-radius:8px;padding:10px 12px;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.08);opacity:0;transform:translateY(-8px);transition:opacity .3s ease, transform .3s ease}
+ .toast.enter{opacity:1;transform:translateY(0)}
+ .toast.leave{opacity:0;transform:translateY(-8px)}
+ .toast .msg{font-size:14px}
+ .toast .close{background:transparent;border:none;color:inherit;cursor:pointer;font-size:14px}
+ .toast-success{background:#2b8a3e}
+ .toast-warning{background:#f59f00}
+ .toast-error{background:#d9480f}
+ .toast-info{background:#228be6}
+@media (max-width: 768px){.filter-row{flex-direction:column;align-items:flex-start}.filter-actions{flex-direction:column;align-items:flex-start}.ant-picker{width:100%}}
+</style>
 </head><body>
+<div id='toastRoot' class='toast-root'></div>
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <div style='display:flex;align-items:center;justify-content:space-between'>
     <h2 style='margin:0'>红外计数数据看板</h2>
     <div id='allTotals' style='font-weight:600;color:var(--primary)'></div>
   </div>
-  <div class='toolbar'>设备：<select id='device'></select> 日期：<div class="ant-picker ant-picker-range" style='display:inline-flex'><div class="ant-picker-input"><input id='start' type='date' placeholder='开始日期' size='12' autocomplete='off'></div><div class="ant-picker-range-separator"><span aria-label='to' class='ant-picker-separator'><span role='img' aria-label='swap-right' class='anticon anticon-swap-right'><svg focusable='false' data-icon='swap-right' width='1em' height='1em' fill='currentColor' aria-hidden='true' viewBox='0 0 1024 1024'><path d='M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z'></path></svg></span></span></div><div class="ant-picker-input"><input id='end' type='date' placeholder='结束日期' size='12' autocomplete='off'></div></div> 过滤：<input id='filterWarn' type='number' placeholder='warn_status' style='width:90px'> <input id='filterRecType' type='number' placeholder='rec_type' style='width:90px'> <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:110px'> <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:110px'> <button id='load' class='btn btn-primary'>加载</button> <button id='refreshLatest' class='btn'>加载最新</button> <label><input type='checkbox' id='auto'>自动刷新</label> <button id='today' class='btn'>今天</button> <button id='last7' class='btn'>最近7天</button> <button id='resetFilter' class='btn'>重置</button> <button id='exportDaily' class='btn'>导出日统计CSV</button> <button id='exportHourly' class='btn'>导出小时统计CSV</button> <button id='exportHistory' class='btn'>导出历史CSV</button> <button id='themeToggle' class='btn'>主题</button></div>
+  <div class='filters'>
+    <div class='filter-card'>
+      <h4>主筛选</h4>
+      <div class='filter-row'>
+        <label>设备</label>
+        <select id='device'></select>
+        <label>日期</label>
+        <div class="ant-picker ant-picker-range"><div class="ant-picker-input"><input id='start' type='date' placeholder='开始日期' size='12' autocomplete='off'></div><div class="ant-picker-range-separator"><span aria-label='to' class='ant-picker-separator'><span role='img' aria-label='swap-right' class='anticon anticon-swap-right'><svg focusable='false' data-icon='swap-right' width='1em' height='1em' fill='currentColor' aria-hidden='true' viewBox='0 0 1024 1024'><path d='M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z'></path></svg></span></span></div><div class="ant-picker-input"><input id='end' type='date' placeholder='结束日期' size='12' autocomplete='off'></div></div>
+      </div>
+      <div class='filter-hint'>选择开始与结束日期后生效</div>
+    </div>
+    <div class='filter-card'>
+      <h4>操作</h4>
+      <div class='filter-actions'>
+        <button id='load' class='btn btn-primary'>加载数据</button>
+        <button id='resetFilter' class='btn'>重置筛选</button>
+        <button id='today' class='btn'>今天</button>
+        <button id='last7' class='btn'>最近7天</button>
+        <button id='refreshLatest' class='btn'>加载最新</button>
+        <label><input type='checkbox' id='auto'>自动刷新</label>
+        <button id='themeToggle' class='btn'>主题</button>
+      </div>
+    </div>
+    <details class='filter-card'>
+      <summary><h4 style='display:inline'>高级筛选</h4></summary>
+      <div class='filter-row' style='margin-top:8px'>
+        <input id='filterWarn' type='number' placeholder='warn_status' style='width:120px'>
+        <input id='filterRecType' type='number' placeholder='rec_type' style='width:120px'>
+        <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:140px'>
+        <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:140px'>
+      </div>
+    </details>
+    <details class='filter-card'>
+      <summary><h4 style='display:inline'>页面操作</h4></summary>
+      <div class='filter-actions' style='margin-top:8px'>
+        <button id='exportDaily' class='btn'>导出日统计CSV</button>
+        <button id='exportHourly' class='btn'>导出小时统计CSV</button>
+        <button id='exportHistory' class='btn'>导出历史CSV</button>
+        <button id='runToastTests' class='btn'>消息系统测试</button>
+        <button id='runAnimPerf' class='btn'>动画性能测试</button>
+      </div>
+    </details>
+  </div>
   <div class='row'><div class='card'><canvas id='dailyChart' style='height:320px'></canvas></div><div class='card'><canvas id='hourChart' style='height:320px'></canvas></div></div>
   <div class='grid' style='margin-top:16px'><div class='mini' id='sum_in'>IN总计：</div><div class='mini' id='sum_out'>OUT总计：</div><div class='mini' id='sum_net'>净流量：</div><div class='mini' id='sum_last'>最近上报：</div></div>
   <div class='card' style='margin-top:16px'><h3><a href='/history' style='text-decoration:none;color:inherit'>设备记录</a></h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
@@ -615,8 +687,24 @@ const deviceSel=document.getElementById('device');const startEl=document.getElem
 async function loadDevices(){const res=await fetch('/api/v1/devices');const list=await res.json();deviceSel.innerHTML='';for(const d of list){const opt=document.createElement('option');opt.value=d.uuid;opt.textContent=(d.name? `${d.name} (${d.uuid})`:d.uuid);deviceSel.appendChild(opt);}}
 async function loadAllTotals(){const r=await fetch('/api/v1/stats/total');if(!r.ok)return;const j=await r.json();document.getElementById('allTotals').textContent='全部设备 IN: '+(j.in_total||0)+'  OUT: '+(j.out_total||0)}
 async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});if(filterWarn&&filterWarn.value)hparams.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)hparams.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)hparams.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)hparams.append('batterytx_max',filterBtxMax.value);const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;tbl.appendChild(tr);}}
-document.getElementById('load').addEventListener('click',()=>{loadStats();loadAllTotals()});document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;loadStats();loadAllTotals()});document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;loadStats();loadAllTotals()});document.getElementById('resetFilter').addEventListener('click',()=>{deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';autoEl.checked=false;if(timer)clearInterval(timer);loadStats();loadAllTotals()});autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(()=>{loadStats();loadAllTotals()},10000);}else{clearInterval(timer);}});document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);window.open('/api/v1/export/history?'+q.toString(),'_blank');});(async()=>{await loadDevices();await loadStats();await loadAllTotals();})();
+document.getElementById('load').addEventListener('click',async(e)=>{const b=e.currentTarget;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
+document.getElementById('today').addEventListener('click',async(e)=>{const b=e.currentTarget;const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
+document.getElementById('last7').addEventListener('click',async(e)=>{const b=e.currentTarget;const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
+document.getElementById('resetFilter').addEventListener('click',async(e)=>{const b=e.currentTarget;deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';autoEl.checked=false;if(timer)clearInterval(timer);b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
+autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(()=>{loadStats();loadAllTotals()},10000);}else{clearInterval(timer);}});
+document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});
+document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});
+document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);window.open('/api/v1/export/history?'+q.toString(),'_blank');});
+(async()=>{await loadDevices();await loadStats();await loadAllTotals();})();
+document.getElementById('runToastTests').addEventListener('click',()=>{const types=['info','success','warning','error'];const tr=document.getElementById('toastRoot');if(!tr)return;types.forEach((t,i)=>{setTimeout(()=>{const d=document.createElement('div');d.className='toast toast-'+t;const m=document.createElement('div');m.className='msg';m.textContent='测试 '+t;const c=document.createElement('button');c.className='close';c.textContent='×';d.appendChild(m);d.appendChild(c);tr.appendChild(d);requestAnimationFrame(()=>{d.classList.add('enter')});setTimeout(()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)},3000);c.addEventListener('click',()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)});},i*300)})});
+document.getElementById('runAnimPerf').addEventListener('click',()=>{let frames=0;const start=performance.now();function step(ts){frames++;if(ts-start<1000){requestAnimationFrame(step);}else{const tr=document.getElementById('toastRoot');if(!tr)return;const d=document.createElement('div');d.className='toast toast-info';const m=document.createElement('div');m.className='msg';m.textContent='1s帧数:'+frames;const c=document.createElement('button');c.className='close';c.textContent='×';d.appendChild(m);d.appendChild(c);tr.appendChild(d);requestAnimationFrame(()=>{d.classList.add('enter')});setTimeout(()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)},3000);c.addEventListener('click',()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)});}}requestAnimationFrame(step)});
 document.getElementById('refreshLatest').addEventListener('click',loadLatest);
+document.getElementById('load').addEventListener('click',()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
+document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
+document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
+document.getElementById('resetFilter').addEventListener('click',()=>{localStorage.removeItem('dashboardFilters');},{capture:true});
+if(autoEl)autoEl.addEventListener('change',()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));});
+let debounceT;function debounceSave(){if(debounceT)clearTimeout(debounceT);debounceT=setTimeout(()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},200);}startEl.addEventListener('change',debounceSave);endEl.addEventListener('change',debounceSave);
 async function loadLatest(){const uuid=deviceSel.value;await loadStats();const r=await fetch('/api/v1/data/latest?'+new URLSearchParams({uuid}).toString());const x=await r.json();const t=fmtTime(x.time||'');const inc=x.in_count??x.in??'';const outc=x.out_count??x.out??'';document.getElementById('sum_last').textContent='最近上报：'+t+' IN='+inc+' OUT='+outc;await fetch('/api/v1/device/time-sync/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uuid})});}
 </script>
 <script>
