@@ -8,7 +8,7 @@ from fastapi import Body, UploadFile, Request, WebSocket
 from starlette.staticfiles import StaticFiles
 import os
 from app import config
-from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, stats_total as db_stats_total, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range
 from app.security import issue_csrf, validate_csrf
 
 pass
@@ -85,6 +85,10 @@ async def stats_hourly(uuid: str, date: str):
 async def stats_summary(uuid: str):
     return await db_stats_summary(uuid)
 
+@app.get("/api/v1/stats/total")
+async def stats_total(start: Optional[str] = None, end: Optional[str] = None):
+    return await db_stats_total(start, end)
+
 # 可视化Dashboard（HTMLResponse，无需模板）
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
@@ -98,33 +102,60 @@ async def dashboard():
   <style>
     body{font-family:system-ui,Arial;margin:24px}
     .row{display:flex;gap:24px;flex-wrap:wrap}
-    .card{border:1px solid #ddd;border-radius:8px;padding:16px;flex:1;min-width:320px}
+    .card{border:1px solid #ddd;border-radius:10px;padding:16px;flex:1;min-width:320px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
     .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .mini{border:1px solid #eee;border-radius:6px;padding:10px;background:#fafafa}
+    .mini{border:1px solid #eee;border-radius:8px;padding:10px;background:#fafafa}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid #eee;padding:8px;text-align:left;font-size:13px}
     .tabs{display:flex;gap:12px;margin:12px 0}
     .tab{padding:8px 12px;border-radius:6px;background:#e9ecef;cursor:pointer}
     .tab.active{background:#ced4da}
     .hidden{display:none}
-    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-    .btn{padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
-    .btn-primary{background:#2b8a3e;color:#fff;border:0}
-    .btn-danger{background:#d9480f;color:#fff;border:0}
+    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+    .btn{padding:8px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .btn:hover{border-color:#58a6ff;box-shadow:0 0 0 2px rgba(88,166,255,.2)}
+    .btn-primary{background:#2b8a3e;color:#fff;border:1px solid #2b8a3e}
+    .btn-danger{background:#d9480f;color:#fff;border:1px solid #d9480f}
+    input,select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;background:#fff}
+    .filter-bar{background:#f8f9fa;border:1px solid #e5e7eb;padding:12px;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
+    .filter-bar .field{display:flex;align-items:center;gap:8px}
+    .filter-bar .spacer{flex:1}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
+    .chip input{accent-color:#2b8a3e}
+    .ant-picker{display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:8px;padding:4px 8px;background:#fff}
+    .ant-picker-input input{border:none;outline:none;background:transparent;padding:4px 6px}
+    .ant-picker-range-separator{color:#888}
+    .ant-picker-clear{cursor:pointer;color:#bbb;margin-left:4px}
   </style>
 </head>
 <body>
-  <h2>红外计数数据可视化</h2>
-  <div>
-    设备：<select id="device"></select>
-    日期范围：<input id="start" type="date"> - <input id="end" type="date">
-    <button id="load">加载</button>
-    <label><input type="checkbox" id="auto">自动刷新</label>
-    <button id="today">今天</button>
-    <button id="last7">最近7天</button>
-    <button id="exportDaily">导出日统计CSV</button>
-    <button id="exportHourly">导出小时统计CSV</button>
-    <button id="exportHistory">导出历史CSV</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <h2 style="margin:0">红外计数数据可视化</h2>
+    <div id="allTotals" style="font-weight:600;color:#2b8a3e"></div>
+  </div>
+  <div class="toolbar filter-bar">
+    <div class="field">
+      <span>设备</span>
+      <select id="device"></select>
+    </div>
+    <div class="field">
+      <span>日期</span>
+      <div class="ant-picker ant-picker-range">
+        <div class="ant-picker-input"><input id="start" type="date" placeholder="开始日期" size="12" autocomplete="off"></div>
+        <div class="ant-picker-range-separator"><span aria-label="to" class="ant-picker-separator"><span role="img" aria-label="swap-right" class="anticon anticon-swap-right"><svg focusable="false" data-icon="swap-right" width="1em" height="1em" fill="currentColor" aria-hidden="true" viewBox="0 0 1024 1024"><path d="M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z"></path></svg></span></span></div>
+        <div class="ant-picker-input"><input id="end" type="date" placeholder="结束日期" size="12" autocomplete="off"></div>
+        <span class="ant-picker-clear" id="dateClear" title="清除">×</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="load">加载</button>
+    <label class="chip"><input type="checkbox" id="auto"> 自动刷新</label>
+    <button class="btn" id="today">今天</button>
+    <button class="btn" id="last7">最近7天</button>
+    <button class="btn" id="resetFilter">重置</button>
+    <div class="spacer"></div>
+    <button class="btn" id="exportDaily">导出日统计CSV</button>
+    <button class="btn" id="exportHourly">导出小时统计CSV</button>
+    <button class="btn" id="exportHistory">导出历史CSV</button>
   </div>
   <div class="row" style="margin-top:16px">
     <div class="card"><canvas id="dailyChart" style="height:320px"></canvas></div>
@@ -164,9 +195,10 @@ async def dashboard():
   <div class="card" style="margin-top:16px">
     <h3>最近记录</h3>
     <table>
-      <thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th><th>告警</th><th>Tx电量</th><th>记录类型</th></tr></thead>
+      <thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead>
       <tbody id="tbl"></tbody>
     </table>
+    <div id="hourDate" class="mini"></div>
   </div>
   <div class="tabs">
     <div class="tab" data-tab="db">数据库管理</div>
@@ -215,8 +247,17 @@ async def dashboard():
     const autoEl = document.getElementById('auto');
     const tbl = document.getElementById('tbl');
     let dailyChart, hourChart, timer;
+    async function loadAllTotals(){
+      const res = await fetch('/api/v1/stats/total');
+      if(!res.ok){ return; }
+      const d = await res.json();
+      const el = document.getElementById('allTotals');
+      el.textContent = '全部设备 IN: ' + (d.in_total||0) + '  OUT: ' + (d.out_total||0);
+    }
     function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
     function fmtSignal(s){ return (s===0 || s==='0') ? '在线' : '离线'; }
+    function fmtTxOnline(s){ return (s===0 || s==='0') ? '在线' : '离线'; }
+    function fmtRecType(t){ return (t===1 || t==='1') ? '实时数据' : ((t===2 || t==='2') ? '历史数据' : (t??'')); }
     async function loadDevices(){
       const res = await fetch('/api/v1/devices');
       const list = await res.json();
@@ -264,40 +305,31 @@ async def dashboard():
         });
         console.log('Left chart (dailyChart) rendered.');
 
-        // --- 右侧图表：各设备当月IN总量 ---
-        console.log('Fetching device list for right chart...');
-        const devicesRes = await fetch('/api/v1/devices');
-        if (!devicesRes.ok) throw new Error(`Failed to fetch devices: ${devicesRes.status}`);
-        const devices = await devicesRes.json();
-        console.log('Device list:', devices);
-
-        const labels = devices.map(d=> (d.name ? d.name : d.uuid));
-        const totals = [];
-        console.log('Fetching monthly totals for each device...');
-        for(const d of devices){
-          const dq = new URLSearchParams({uuid: d.uuid, start: monthStart, end: monthEnd});
-          const rowsRes = await fetch('/api/v1/stats/daily?' + dq.toString());
-          if (!rowsRes.ok) {
-            console.error(`Failed to fetch daily stats for device ${d.uuid}: ${rowsRes.status}`);
-            totals.push(0); // Push 0 if fetch fails
-            continue;
+        // --- 右侧图表：所选设备当日按小时IN/OUT ---
+        let usedDate = (endEl.value || new Date().toISOString().slice(0,10));
+        let hourlyRes = await fetch('/api/v1/stats/hourly?' + new URLSearchParams({uuid, date: usedDate}).toString());
+        if (!hourlyRes.ok) throw new Error(`Failed to fetch hourly stats: ${hourlyRes.status}`);
+        let hourly = await hourlyRes.json();
+        let sumHour = hourly.reduce((a,x)=> a + (x.in_total||0) + (x.out_total||0), 0);
+        if(!hourly.length || sumHour===0){
+          const latestRes = await fetch('/api/v1/data/history?' + new URLSearchParams({uuid, limit: 1}).toString());
+          if(latestRes.ok){
+            const latest = await latestRes.json();
+            if(latest && latest.length>0){
+              const tt = String(latest[0].time||'');
+              usedDate = (/^[0-9]{14}$/.test(tt)) ? (tt.slice(0,4)+'-'+tt.slice(4,6)+'-'+tt.slice(6,8)) : tt.slice(0,10);
+              const h2 = await fetch('/api/v1/stats/hourly?' + new URLSearchParams({uuid, date: usedDate}).toString());
+              if(h2.ok){ hourly = await h2.json(); }
+            }
           }
-          const rows = await rowsRes.json();
-          const sumIn = rows.reduce((acc, r)=> acc + (r.in_total||0), 0);
-          totals.push(sumIn);
         }
-        console.log('Right chart data:', {labels, totals});
-
+        const hLab = hourly.map(x=>x.hour);
+        const hIn = hourly.map(x=>x.in_total||0);
+        const hOut = hourly.map(x=>x.out_total||0);
         const hctx = document.getElementById('hourChart').getContext('2d');
         if(hourChart) hourChart.destroy();
-        hourChart = new Chart(hctx, {
-          type: 'bar',
-          data: {labels: labels, datasets:[
-            {label:'IN', data: totals, backgroundColor:'#74c69d'}
-          ]},
-          options: {responsive:true, maintainAspectRatio:false}
-        });
-        console.log('Right chart (hourChart) rendered.');
+        hourChart = new Chart(hctx, {type: 'bar', data: {labels: hLab, datasets:[{label:'IN', data: hIn, backgroundColor:'#74c69d'},{label:'OUT', data: hOut, backgroundColor:'#f4a261'}]}, options: {responsive:true, maintainAspectRatio:false}});
+        const dtEl = document.getElementById('hourDate'); if(dtEl) dtEl.textContent = '右侧图日期：' + usedDate;
 
         // --- 统计概览 & 最近记录 ---
         console.log('Fetching summary and history...');
@@ -318,7 +350,7 @@ async def dashboard():
             tbl.innerHTML = '';
             for(const r of hist){
               const tr = document.createElement('tr');
-              tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td>`;
+              tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;
               tbl.appendChild(tr);
             }
         } else {
@@ -330,7 +362,7 @@ async def dashboard():
         console.error('Error in loadStats:', error);
       }
     }
-    document.getElementById('load').addEventListener('click', loadStats);
+    document.getElementById('load').addEventListener('click', ()=>{ loadStats(); loadAllTotals(); });
     document.getElementById('today').addEventListener('click', ()=>{
       const d = new Date().toISOString().slice(0,10);
       startEl.value = d; endEl.value = d; loadStats();
@@ -341,9 +373,18 @@ async def dashboard():
       const start = new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);
       startEl.value = start; endEl.value = end; loadStats();
     });
+    document.getElementById('resetFilter').addEventListener('click', ()=>{
+      deviceSel.selectedIndex = 0;
+      startEl.value = '';
+      endEl.value = '';
+      autoEl.checked = false;
+      if(timer) { clearInterval(timer); }
+      loadStats();
+      loadAllTotals();
+    });
     autoEl.addEventListener('change', ()=>{
       if(autoEl.checked){
-        timer = setInterval(loadStats, 10000);
+        timer = setInterval(()=>{ loadStats(); loadAllTotals(); }, 10000);
       } else { clearInterval(timer); }
     });
     document.getElementById('exportDaily').addEventListener('click', ()=>{
@@ -373,9 +414,9 @@ async def dashboard():
           console.log('Chart.js not found, attempting to load from CDN...');
           const s = document.createElement('script');
           s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-          s.onload = async ()=>{ 
+        s.onload = async ()=>{ 
             console.log('Chart.js loaded successfully from CDN.');
-            await loadStats(); await buildCompareDevices(); await loadRank(); 
+            await loadStats(); await buildCompareDevices(); await loadRank(); await loadAllTotals();
           };
           s.onerror = ()=>{
             console.error('Failed to load Chart.js from CDN. Please check network connection and ad-blockers.');
@@ -383,7 +424,7 @@ async def dashboard():
           document.head.appendChild(s);
         } else {
           console.log('Chart.js already loaded.');
-          await loadStats(); await buildCompareDevices(); await loadRank();
+          await loadStats(); await buildCompareDevices(); await loadRank(); await loadAllTotals();
         }
       } catch (e) {
         console.error('An error occurred during initial page load:', e);
@@ -398,6 +439,15 @@ async def dashboard():
       const a = document.createElement('a'); a.href = url; a.download = 'hour.png'; a.click();
     });
     let compareChart;
+    function dateChanged(){
+      const s = startEl.value; const e = endEl.value;
+      if(s && e){ loadStats(); loadAllTotals(); }
+    }
+    document.getElementById('dateClear').addEventListener('click', ()=>{
+      startEl.value=''; endEl.value=''; loadStats(); loadAllTotals();
+    });
+    startEl.addEventListener('change', dateChanged);
+    endEl.addEventListener('change', dateChanged);
     async function buildCompareDevices(){
       const list = await (await fetch('/api/v1/devices')).json();
       const wrap = document.getElementById('compareDevices');
@@ -546,13 +596,16 @@ async def page_board():
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head><body>
-          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
+          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
-  <h2>红外计数数据看板</h2>
-  <div class='toolbar'>设备：<select id='device'></select> 日期范围：<input id='start' type='date'> - <input id='end' type='date'> 过滤：<input id='filterWarn' type='number' placeholder='warn_status' style='width:90px'> <input id='filterRecType' type='number' placeholder='rec_type' style='width:90px'> <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:110px'> <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:110px'> <button id='load' class='btn btn-primary'>加载</button> <button id='refreshLatest' class='btn'>加载最新</button> <label><input type='checkbox' id='auto'>自动刷新</label> <button id='today' class='btn'>今天</button> <button id='last7' class='btn'>最近7天</button> <button id='exportDaily' class='btn'>导出日统计CSV</button> <button id='exportHourly' class='btn'>导出小时统计CSV</button> <button id='exportHistory' class='btn'>导出历史CSV</button> <button id='themeToggle' class='btn'>主题</button></div>
+  <div style='display:flex;align-items:center;justify-content:space-between'>
+    <h2 style='margin:0'>红外计数数据看板</h2>
+    <div id='allTotals' style='font-weight:600;color:var(--primary)'></div>
+  </div>
+  <div class='toolbar'>设备：<select id='device'></select> 日期：<div class="ant-picker ant-picker-range" style='display:inline-flex'><div class="ant-picker-input"><input id='start' type='date' placeholder='开始日期' size='12' autocomplete='off'></div><div class="ant-picker-range-separator"><span aria-label='to' class='ant-picker-separator'><span role='img' aria-label='swap-right' class='anticon anticon-swap-right'><svg focusable='false' data-icon='swap-right' width='1em' height='1em' fill='currentColor' aria-hidden='true' viewBox='0 0 1024 1024'><path d='M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z'></path></svg></span></span></div><div class="ant-picker-input"><input id='end' type='date' placeholder='结束日期' size='12' autocomplete='off'></div></div> 过滤：<input id='filterWarn' type='number' placeholder='warn_status' style='width:90px'> <input id='filterRecType' type='number' placeholder='rec_type' style='width:90px'> <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:110px'> <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:110px'> <button id='load' class='btn btn-primary'>加载</button> <button id='refreshLatest' class='btn'>加载最新</button> <label><input type='checkbox' id='auto'>自动刷新</label> <button id='today' class='btn'>今天</button> <button id='last7' class='btn'>最近7天</button> <button id='resetFilter' class='btn'>重置</button> <button id='exportDaily' class='btn'>导出日统计CSV</button> <button id='exportHourly' class='btn'>导出小时统计CSV</button> <button id='exportHistory' class='btn'>导出历史CSV</button> <button id='themeToggle' class='btn'>主题</button></div>
   <div class='row'><div class='card'><canvas id='dailyChart' style='height:320px'></canvas></div><div class='card'><canvas id='hourChart' style='height:320px'></canvas></div></div>
   <div class='grid' style='margin-top:16px'><div class='mini' id='sum_in'>IN总计：</div><div class='mini' id='sum_out'>OUT总计：</div><div class='mini' id='sum_net'>净流量：</div><div class='mini' id='sum_last'>最近上报：</div></div>
-  <div class='card' style='margin-top:16px'><h3><a href='/recent' style='text-decoration:none;color:inherit'>最近记录</a></h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
+  <div class='card' style='margin-top:16px'><h3><a href='/history' style='text-decoration:none;color:inherit'>设备记录</a></h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
 </div>
 <script>
 document.body.setAttribute('data-theme',(localStorage.getItem('theme')||'light'));
@@ -560,10 +613,41 @@ document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===
 document.getElementById('themeToggle').addEventListener('click',()=>{const cur=document.body.getAttribute('data-theme')||'light';const nxt=cur==='light'?'dark':'light';document.body.setAttribute('data-theme',nxt);localStorage.setItem('theme',nxt);});
 const deviceSel=document.getElementById('device');const startEl=document.getElementById('start');const endEl=document.getElementById('end');const autoEl=document.getElementById('auto');const tbl=document.getElementById('tbl');const filterWarn=document.getElementById('filterWarn');const filterRecType=document.getElementById('filterRecType');const filterBtxMin=document.getElementById('filterBtxMin');const filterBtxMax=document.getElementById('filterBtxMax');let dailyChart,hourChart,timer,fetchCtl;function fmtTime(s){if(!s)return'';const t=String(s).trim();if(/^[0-9]{14}$/.test(t))return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14);return t;}function fmtSignal(s){return (s===0||s==='0')?'在线':'离线'}window.addEventListener('load',()=>{(async()=>{try{await loadDevices();await loadStats();if(typeof Chart==='undefined'){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';s.onload=()=>loadStats();document.head.appendChild(s);}}catch(e){}})();});
 async function loadDevices(){const res=await fetch('/api/v1/devices');const list=await res.json();deviceSel.innerHTML='';for(const d of list){const opt=document.createElement('option');opt.value=d.uuid;opt.textContent=(d.name? `${d.name} (${d.uuid})`:d.uuid);deviceSel.appendChild(opt);}}
-async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});if(filterWarn&&filterWarn.value)hparams.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)hparams.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)hparams.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)hparams.append('batterytx_max',filterBtxMax.value);const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td><td>${r.warn_status??''}</td><td>${r.batterytx_level??''}</td><td>${r.rec_type??''}</td>`;tbl.appendChild(tr);}}
-document.getElementById('load').addEventListener('click',loadStats);document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;loadStats();});document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;loadStats();});autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(loadStats,10000);}else{clearInterval(timer);}});document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);window.open('/api/v1/export/history?'+q.toString(),'_blank');});(async()=>{await loadDevices();await loadStats();})();
+async function loadAllTotals(){const r=await fetch('/api/v1/stats/total');if(!r.ok)return;const j=await r.json();document.getElementById('allTotals').textContent='全部设备 IN: '+(j.in_total||0)+'  OUT: '+(j.out_total||0)}
+async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});if(filterWarn&&filterWarn.value)hparams.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)hparams.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)hparams.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)hparams.append('batterytx_max',filterBtxMax.value);const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;tbl.appendChild(tr);}}
+document.getElementById('load').addEventListener('click',()=>{loadStats();loadAllTotals()});document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;loadStats();loadAllTotals()});document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;loadStats();loadAllTotals()});document.getElementById('resetFilter').addEventListener('click',()=>{deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';autoEl.checked=false;if(timer)clearInterval(timer);loadStats();loadAllTotals()});autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(()=>{loadStats();loadAllTotals()},10000);}else{clearInterval(timer);}});document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);window.open('/api/v1/export/history?'+q.toString(),'_blank');});(async()=>{await loadDevices();await loadStats();await loadAllTotals();})();
 document.getElementById('refreshLatest').addEventListener('click',loadLatest);
 async function loadLatest(){const uuid=deviceSel.value;await loadStats();const r=await fetch('/api/v1/data/latest?'+new URLSearchParams({uuid}).toString());const x=await r.json();const t=fmtTime(x.time||'');const inc=x.in_count??x.in??'';const outc=x.out_count??x.out??'';document.getElementById('sum_last').textContent='最近上报：'+t+' IN='+inc+' OUT='+outc;await fetch('/api/v1/device/time-sync/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uuid})});}
+</script>
+<script>
+function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}
+function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
+</script>
+</body></html>
+"""
+    return HTMLResponse(content=html)
+@app.get("/history", response_class=HTMLResponse)
+async def page_history():
+    html = """
+<!doctype html><html><head><meta charset='utf-8'><title>历史数据</title>
+<link rel='stylesheet' href='/static/style.css'>
+</head><body>
+          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
+<div class='main'>
+  <h2>历史数据</h2>
+  <div class='toolbar'>设备：<select id='device'></select> 日期范围：<input id='start' type='date'> - <input id='end' type='date'> 过滤：<input id='filterWarn' type='number' placeholder='warn_status' style='width:90px'> <input id='filterRecType' type='number' placeholder='rec_type' style='width:90px'> <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:110px'> <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:110px'> <button id='query' class='btn btn-primary'>查询</button> <button id='reset' class='btn'>重置</button></div>
+  <div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead><tbody id='tbl'></tbody></table></div>
+</div>
+<script>
+document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
+const deviceSel=document.getElementById('device');const startEl=document.getElementById('start');const endEl=document.getElementById('end');const tbl=document.getElementById('tbl');const filterWarn=document.getElementById('filterWarn');const filterRecType=document.getElementById('filterRecType');const filterBtxMin=document.getElementById('filterBtxMin');const filterBtxMax=document.getElementById('filterBtxMax');
+async function loadDevices(){const res=await fetch('/api/v1/devices');const list=await res.json();deviceSel.innerHTML='';for(const d of list){const opt=document.createElement('option');opt.value=d.uuid;opt.textContent=(d.name? `${d.name} (${d.uuid})`:d.uuid);deviceSel.appendChild(opt);}}
+function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}
+function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
+async function loadHistory(){const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);const rows=await (await fetch('/api/v1/data/history?'+q.toString())).json();tbl.innerHTML='';for(const r of rows){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.time||''}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;tbl.appendChild(tr);}}
+document.getElementById('query').addEventListener('click',loadHistory);
+document.getElementById('reset').addEventListener('click',()=>{deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';loadHistory()});
+(async()=>{await loadDevices();await loadHistory();})();
 </script>
 </body></html>
 """
@@ -576,7 +660,7 @@ async def page_admin_db():
 <!doctype html><html><head><meta charset='utf-8'><title>数据管理</title>
 <link rel='stylesheet' href='/static/style.css'>
 </head><body>
-          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
+          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>数据库记录管理</h2>
   <div class='toolbar'>
@@ -618,7 +702,7 @@ async def page_classification():
 <!doctype html><html><head><meta charset='utf-8'><title>设备分类</title>
 <link rel='stylesheet' href='/static/style.css'>
 </head><body>
-          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
+          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>设备分类与名称管理</h2>
   <div class='toolbar'>
@@ -664,7 +748,7 @@ async def page_alerts():
 <!doctype html><html><head><meta charset='utf-8'><title>告警中心</title>
 <link rel='stylesheet' href='/static/style.css'>
 </head><body>
-          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
+          <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>告警中心</h2>
   <div class='toolbar'>
@@ -713,12 +797,12 @@ h2{margin:8px 0 6px;font-size:18px}
     <button class='btn' id='reset'>重置</button>
     <button class='btn btn-danger' id='delRange'>删除区间</button>
   </div>
-  <div class='table-wrap'><table style='width:100%'><thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th><th>warn_status</th><th>Tx电量</th><th>记录类型</th><th>操作</th></tr></thead><tbody id='adminTbl'></tbody></table></div>
+  <div class='table-wrap'><table style='width:100%'><thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th><th>操作</th></tr></thead><tbody id='adminTbl'></tbody></table></div>
   
 </div>
 <script>
-const adminTbl=document.getElementById('adminTbl');const filterUuid=document.getElementById('filterUuid');const filterStart=document.getElementById('filterStart');const filterEnd=document.getElementById('filterEnd');const filterWarn=document.getElementById('filterWarn');const filterRecType=document.getElementById('filterRecType');const filterBtxMin=document.getElementById('filterBtxMin');const filterBtxMax=document.getElementById('filterBtxMax');let pageSize=100000;function fmtSignal(s){return (s===0||s==='0')?'在线':'离线'}
-async function loadAdmin(){const q=new URLSearchParams();if(filterUuid.value)q.append('uuid',filterUuid.value);if(filterStart.value)q.append('start',filterStart.value.replace('T',' '));if(filterEnd.value)q.append('end',filterEnd.value.replace('T',' '));if(filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);q.append('page_size',pageSize);const res=await fetch('/api/v1/admin/records?'+q.toString(),{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});const data=await res.json();adminTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${fmtSignal(r.signal_status)}</td><td>${r.warn_status??''}</td><td>${r.batterytx_level??''}</td><td>${r.rec_type??''}</td><td><button class='btn btn-primary' data-id='${r.id}' data-act='edit'>编辑</button> <button class='btn' data-id='${r.id}' data-act='del'>删除</button></td>`;adminTbl.appendChild(tr);} }
+const adminTbl=document.getElementById('adminTbl');const filterUuid=document.getElementById('filterUuid');const filterStart=document.getElementById('filterStart');const filterEnd=document.getElementById('filterEnd');const filterWarn=document.getElementById('filterWarn');const filterRecType=document.getElementById('filterRecType');const filterBtxMin=document.getElementById('filterBtxMin');const filterBtxMax=document.getElementById('filterBtxMax');let pageSize=100000;function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
+async function loadAdmin(){const q=new URLSearchParams();if(filterUuid.value)q.append('uuid',filterUuid.value);if(filterStart.value)q.append('start',filterStart.value.replace('T',' '));if(filterEnd.value)q.append('end',filterEnd.value.replace('T',' '));if(filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);q.append('page_size',pageSize);const res=await fetch('/api/v1/admin/records?'+q.toString(),{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});const data=await res.json();adminTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td><td><button class='btn btn-primary' data-id='${r.id}' data-act='edit'>编辑</button> <button class='btn' data-id='${r.id}' data-act='del'>删除</button></td>`;adminTbl.appendChild(tr);} }
 document.getElementById('query').addEventListener('click',()=>{loadAdmin();});
 document.getElementById('reset').addEventListener('click',()=>{filterUuid.value='';filterStart.value='';filterEnd.value='';filterWarn.value='';filterRecType.value='';filterBtxMin.value='';filterBtxMax.value='';loadAdmin();});
 adminTbl.addEventListener('click',async(e)=>{const btn=e.target.closest('button');if(!btn)return;const id=parseInt(btn.dataset.id);if(btn.dataset.act==='del'){if(confirm('确认删除?')){await fetch('/api/v1/admin/record/delete',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify({id})});loadAdmin();}}else if(btn.dataset.act==='edit'){const inc=prompt('IN');const outc=prompt('OUT');const bat=prompt('电量');const sig=prompt('信号');const time=prompt('时间 YYYY-MM-DD HH:MM:SS');const payload={id};if(inc)payload.in_count=parseInt(inc);if(outc)payload.out_count=parseInt(outc);if(bat)payload.battery_level=parseInt(bat);if(sig)payload.signal_status=parseInt(sig);if(time)payload.time=time;await fetch('/api/v1/admin/record/update',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify(payload)});loadAdmin();}});
@@ -958,7 +1042,7 @@ async def device_page():
 <!doctype html><html><head><meta charset='utf-8'><title>设备管理</title>
 <link rel='stylesheet' href='/static/style.css'>
 </head><body>
-  <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/admin/db'>数据管理</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a><a class='nav-link' href='/device'>设备编辑</a></div>
+  <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/admin/db'>数据管理</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a><a class='nav-link' href='/device'>设备编辑</a></div>
   <div class='main'>
   <div class="card" style='max-width:920px'>
     <h2>设备名称自定义</h2>

@@ -525,6 +525,47 @@ async def stats_top(metric: str, start: str | None, end: str | None, limit: int)
             rows = await cur.fetchall()
             return [{"uuid": r[0], "total": r[1]} for r in rows]
 
+async def stats_total(start: str | None, end: str | None):
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        sql = "SELECT SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE 1=1"
+        params: list = []
+        if start:
+            sd = str(start).replace('-', '').replace(' ', '').replace(':', '')
+            sql += " AND ((instr(time,'-')=0 AND time>=?) OR (instr(time,'-')>0 AND time>=?))"
+            params.extend([sd, start])
+        if end:
+            ed = str(end).replace('-', '').replace(' ', '').replace(':', '')
+            sql += " AND ((instr(time,'-')=0 AND time<=?) OR (instr(time,'-')>0 AND time<=?))"
+            params.extend([ed, end])
+        if _sqlite:
+            cur = await _sqlite.execute(sql, params)
+            row = await cur.fetchone()
+            return {"in_total": (row[0] or 0) if row else 0, "out_total": (row[1] or 0) if row else 0}
+        else:
+            row = await asyncio.to_thread(_sqlite_query_one, sql, tuple(params))
+            v = list(row.values()) if isinstance(row, dict) and row else []
+            return {"in_total": (v[0] if len(v)>0 else 0) or 0, "out_total": (v[1] if len(v)>1 else 0) or 0}
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return {"in_total": 0, "out_total": 0}
+    sql = "SELECT SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE 1=1"
+    params: list = []
+    if start:
+        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') <= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time>=%s))"
+        params.extend([start, start])
+    if end:
+        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') >= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time<=%s))"
+        params.extend([end, end])
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(sql, params)
+            row = await cur.fetchone()
+            return {"in_total": (row[0] or 0) if row else 0, "out_total": (row[1] or 0) if row else 0}
+
 def _sqlite_exec_sync(sql: str, params: tuple = ()):
     conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
     try:
