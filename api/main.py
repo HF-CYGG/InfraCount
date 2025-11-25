@@ -719,6 +719,7 @@ async def page_history():
     html = """
 <!doctype html><html><head><meta charset='utf-8'><title>历史数据</title>
 <link rel='stylesheet' href='/static/style.css'>
+<style>.table-wrap{min-height:calc(100vh - 70px);height:auto;overflow:visible}</style>
 </head><body>
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
