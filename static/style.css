@@ -1,0 +1,30 @@
+:root{--bg:#ffffff;--card:#f8f9fa;--text:#222;--muted:#555;--border:#ddd;--primary:#2b8a3e;--info:#58a6ff;--success:#00c853;--warn:#f4a261;--danger:#d9480f}
+[data-theme="dark"]{--bg:#0d1117;--card:#161b22;--text:#c9d1d9;--muted:#8b949e;--border:#1f2630;--primary:#2bd47d;--info:#58a6ff;--success:#00e676;--warn:#f4a261;--danger:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;display:flex;background:var(--bg);color:var(--text);font-family:system-ui,Arial,"Noto Sans SC",sans-serif}
+.sidebar{width:220px;background:color-mix(in oklab, var(--bg) 90%, black 10%);height:100vh;padding:16px;border-right:1px solid var(--border)}
+.sidebar a{display:block;margin:8px 0;color:var(--text);text-decoration:none}
+.sidebar a.active{color:var(--primary);font-weight:600}
+.sidebar a:hover{color:var(--info)}
+.main{flex:1;padding:24px}
+.row{display:flex;gap:24px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;flex:1;min-width:320px;box-shadow:0 2px 8px color-mix(in oklab, black 30%, transparent)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mini{border:1px solid var(--border);border-radius:8px;padding:12px;background:color-mix(in oklab, var(--card) 90%, white 10%)}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);cursor:pointer;transition:all .15s ease}
+.btn:hover{border-color:var(--info);box-shadow:0 0 0 2px color-mix(in oklab, var(--info) 20%, transparent)}
+.btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary)}
+.btn-primary:hover{filter:brightness(1.05)}
+input,select{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border)}
+th,td{border:1px solid var(--border);padding:10px;text-align:left;font-size:13px}
+thead th{position:sticky;top:0;background:var(--card)}
+.table-wrap{max-height:300px;overflow:auto}
+/* modal & toast */
+.modal-backdrop{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:360px}
+.toast{position:fixed;right:16px;top:16px;background:#333;color:#fff;padding:8px 12px;border-radius:6px;opacity:.95;display:none}
+canvas{background:transparent}
+@media (max-width:992px){.grid{grid-template-columns:repeat(2,1fr)}.row .card{min-width:280px}}
+@media (max-width:576px){.grid{grid-template-columns:1fr}.row{flex-direction:column}.toolbar{gap:6px}.btn{padding:6px 10px}}

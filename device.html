@@ -1,0 +1,57 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>设备管理</title>
+  <script src="/static/vue.global.prod.js"></script>
+  <style>
+    body{font-family:system-ui,Arial;margin:24px}
+    .card{border:1px solid #ddd;border-radius:8px;padding:16px;max-width:920px}
+    .row{display:flex;gap:8px;margin:8px 0}
+    input{padding:6px 10px;border:1px solid #ddd;border-radius:6px}
+    .btn{padding:6px 12px;border-radius:6px;border:1px solid #ddd;background:#fff;cursor:pointer}
+    .btn-primary{background:#2b8a3e;color:#fff;border:0}
+    .toast{position:fixed;right:16px;top:16px;background:#333;color:#fff;padding:8px 12px;border-radius:6px;opacity:.95}
+  </style>
+</head>
+<body>
+  <div id="device-app" class="card">
+    <h2>设备名称自定义</h2>
+    <div class="row">
+      <input v-model="uuid" placeholder="设备UUID">
+      <input v-model="name" placeholder="显示名称(<=32)">
+      <input v-model="category" placeholder="设备分类">
+    </div>
+    <div class="row">
+      <button class="btn" @click="reset">重置</button>
+      <button class="btn btn-primary" :disabled="loading" @click="save">保存</button>
+      <span v-if="loading">保存中...</span>
+    </div>
+    <div class="row">
+      <input v-model="adminToken" placeholder="Admin Token">
+    </div>
+    <div v-if="toast" class="toast">{{toast}}</div>
+  </div>
+  <script>
+    const { createApp } = Vue;
+    createApp({
+      data(){ return { uuid:'', name:'', category:'', adminToken:'', loading:false, csrf:'', toast:'' } },
+      mounted(){ this.fetchCsrf() },
+      methods:{
+        async fetchCsrf(){ const r = await fetch('/api/v1/csrf'); const j = await r.json(); this.csrf = j.token; },
+        reset(){ this.name=''; this.category=''; },
+        valid(){ const nm = this.name||''; if(nm.length>32) return false; return /^[一-龥A-Za-z0-9 _-]{0,32}$/.test(nm); },
+        async save(){ if(!this.uuid){ this.toastMsg('请输入UUID'); return } if(!this.valid()){ this.toastMsg('名称不合法'); return }
+          this.loading=true; try{
+            const res = await fetch('/api/v1/admin/device/registry/upsert', {method:'POST', headers:{'Content-Type':'application/json','X-Admin-Token': this.adminToken || '', 'X-CSRF-Token': this.csrf || ''}, body: JSON.stringify({uuid:this.uuid,name:this.name,category:this.category})});
+            if(res.ok){ this.toastMsg('保存成功'); this.fetchCsrf() } else { this.toastMsg('保存失败'); }
+          } finally { this.loading=false }
+        },
+        toastMsg(t){ this.toast=t; setTimeout(()=>this.toast='', 2000) }
+      }
+    }).mount('#device-app')
+  </script>
+</body>
+</html>
+
