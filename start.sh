@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+if [ -z "${BASH_VERSION:-}" ]; then if command -v bash >/dev/null 2>&1; then exec bash "$0" "$@"; fi; fi
+set -euo pipefail 2>/dev/null || set -eu
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 if ! command -v python3 >/dev/null 2>&1; then
