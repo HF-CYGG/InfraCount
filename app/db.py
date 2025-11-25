@@ -301,14 +301,14 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
         where.append("batterytx_level>=%s"); params.append(batterytx_min)
     if batterytx_max is not None:
         where.append("batterytx_level<=%s"); params.append(batterytx_max)
-    sql = "SELECT uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
+    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
     params.append(limit)
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(sql, params)
             rows = await cur.fetchall()
             return [
-                {"uuid": r[0], "in_count": r[1], "out_count": r[2], "time": r[3], "battery_level": r[4], "signal_status": r[5], "warn_status": r[6], "batterytx_level": r[7], "rec_type": r[8]}
+                {"id": r[0], "uuid": r[1], "in_count": r[2], "out_count": r[3], "time": r[4], "battery_level": r[5], "signal_status": r[6], "warn_status": r[7], "batterytx_level": r[8], "rec_type": r[9]}
                 for r in rows
             ]
 

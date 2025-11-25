@@ -23,8 +23,25 @@ thead th{position:sticky;top:0;background:var(--card)}
 .table-wrap{max-height:300px;overflow:auto}
 /* modal & toast */
 .modal-backdrop{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:1000}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;width:360px}
+.modal-backdrop.show{display:flex;animation:fadeBackdrop .3s ease-in-out}
+.modal-backdrop.closing{display:flex;animation:fadeBackdropOut .3s ease-in-out}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;width:min(92vw,420px);box-shadow:0 12px 28px rgba(0,0,0,.14);opacity:0;transform:translateY(6px) scale(.98);transition:opacity .3s ease-in-out, transform .3s ease-in-out}
+.modal h3{margin:0 0 12px 0;font-size:18px}
+.modal .form-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.modal .form-row{display:flex;flex-direction:column;gap:6px}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.modal .input{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.modal .input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 2px color-mix(in oklab, var(--info) 20%, transparent)}
+.modal .radio-group{display:flex;gap:12px}
+.modal .input.err{border-color:var(--danger);box-shadow:0 0 0 2px color-mix(in oklab, var(--danger) 20%, transparent)}
+.modal-backdrop.show .modal{opacity:1;transform:translateY(0) scale(1)}
+.modal-backdrop.closing .modal{opacity:0;transform:translateY(6px) scale(.98)}
+@keyframes fadeBackdrop{from{opacity:0}to{opacity:1}}
+@keyframes fadeBackdropOut{from{opacity:1}to{opacity:0}}
+@media (prefers-reduced-motion: reduce){.modal{transition:none}.modal-backdrop.show{animation:none}.modal-backdrop.closing{animation:none}}
 .toast{position:fixed;right:16px;top:16px;background:#333;color:#fff;padding:8px 12px;border-radius:6px;opacity:.95;display:none}
 canvas{background:transparent}
 @media (max-width:992px){.grid{grid-template-columns:repeat(2,1fr)}.row .card{min-width:280px}}
 @media (max-width:576px){.grid{grid-template-columns:1fr}.row{flex-direction:column}.toolbar{gap:6px}.btn{padding:6px 10px}}
+/* operator cell */
+.op-actions{display:flex;gap:8px;flex-wrap:nowrap;align-items:center}
