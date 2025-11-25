@@ -1,1 +1,16 @@
-.venv/
+/.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+/.idea/
+/.vscode/
+/node_modules/
+/dist/
+/*.db
+/.env
+data/device_raw.log
+api/__pycache__/
+app/__pycache__/
+*.sqlite
+*.db
