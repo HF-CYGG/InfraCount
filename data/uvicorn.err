@@ -1,0 +1,6 @@
+INFO:     Will watch for changes in these directories: ['E:\\ÏîÄ¿\\InfraCount']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [29428] using WatchFiles
+INFO:     Started server process [30640]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
