@@ -9,3 +9,8 @@ __pycache__/
 /dist/
 /*.db
 /.env
+data/device_raw.log
+api/__pycache__/
+app/__pycache__/
+*.sqlite
+*.db
