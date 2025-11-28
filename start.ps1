@@ -4,8 +4,8 @@ $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $ROOT
 if (-not (Test-Path "$ROOT\data")) { New-Item -ItemType Directory -Path "$ROOT\data" | Out-Null }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$pyCmd = (Get-Command python -ErrorAction SilentlyContinue)
-if (-not $pyCmd) { $pyCmd = (Get-Command python3 -ErrorAction SilentlyContinue) }
+$pyCmd = (Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1)
+if (-not $pyCmd) { $pyCmd = (Get-Command python3 -ErrorAction SilentlyContinue | Select-Object -First 1) }
 if (-not $pyCmd) { Write-Host "Python not found. Please install Python 3.9+ (x64) and add to PATH." -ForegroundColor Red; exit 1 }
 $PY = "$ROOT\.venv\Scripts\python.exe"
 if (-not (Test-Path "$ROOT\.venv")) { & $pyCmd.Source -m venv "$ROOT\.venv" }
