@@ -187,27 +187,37 @@ async def page_history():
           <div class="ant-picker-input"><input id='end' type='date' placeholder='结束' size='12'></div>
         </div>
       </div>
-      <div class='filter-actions'>
+      <div class='filter-actions' style='position:relative'>
         <button id='query' class='btn btn-primary'>查询</button>
         <button id='reset' class='btn'>重置</button>
+        <button id='toggleAdvanced' class='btn'>高级筛选</button>
         <button id='dataCompletion' class='btn btn-primary' style='background-color:#0ca678;border-color:#0ca678'>数据补全</button>
+        
+        <div id='advancedPopup' class='popup-card'>
+           <div class='form-grid'>
+             <div class='form-row'>
+               <label>告警状态 (0/1)</label>
+               <input id='filterWarn' type='number' class='input' placeholder='warn_status'>
+             </div>
+             <div class='form-row'>
+               <label>记录类型</label>
+               <input id='filterRecType' type='number' class='input' placeholder='1:实时 2:历史'>
+             </div>
+             <div class='form-row full'>
+               <label>Tx电量范围</label>
+               <div style='display:flex;gap:8px'>
+                 <input id='filterBtxMin' type='number' class='input' placeholder='Min' style='flex:1'>
+                 <input id='filterBtxMax' type='number' class='input' placeholder='Max' style='flex:1'>
+               </div>
+             </div>
+             <div class='form-row full'>
+               <label>Admin Token</label>
+               <input id='histAdminToken' class='input' placeholder='输入Token以进行管理操作'>
+             </div>
+           </div>
+        </div>
       </div>
     </div>
-    
-    <details class='filter-card'>
-       <summary><h4 style='display:inline'>高级过滤</h4></summary>
-       <div class='filter-row' style='margin-top:8px'>
-         <input id='filterWarn' type='number' placeholder='告警状态(warn_status)' style='width:140px'>
-         <input id='filterRecType' type='number' placeholder='记录类型(rec_type)' style='width:140px'>
-         <div class='ant-picker' style='padding:0 8px;width:auto'>
-            <span style='font-size:12px;color:var(--text-secondary);margin-right:6px'>Tx电量</span>
-            <input id='filterBtxMin' type='number' placeholder='Min' style='border:none;width:50px;text-align:center;outline:none'>
-            <span style='color:var(--text-secondary);margin:0 2px'>-</span>
-            <input id='filterBtxMax' type='number' placeholder='Max' style='border:none;width:50px;text-align:center;outline:none'>
-         </div>
-         <input id='histAdminToken' placeholder='Admin Token' style='width:140px;margin-left:auto'>
-       </div>
-    </details>
   </div>
   <div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th><th style='width:140px'>操作</th></tr></thead><tbody id='tbl'></tbody></table></div>
 </div>
@@ -221,6 +231,12 @@ function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'
 async function loadHistory(){const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);const rows=await (await fetch('/api/v1/data/history?'+q.toString())).json();tbl.innerHTML='';for(const r of rows){const id=r.id??'';const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td><td style='white-space:nowrap'><span class='op-actions'><button class='btn btn-primary' data-act='edit' data-id='${id}'>✎ 编辑</button><button class='btn' data-act='del' data-id='${id}'>🗑 删除</button></span></td>`;tbl.appendChild(tr);}}
 document.getElementById('query').addEventListener('click',loadHistory);
 document.getElementById('reset').addEventListener('click',()=>{deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';loadHistory()});
+const toggleAdv=document.getElementById('toggleAdvanced');const advPopup=document.getElementById('advancedPopup');
+if(toggleAdv && advPopup){
+  toggleAdv.addEventListener('click',(e)=>{e.stopPropagation();advPopup.classList.toggle('show')});
+  advPopup.addEventListener('click',(e)=>e.stopPropagation());
+  document.addEventListener('click',()=>advPopup.classList.remove('show'));
+}
 (async()=>{await loadDevices();await loadHistory();})();
 </script>
 <div id='histToast' class='toast'></div>

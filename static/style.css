@@ -421,3 +421,51 @@ tr:hover td {
 .ant-picker-range-separator { color: var(--text-secondary); display: flex; align-items: center; padding: 0 4px; }
 .ant-picker-clear { cursor: pointer; color: var(--text-secondary); margin-left: 4px; font-size: 1.1rem; line-height: 1; transition: color 0.2s; }
 .ant-picker-clear:hover { color: var(--danger); }
+
+/* Popup Card */
+.popup-card {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: var(--card);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  z-index: 100;
+  width: 360px;
+  display: none;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.popup-card.show {
+  display: block;
+}
+
+.popup-card .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.popup-card .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.popup-card .form-row.full {
+  grid-column: span 2;
+}
+
+.popup-card label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
