@@ -1043,3 +1043,63 @@ async def admin_write_op(actor: str | None, action: str, target_uuid: str | None
         async with conn.cursor() as cur:
             await cur.execute("CREATE TABLE IF NOT EXISTS ops_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, actor VARCHAR(128), action VARCHAR(64), target_uuid VARCHAR(64), payload TEXT, time DATETIME DEFAULT CURRENT_TIMESTAMP)")
             await cur.execute("INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(%s,%s,%s,%s)", (actor, action, target_uuid, payload))
+
+async def admin_get_categories():
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            cur = await _sqlite.execute("SELECT DISTINCT category FROM device_registry WHERE category IS NOT NULL AND category != ''")
+            rows = await cur.fetchall()
+            return [r[0] for r in rows]
+        return []
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return []
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT DISTINCT category FROM device_registry WHERE category IS NOT NULL AND category != ''")
+            rows = await cur.fetchall()
+            return [r[0] for r in rows]
+
+async def admin_get_uuids():
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            cur = await _sqlite.execute("SELECT DISTINCT uuid FROM device_data UNION SELECT uuid FROM device_registry")
+            rows = await cur.fetchall()
+            return sorted([r[0] for r in rows if r[0]])
+        return []
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return []
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT DISTINCT uuid FROM device_data UNION SELECT uuid FROM device_registry")
+            rows = await cur.fetchall()
+            return sorted([r[0] for r in rows if r[0]])
+
+async def get_device_mapping():
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            cur = await _sqlite.execute("SELECT uuid, name FROM device_registry WHERE name IS NOT NULL AND name != ''")
+            rows = await cur.fetchall()
+            return {r[0]: r[1] for r in rows}
+        return {}
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return {}
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT uuid, name FROM device_registry WHERE name IS NOT NULL AND name != ''")
+            rows = await cur.fetchall()
+            return {r[0]: r[1] for r in rows}

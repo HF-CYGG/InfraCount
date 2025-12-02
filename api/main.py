@@ -8,7 +8,7 @@ from fastapi import Body, UploadFile, Request, WebSocket
 from starlette.staticfiles import StaticFiles
 import os
 from app import config
-from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, stats_total as db_stats_total, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, stats_total as db_stats_total, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range, admin_get_categories, admin_get_uuids, get_device_mapping
 from app.security import issue_csrf, validate_csrf
 
 pass
@@ -544,45 +544,160 @@ async def page_classification():
   <h2>设备分类与名称管理</h2>
   <div class='filters'>
     <div class='filter-card'>
-      <h4>查询</h4>
+      <h4>查询与管理</h4>
       <div class='filter-row'>
-        <input id='regCategory' placeholder='分类' style='width:160px'>
+        <select id='regCategory' style='width:160px;height:38px;border:1px solid var(--border);border-radius:var(--radius);padding:0 8px;outline:none'>
+           <option value=''>全部分类</option>
+        </select>
         <input id='regSearch' placeholder='搜索UUID/名称' style='width:200px'>
         <input id='regToken' placeholder='Admin Token' style='width:160px'>
         <button class='btn btn-primary' id='regQuery'>查询</button>
+        <button class='btn' id='regAdd'>+ 新增/注册设备</button>
       </div>
     </div>
   </div>
-  <div class='table-wrap'><table><thead><tr><th>UUID</th><th>名称</th><th>分类</th><th>操作</th></tr></thead><tbody id='regTbl'></tbody></table></div>
+  <div class='table-wrap'><table><thead><tr><th>UUID</th><th>名称</th><th>分类</th><th style='width:120px'>操作</th></tr></thead><tbody id='regTbl'></tbody></table></div>
   <div class='toolbar' style='margin-top:16px;justify-content:flex-end'>
     <button class='btn' id='regPrev'>上一页</button> 
     <span id='regPageInfo' style='display:flex;align-items:center;padding:0 8px;font-weight:500;color:var(--text-secondary)'></span> 
     <button class='btn' id='regNext'>下一页</button>
   </div>
 </div>
-<div id='editModal' class='modal-backdrop'><div class='modal'><h3>编辑设备名称</h3><div class='form-grid'><div class='form-row'><label>名称</label><input id='editName' class='input' placeholder='显示名称(<=32)'></div></div><div class='actions'><button class='btn' id='editCancel'>取消</button><button class='btn btn-primary' id='editSave'>保存</button></div></div></div>
-<div id='editCatModal' class='modal-backdrop'><div class='modal'><h3>编辑设备分类</h3><div class='form-grid'><div class='form-row'><label>分类</label><input id='editCategory' class='input' placeholder='设备分类(<=32)'></div></div><div class='actions'><button class='btn' id='editCatCancel'>取消</button><button class='btn btn-primary' id='editCatSave'>保存</button></div></div></div>
+
+<div id='deviceModal' class='modal-backdrop'>
+  <div class='modal'>
+    <h3 id='modalTitle'>编辑设备</h3>
+    <div class='form-grid'>
+      <div class='form-row'>
+        <label>设备UUID</label>
+        <select id='editUuid' class='input' style='height:38px;border:1px solid var(--border);border-radius:var(--radius);padding:0 8px;outline:none;background:var(--bg)'></select>
+      </div>
+      <div class='form-row'>
+        <label>显示名称</label>
+        <input id='editName' class='input' placeholder='显示名称(<=32)'>
+      </div>
+      <div class='form-row'>
+        <label>设备分类</label>
+        <input id='editCategory' class='input' list='catList' placeholder='选择或输入分类'>
+        <datalist id='catList'></datalist>
+      </div>
+    </div>
+    <div class='actions'>
+      <button class='btn' id='editCancel'>取消</button>
+      <button class='btn btn-primary' id='editSave'>保存</button>
+    </div>
+  </div>
+</div>
+
 <div id='regToast' class='toast'></div>
 <script>
 document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
 const regTbl=document.getElementById('regTbl');const regCategory=document.getElementById('regCategory');const regSearch=document.getElementById('regSearch');const regToken=document.getElementById('regToken');const regPageInfo=document.getElementById('regPageInfo');let regPage=1,regPageSize=20;
-async function loadRegistry(){const q=new URLSearchParams();if(regCategory.value)q.append('category',regCategory.value);if(regSearch.value)q.append('search',regSearch.value);q.append('page',regPage);q.append('page_size',regPageSize);const res=await fetch('/api/v1/admin/device/registry?'+q.toString(),{headers:{'X-Admin-Token':regToken.value||''}});const data=await res.json();regTbl.innerHTML='';for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.uuid}</td><td>${r.name||''}</td><td>${r.category||''}</td><td><button class='btn btn-primary' data-act='editName' data-uuid='${r.uuid}' data-name='${r.name||''}'>修改名称</button> <button class='btn' data-act='editCategory' data-uuid='${r.uuid}' data-category='${r.category||''}'>修改分类</button></td>`;regTbl.appendChild(tr);}regPageInfo.textContent=`第 ${regPage} 页`;}
+
+async function loadCategories(){
+  try{
+    const r=await fetch('/api/v1/admin/device/categories',{headers:{'X-Admin-Token':regToken.value||''}});
+    if(r.ok){
+      const d=await r.json();
+      const cats=d.categories||[];
+      const current=regCategory.value;
+      regCategory.innerHTML="<option value=''>全部分类</option>"+cats.map(c=>`<option value='${c}'>${c}</option>`).join('');
+      regCategory.value=current;
+      const catList=document.getElementById('catList');
+      catList.innerHTML=cats.map(c=>`<option value='${c}'>`).join('');
+    }
+  }catch(e){}
+}
+
+async function loadUuids(){
+  try{
+    const r=await fetch('/api/v1/admin/device/uuids',{headers:{'X-Admin-Token':regToken.value||''}});
+    if(r.ok){
+      const d=await r.json();
+      const uuids=d.uuids||[];
+      const current=editUuid.value;
+      editUuid.innerHTML="<option value=''>请选择UUID</option>"+uuids.map(u=>`<option value='${u}'>${u}</option>`).join('');
+      if(current) editUuid.value=current;
+    }
+  }catch(e){}
+}
+
+async function loadRegistry(){
+  const q=new URLSearchParams();if(regCategory.value)q.append('category',regCategory.value);if(regSearch.value)q.append('search',regSearch.value);q.append('page',regPage);q.append('page_size',regPageSize);
+  const res=await fetch('/api/v1/admin/device/registry?'+q.toString(),{headers:{'X-Admin-Token':regToken.value||''}});
+  const data=await res.json();
+  regTbl.innerHTML='';
+  for(const r of (data.items||[])){const tr=document.createElement('tr');tr.innerHTML=`<td>${r.uuid}</td><td>${r.name||''}</td><td>${r.category||''}</td><td><button class='btn btn-primary' data-act='edit' data-uuid='${r.uuid}' data-name='${r.name||''}' data-cat='${r.category||''}'>✎ 编辑</button></td>`;regTbl.appendChild(tr);}
+  regPageInfo.textContent=`第 ${regPage} 页`;
+  loadCategories(); 
+}
 function toast(t){const el=document.getElementById('regToast');el.textContent=t;el.style.display='block';setTimeout(()=>el.style.display='none',1500)}
 function validName(n){if(!n) return true; if(n.length>32) return false; return /^[\u4e00-\u9fa5A-Za-z0-9 _-]{0,32}$/.test(n)}
-function validCategory(n){if(!n) return true; if(n.length>32) return false; return /^[\u4e00-\u9fa5A-Za-z0-9 _-]{0,32}$/.test(n)}
-let editingUuid='', csrfToken='';
+
+let csrfToken='';
 async function ensureCsrf(){if(csrfToken) return csrfToken; try{const r=await fetch('/api/v1/csrf'); const j=await r.json(); csrfToken=j.token||'';}catch(e){} return csrfToken}
-function showModal(uuid,name){editingUuid=uuid;document.getElementById('editName').value=name||'';document.getElementById('editModal').style.display='flex'}
-function hideModal(){document.getElementById('editModal').style.display='none'}
-function showCatModal(uuid,cat){editingUuid=uuid;document.getElementById('editCategory').value=cat||'';document.getElementById('editCatModal').style.display='flex'}
-function hideCatModal(){document.getElementById('editCatModal').style.display='none'}
-document.getElementById('editCancel').addEventListener('click',hideModal)
-document.getElementById('editSave').addEventListener('click',async()=>{const name=document.getElementById('editName').value.trim();if(!validName(name)){toast('名称不合法');return}await ensureCsrf();const ok=await fetch('/api/v1/admin/device/registry/'+editingUuid,{method:'PATCH',headers:{'Content-Type':'application/json','X-Admin-Token':regToken.value||'','X-CSRF-Token':csrfToken},body:JSON.stringify({name})});if(ok.ok){toast('保存成功');hideModal();loadRegistry();}else{toast('保存失败')}})
-document.getElementById('editCatCancel').addEventListener('click',hideCatModal)
-document.getElementById('editCatSave').addEventListener('click',async()=>{const category=document.getElementById('editCategory').value.trim();if(!validCategory(category)){toast('分类不合法');return}await ensureCsrf();const ok=await fetch('/api/v1/admin/device/registry/'+editingUuid,{method:'PATCH',headers:{'Content-Type':'application/json','X-Admin-Token':regToken.value||'','X-CSRF-Token':csrfToken},body:JSON.stringify({category})});if(ok.ok){toast('保存成功');hideCatModal();loadRegistry();}else{toast('保存失败')}})
-document.getElementById('regQuery').addEventListener('click',()=>{regPage=1;loadRegistry();});document.getElementById('regPrev').addEventListener('click',()=>{if(regPage>1){regPage--;loadRegistry();}});document.getElementById('regNext').addEventListener('click',()=>{regPage++;loadRegistry();});
-regTbl.addEventListener('click',(e)=>{const b=e.target.closest('button');if(!b)return; if(b.dataset.act==='editName'){showModal(b.dataset.uuid,b.dataset.name)}else if(b.dataset.act==='editCategory'){showCatModal(b.dataset.uuid,b.dataset.category)}})
-(async()=>{await loadRegistry();})();
+
+const modal=document.getElementById('deviceModal');
+const editUuid=document.getElementById('editUuid');
+const editName=document.getElementById('editName');
+const editCategory=document.getElementById('editCategory');
+const modalTitle=document.getElementById('modalTitle');
+
+function showModal(uuid,name,cat,isAdd=false){
+  editUuid.value=uuid||'';
+  editName.value=name||'';
+  editCategory.value=cat||'';
+  editUuid.disabled=!isAdd;
+  modalTitle.textContent=isAdd?'新增设备':'编辑设备';
+  modal.classList.add('show');
+}
+function hideModal(){modal.classList.remove('show')}
+
+document.getElementById('regAdd').addEventListener('click',async ()=>{await loadUuids();showModal('','','',true)});
+document.getElementById('editCancel').addEventListener('click',hideModal);
+modal.addEventListener('click',(e)=>{if(e.target===modal)hideModal()});
+
+document.getElementById('editSave').addEventListener('click',async()=>{
+  const uuid=editUuid.value.trim();
+  const name=editName.value.trim();
+  const category=editCategory.value.trim();
+  
+  if(!uuid){toast('请输入UUID');return}
+  if(!validName(name)){toast('名称不合法');return}
+  if(!validName(category)){toast('分类不合法');return}
+  
+  await ensureCsrf();
+  const btn=document.getElementById('editSave');
+  btn.disabled=true;
+  btn.textContent='保存中...';
+  try{
+    const res=await fetch('/api/v1/admin/device/registry/upsert',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':regToken.value||'','X-CSRF-Token':csrfToken},body:JSON.stringify({uuid,name,category})});
+    if(res.ok){
+      toast('保存成功');
+      hideModal();
+      loadRegistry();
+    }else{
+      toast('保存失败');
+    }
+  }finally{
+    btn.disabled=false;
+    btn.textContent='保存';
+  }
+});
+
+document.getElementById('regQuery').addEventListener('click',()=>{regPage=1;loadRegistry();});
+document.getElementById('regPrev').addEventListener('click',()=>{if(regPage>1){regPage--;loadRegistry();}});
+document.getElementById('regNext').addEventListener('click',()=>{regPage++;loadRegistry();});
+
+regTbl.addEventListener('click',(e)=>{
+  const b=e.target.closest('button');
+  if(!b)return; 
+  if(b.dataset.act==='edit'){
+    showModal(b.dataset.uuid, b.dataset.name, b.dataset.cat, false);
+  }
+});
+
+(async()=>{await loadRegistry();await loadUuids();})();
 </script>
 </body></html>
 """
@@ -830,6 +945,25 @@ async def admin_device_registry_upsert(request: Request, payload: dict = Body(..
         pass
     return {"ok": ok}
 
+@app.get("/api/v1/admin/device/uuids")
+async def get_device_uuids(request: Request):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    uuids = await admin_get_uuids()
+    return {"uuids": uuids}
+
+@app.get("/api/v1/device/mapping")
+async def device_mapping_endpoint():
+    mapping = await get_device_mapping()
+    return {"mapping": mapping}
+
+@app.get("/api/v1/admin/device/categories")
+async def get_device_categories(request: Request):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    cats = await admin_get_categories()
+    return {"categories": cats}
+
 @app.get("/api/v1/csrf")
 async def get_csrf():
     return {"token": issue_csrf()}
@@ -971,6 +1105,8 @@ async def admin_restore(req: Request, file: UploadFile):
         f.write(data)
     await init_sqlite()
     return {"ok": True}
+
+
 @app.get("/device", response_class=HTMLResponse)
 async def device_page():
     return RedirectResponse("/classification")
