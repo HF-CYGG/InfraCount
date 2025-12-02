@@ -112,46 +112,59 @@ async def page_board():
   </div>
   <div class='filters'>
     <div class='filter-card'>
-      <h4>主筛选</h4>
-      <div class='filter-row'>
-        <label>设备</label>
-        <select id='device'></select>
-        <label>日期</label>
-        <div class="ant-picker ant-picker-range"><div class="ant-picker-input"><input id='start' type='date' placeholder='开始日期' size='12' autocomplete='off'></div><div class="ant-picker-range-separator"><span aria-label='to' class='ant-picker-separator'><span role='img' aria-label='swap-right' class='anticon anticon-swap-right'><svg focusable='false' data-icon='swap-right' width='1em' height='1em' fill='currentColor' aria-hidden='true' viewBox='0 0 1024 1024'><path d='M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z'></path></svg></span></span></div><div class="ant-picker-input"><input id='end' type='date' placeholder='结束日期' size='12' autocomplete='off'></div></div>
+      <div class='filter-row' style='justify-content:space-between;margin-bottom:0'>
+        <div style='display:flex;gap:12px;align-items:center;flex-wrap:wrap'>
+          <label>设备</label>
+          <select id='device' style='width:180px'></select>
+          <div class="ant-picker ant-picker-range"><div class="ant-picker-input"><input id='start' type='date' placeholder='开始日期' size='12' autocomplete='off'></div><div class="ant-picker-range-separator"><span aria-label='to' class='ant-picker-separator'><span role='img' aria-label='swap-right' class='anticon anticon-swap-right'><svg focusable='false' data-icon='swap-right' width='1em' height='1em' fill='currentColor' aria-hidden='true' viewBox='0 0 1024 1024'><path d='M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z'></path></svg></span></span></div><div class="ant-picker-input"><input id='end' type='date' placeholder='结束日期' size='12' autocomplete='off'></div></div>
+          <button id='load' class='btn btn-primary'>加载数据</button>
+          <button id='resetFilter' class='btn'>重置</button>
+        </div>
+        <div class='filter-actions' style='position:relative;gap:8px'>
+          <button id='today' class='btn'>今天</button>
+          <button id='last7' class='btn'>最近7天</button>
+          <div style='display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid var(--border);border-radius:var(--radius);height:38px;background:var(--bg)'>
+             <input type='checkbox' id='auto' style='margin:0;width:16px;height:16px'>
+             <label for='auto' style='margin:0;cursor:pointer;font-size:0.85rem;user-select:none'>自动刷新</label>
+          </div>
+          <button id='refreshLatest' class='btn'>加载最新</button>
+          <button id='toggleAdvanced' class='btn'>高级筛选</button>
+          <button id='toggleActions' class='btn'>更多操作</button>
+          <button id='themeToggle' class='btn'>主题</button>
+          
+          <div id='advancedPopup' class='popup-card' style='right:0;left:auto;width:320px;top:110%'>
+             <div class='form-grid'>
+               <div class='form-row'>
+                 <label>告警状态</label>
+                 <input id='filterWarn' type='number' class='input' placeholder='warn_status'>
+               </div>
+               <div class='form-row'>
+                 <label>记录类型</label>
+                 <input id='filterRecType' type='number' class='input' placeholder='rec_type'>
+               </div>
+               <div class='form-row full'>
+                 <label>Tx电量范围</label>
+                 <div style='display:flex;gap:8px'>
+                   <input id='filterBtxMin' type='number' class='input' placeholder='Min' style='flex:1'>
+                   <input id='filterBtxMax' type='number' class='input' placeholder='Max' style='flex:1'>
+                 </div>
+               </div>
+             </div>
+          </div>
+
+          <div id='actionsPopup' class='popup-card' style='right:0;left:auto;width:240px;top:110%'>
+             <div style='display:flex;flex-direction:column;gap:8px'>
+                <button id='exportDaily' class='btn' style='width:100%;justify-content:flex-start'>📄 导出日统计CSV</button>
+                <button id='exportHourly' class='btn' style='width:100%;justify-content:flex-start'>📄 导出小时统计CSV</button>
+                <button id='exportHistory' class='btn' style='width:100%;justify-content:flex-start'>📄 导出历史CSV</button>
+                <hr style='width:100%;border:0;border-top:1px solid var(--border);margin:4px 0'>
+                <button id='runToastTests' class='btn' style='width:100%;justify-content:flex-start'>🧪 消息系统测试</button>
+                <button id='runAnimPerf' class='btn' style='width:100%;justify-content:flex-start'>⚡ 动画性能测试</button>
+             </div>
+          </div>
+        </div>
       </div>
-      <div class='filter-hint'>选择开始与结束日期后生效</div>
     </div>
-    <div class='filter-card'>
-      <h4>操作</h4>
-      <div class='filter-actions'>
-        <button id='load' class='btn btn-primary'>加载数据</button>
-        <button id='resetFilter' class='btn'>重置筛选</button>
-        <button id='today' class='btn'>今天</button>
-        <button id='last7' class='btn'>最近7天</button>
-        <button id='refreshLatest' class='btn'>加载最新</button>
-        <label><input type='checkbox' id='auto'>自动刷新</label>
-        <button id='themeToggle' class='btn'>主题</button>
-      </div>
-    </div>
-    <details class='filter-card'>
-      <summary><h4 style='display:inline'>高级筛选</h4></summary>
-      <div class='filter-row' style='margin-top:8px'>
-        <input id='filterWarn' type='number' placeholder='warn_status' style='width:120px'>
-        <input id='filterRecType' type='number' placeholder='rec_type' style='width:120px'>
-        <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:140px'>
-        <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:140px'>
-      </div>
-    </details>
-    <details class='filter-card'>
-      <summary><h4 style='display:inline'>页面操作</h4></summary>
-      <div class='filter-actions' style='margin-top:8px'>
-        <button id='exportDaily' class='btn'>导出日统计CSV</button>
-        <button id='exportHourly' class='btn'>导出小时统计CSV</button>
-        <button id='exportHistory' class='btn'>导出历史CSV</button>
-        <button id='runToastTests' class='btn'>消息系统测试</button>
-        <button id='runAnimPerf' class='btn'>动画性能测试</button>
-      </div>
-    </details>
   </div>
   <div class='row'><div class='card'><canvas id='dailyChart' style='height:320px'></canvas></div><div class='card'><canvas id='hourChart' style='height:320px'></canvas></div></div>
   <div class='grid' style='margin-top:16px'><div class='mini' id='sum_in'>IN总计：</div><div class='mini' id='sum_out'>OUT总计：</div><div class='mini' id='sum_net'>净流量：</div><div class='mini' id='sum_last'>最近上报：</div></div>
