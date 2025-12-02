@@ -3,6 +3,7 @@ import sys
 import time
 import os
 import signal
+import webbrowser
 
 def main():
     # Paths
@@ -10,10 +11,11 @@ def main():
     data_dir = os.path.join(root_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     
-    tcp_out = open(os.path.join(data_dir, "tcp_server.out"), "a")
-    tcp_err = open(os.path.join(data_dir, "tcp_server.err"), "a")
-    web_out = open(os.path.join(data_dir, "uvicorn.out"), "a")
-    web_err = open(os.path.join(data_dir, "uvicorn.err"), "a")
+    # Use buffering=1 for line buffering to ensure logs are written immediately
+    tcp_out = open(os.path.join(data_dir, "tcp_server.out"), "a", buffering=1, encoding='utf-8')
+    tcp_err = open(os.path.join(data_dir, "tcp_server.err"), "a", buffering=1, encoding='utf-8')
+    web_out = open(os.path.join(data_dir, "uvicorn.out"), "a", buffering=1, encoding='utf-8')
+    web_err = open(os.path.join(data_dir, "uvicorn.err"), "a", buffering=1, encoding='utf-8')
 
     env = os.environ.copy()
     python_exe = sys.executable
@@ -40,16 +42,37 @@ def main():
     )
     print(f"Web Server started (PID: {web_process.pid})")
 
+    # Open Dashboard
+    try:
+        time.sleep(2)
+        url = "http://127.0.0.1:8000/dashboard"
+        print(f"Opening {url} ...")
+        webbrowser.open(url)
+    except Exception:
+        pass
+
     try:
         while True:
             time.sleep(1)
             # Check if processes are alive
             if tcp_process.poll() is not None:
-                print("TCP Server exited unexpectedly.")
+                print(f"TCP Server exited unexpectedly with code {tcp_process.returncode}.")
+                print("Tail of tcp_server.err:")
+                try:
+                    with open(os.path.join(data_dir, "tcp_server.err"), "r", encoding='utf-8') as f:
+                        print(f.read()[-500:]) # Print last 500 chars
+                except:
+                    pass
                 web_process.terminate()
                 break
             if web_process.poll() is not None:
-                print("Web Server exited unexpectedly.")
+                print(f"Web Server exited unexpectedly with code {web_process.returncode}.")
+                print("Tail of uvicorn.err:")
+                try:
+                    with open(os.path.join(data_dir, "uvicorn.err"), "r", encoding='utf-8') as f:
+                        print(f.read()[-500:])
+                except:
+                    pass
                 tcp_process.terminate()
                 break
     except KeyboardInterrupt:
