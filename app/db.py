@@ -275,7 +275,7 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
             sql += " AND batterytx_level>=?"; params.append(batterytx_min)
         if batterytx_max is not None:
             sql += " AND batterytx_level<=?"; params.append(batterytx_max)
-        sql += " ORDER BY time DESC LIMIT ?"; params.append(limit)
+        sql += " ORDER BY time DESC, id DESC LIMIT ?"; params.append(limit)
         if _sqlite:
             cur = await _sqlite.execute(sql, params)
             rows = await cur.fetchall()
@@ -301,7 +301,7 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
         where.append("batterytx_level>=%s"); params.append(batterytx_min)
     if batterytx_max is not None:
         where.append("batterytx_level<=%s"); params.append(batterytx_max)
-    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC LIMIT %s"
+    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC, id DESC LIMIT %s"
     params.append(limit)
     async with _pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -673,7 +673,7 @@ async def admin_list_records(uuid: str | None, start: str | None, end: str | Non
             sql += " AND batterytx_level>=?"; params.append(batterytx_min)
         if batterytx_max is not None:
             sql += " AND batterytx_level<=?"; params.append(batterytx_max)
-        sql += " ORDER BY time DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
+        sql += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
         cur = await _sqlite.execute(sql, params)
         rows = await cur.fetchall()
         return [dict(r) for r in rows]
