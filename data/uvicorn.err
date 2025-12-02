@@ -1,6 +1,98 @@
 INFO:     Will watch for changes in these directories: ['E:\\项目\\InfraCount']
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [27820] using WatchFiles
-INFO:     Started server process [32432]
+INFO:     Started reloader process [30996] using WatchFiles
+INFO:     Started server process [32772]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'api\main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [32772]
+WARNING:  WatchFiles detected changes in 'api\main.py'. Reloading...
+INFO:     Started server process [16140]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    Traceback (most recent call last):
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\base_events.py", line 595, in run_forever
+    self._run_once()
+  File "E:\python310\lib\asyncio\base_events.py", line 1881, in _run_once
+    handle._run()
+  File "E:\python310\lib\asyncio\events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\server.py", line 68, in serve
+    with self.capture_signals():
+  File "E:\python310\lib\contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\server.py", line 332, in capture_signals
+    signal.raise_signal(captured_signal)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\.venv\lib\site-packages\starlette\routing.py", line 700, in lifespan
+    await receive()
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+  File "E:\python310\lib\asyncio\queues.py", line 159, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+INFO:     Started server process [29536]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'api\main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [29536]
+WARNING:  WatchFiles detected changes in 'api\main.py'. Reloading...
+INFO:     Started server process [31516]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    Traceback (most recent call last):
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\base_events.py", line 595, in run_forever
+    self._run_once()
+  File "E:\python310\lib\asyncio\base_events.py", line 1881, in _run_once
+    handle._run()
+  File "E:\python310\lib\asyncio\events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\server.py", line 68, in serve
+    with self.capture_signals():
+  File "E:\python310\lib\contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\server.py", line 332, in capture_signals
+    signal.raise_signal(captured_signal)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\.venv\lib\site-packages\starlette\routing.py", line 700, in lifespan
+    await receive()
+  File "E:\项目\InfraCount\.venv\lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+  File "E:\python310\lib\asyncio\queues.py", line 159, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+INFO:     Started server process [28780]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'api\main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [28780]
+INFO:     Started server process [30764]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.

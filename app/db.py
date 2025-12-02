@@ -773,6 +773,94 @@ async def admin_delete_range(uuid: str, start: str, end: str):
             await cur.execute("DELETE FROM device_data WHERE uuid=%s AND time>=%s AND time<=%s", (uuid, start, end))
             return getattr(cur, "rowcount", 0)
 
+async def admin_batch_upsert(records: list[dict]):
+    if not records:
+        return 0
+    count = 0
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            for r in records:
+                # Check if exists
+                # User rule: "Timestamp match -> keep local". So if (uuid, time) exists, do nothing (or update if id is provided, but here we assume 'new' data).
+                # Actually, the merge logic in frontend decides what to send. If frontend sends it, we upsert or insert.
+                # However, to avoid duplicates if user sends data that already exists (race condition), we can use INSERT OR IGNORE or check first.
+                # But user says "Timestamp match -> keep local". This means if we have it, don't overwrite.
+                # So we check existence first.
+                cur = await _sqlite.execute("SELECT id FROM device_data WHERE uuid=? AND time=?", (r["uuid"], r["time"]))
+                row = await cur.fetchone()
+                if row:
+                    # Exists. Skip or update? "keep local" -> Skip.
+                    # BUT, if user explicitly edited it in the preview, maybe they want to overwrite?
+                    # The prompt says "Timestamp match -> keep local" in the context of "Merging fetched data".
+                    # If the user confirms the merge in the UI, the UI should filter out the ones to be kept.
+                    # If the UI sends it, it means it should be written.
+                    # However, if the UI sends a record that conflicts, and we are "keeping local", the UI shouldn't have sent it.
+                    # But if the UI sends it, we should probably trust the UI.
+                    # Let's assume the UI sends *only* the records that need to be added/updated.
+                    # For "New timestamp", it's an INSERT.
+                    # For "Edit", it might be an UPDATE (if we have ID) or INSERT (if we don't).
+                    # If the record has an 'id', it's an existing local record we are updating.
+                    # If it doesn't have an 'id', it's a new record.
+                    if "id" in r and r["id"]:
+                        # Update
+                        await admin_update_record(r["id"], r)
+                        count += 1
+                    else:
+                        # It might exist but we don't have ID (e.g. concurrent insert).
+                        # If we found 'row', we have the ID.
+                        # If the user wants to 'keep local', they wouldn't send this record if it matches.
+                        # If they edited it, they might want to update.
+                        # Let's stick to: If ID provided -> Update. If not -> Insert.
+                        # But if Insert and (uuid, time) exists?
+                        # To be safe, if (uuid, time) exists, we skip insertion to avoid duplicates (unless we want multiple records for same time?).
+                        # The system seems to allow multiple records for same time (no unique constraint on uuid, time in CREATE TABLE, only INDEX).
+                        # So just Insert.
+                        pass
+                
+                if "id" in r and r["id"]:
+                    await admin_update_record(r["id"], r)
+                    count += 1
+                else:
+                    # Check if exists to avoid unintentional duplicates if that's a concern, 
+                    # but for now let's trust the frontend or just insert.
+                    # Wait, if we insert a duplicate time, the sorting will be fine, but data might be double.
+                    # Let's check existence to be safe if no ID.
+                    cur = await _sqlite.execute("SELECT id FROM device_data WHERE uuid=? AND time=?", (r.get("uuid"), r.get("time")))
+                    exist = await cur.fetchone()
+                    if not exist:
+                        await admin_create_record(r)
+                        count += 1
+            return count
+        return 0
+
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return 0
+    
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            for r in records:
+                if "id" in r and r["id"]:
+                     # Update logic needs to be implemented or call single update
+                     # Since we are in a transaction block (if we used one), but admin_update_record uses its own connection.
+                     # Better to implement update SQL here to reuse connection?
+                     # admin_update_record acquires a new connection.
+                     # Let's just call admin_update_record/create_record for simplicity, even if less efficient.
+                     # Wait, admin_update_record is async and uses pool.acquire. Nested acquire is fine.
+                     await admin_update_record(r["id"], r)
+                     count += 1
+                else:
+                    await cur.execute("SELECT id FROM device_data WHERE uuid=%s AND time=%s", (r.get("uuid"), r.get("time")))
+                    exist = await cur.fetchone()
+                    if not exist:
+                        await admin_create_record(r)
+                        count += 1
+    return count
+
 async def admin_create_record(d: dict):
     allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
     data = {k: d.get(k) for k in allowed}

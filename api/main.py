@@ -92,501 +92,6 @@ async def stats_total(start: Optional[str] = None, end: Optional[str] = None):
 # 可视化Dashboard（HTMLResponse，无需模板）
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard():
-    html = """
-<!doctype html>
-<html>
-<head>
-  <meta charset='utf-8'>
-  <title>红外计数可视化</title>
-  <script src="/static/chart.min.js"></script>
-  <style>
-    body{font-family:system-ui,Arial;margin:24px}
-    .row{display:flex;gap:24px;flex-wrap:wrap}
-    .card{border:1px solid #ddd;border-radius:10px;padding:16px;flex:1;min-width:320px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .mini{border:1px solid #eee;border-radius:8px;padding:10px;background:#fafafa}
-    table{width:100%;border-collapse:collapse}
-    th,td{border:1px solid #eee;padding:8px;text-align:left;font-size:13px}
-    .tabs{display:flex;gap:12px;margin:12px 0}
-    .tab{padding:8px 12px;border-radius:6px;background:#e9ecef;cursor:pointer}
-    .tab.active{background:#ced4da}
-    .hidden{display:none}
-    .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-    .btn{padding:8px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer}
-    .btn:hover{border-color:#58a6ff;box-shadow:0 0 0 2px rgba(88,166,255,.2)}
-    .btn-primary{background:#2b8a3e;color:#fff;border:1px solid #2b8a3e}
-    .btn-danger{background:#d9480f;color:#fff;border:1px solid #d9480f}
-    input,select{padding:8px 12px;border:1px solid #ddd;border-radius:8px;background:#fff}
-    .filter-bar{background:#f8f9fa;border:1px solid #e5e7eb;padding:12px;border-radius:12px;box-shadow:0 1px 6px rgba(0,0,0,.05)}
-    .filter-bar .field{display:flex;align-items:center;gap:8px}
-    .filter-bar .spacer{flex:1}
-    .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid #e5e7eb;border-radius:999px;background:#fff}
-    .chip input{accent-color:#2b8a3e}
-    .ant-picker{display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:8px;padding:4px 8px;background:#fff}
-    .ant-picker-input input{border:none;outline:none;background:transparent;padding:4px 6px}
-    .ant-picker-range-separator{color:#888}
-    .ant-picker-clear{cursor:pointer;color:#bbb;margin-left:4px}
-  </style>
-</head>
-<body>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <h2 style="margin:0">红外计数数据可视化</h2>
-    <div id="allTotals" style="font-weight:600;color:#2b8a3e"></div>
-  </div>
-  <div class="toolbar filter-bar">
-    <div class="field">
-      <span>设备</span>
-      <select id="device"></select>
-    </div>
-    <div class="field">
-      <span>日期</span>
-      <div class="ant-picker ant-picker-range">
-        <div class="ant-picker-input"><input id="start" type="date" placeholder="开始日期" size="12" autocomplete="off"></div>
-        <div class="ant-picker-range-separator"><span aria-label="to" class="ant-picker-separator"><span role="img" aria-label="swap-right" class="anticon anticon-swap-right"><svg focusable="false" data-icon="swap-right" width="1em" height="1em" fill="currentColor" aria-hidden="true" viewBox="0 0 1024 1024"><path d="M873.1 596.2l-164-208A32 32 0 00684 376h-64.8c-6.7 0-10.4 7.7-6.3 13l144.3 183H152c-4.4 0-8 3.6-8 8v60c0 4.4 3.6 8 8 8h695.9c26.8 0 41.7-30.8 25.2-51.8z"></path></svg></span></span></div>
-        <div class="ant-picker-input"><input id="end" type="date" placeholder="结束日期" size="12" autocomplete="off"></div>
-        <span class="ant-picker-clear" id="dateClear" title="清除">×</span>
-      </div>
-    </div>
-    <button class="btn btn-primary" id="load">加载</button>
-    <label class="chip"><input type="checkbox" id="auto"> 自动刷新</label>
-    <button class="btn" id="today">今天</button>
-    <button class="btn" id="last7">最近7天</button>
-    <button class="btn" id="resetFilter">重置</button>
-    <div class="spacer"></div>
-    <button class="btn" id="exportDaily">导出日统计CSV</button>
-    <button class="btn" id="exportHourly">导出小时统计CSV</button>
-    <button class="btn" id="exportHistory">导出历史CSV</button>
-  </div>
-  <div class="row" style="margin-top:16px">
-    <div class="card"><canvas id="dailyChart" style="height:320px"></canvas></div>
-    <div class="card"><canvas id="hourChart" style="height:320px"></canvas></div>
-  </div>
-  <div class="card" style="margin-top:16px">
-    <div class="toolbar">
-      <h3 style="margin:0">设备对比</h3>
-      <button class="btn" id="downloadDaily">下载日图PNG</button>
-      <button class="btn" id="downloadHour">下载小时图PNG</button>
-    </div>
-    <div id="compareDevices" class="toolbar"></div>
-    <canvas id="compareChart" style="height:320px"></canvas>
-  </div>
-  <div class="card" style="margin-top:16px">
-    <h3>排行榜</h3>
-    <div class="toolbar">
-      <button class="btn" id="rankRefresh">刷新排行榜</button>
-    </div>
-    <div class="row">
-      <div style="flex:1">
-        <h4>IN Top</h4>
-        <table><thead><tr><th>UUID</th><th>Total IN</th></tr></thead><tbody id="rankIn"></tbody></table>
-      </div>
-      <div style="flex:1">
-        <h4>OUT Top</h4>
-        <table><thead><tr><th>UUID</th><th>Total OUT</th></tr></thead><tbody id="rankOut"></tbody></table>
-      </div>
-    </div>
-  </div>
-  <div class="grid" style="margin-top:16px">
-    <div class="mini" id="sum_in"></div>
-    <div class="mini" id="sum_out"></div>
-    <div class="mini" id="sum_net"></div>
-    <div class="mini" id="sum_last"></div>
-  </div>
-  <div class="card" style="margin-top:16px">
-    <h3>最近记录</h3>
-    <table>
-      <thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead>
-      <tbody id="tbl"></tbody>
-    </table>
-    <div id="hourDate" class="mini"></div>
-  </div>
-  <div class="tabs">
-    <div class="tab" data-tab="db">数据库管理</div>
-    <div class="tab" data-tab="reg">设备分类</div>
-  </div>
-  <div id="pane_db" class="card hidden">
-    <div class="toolbar">
-      <input id="filterUuid" placeholder="设备UUID" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;"> 
-      <input id="filterStart" type="datetime-local"> 
-      <input id="filterEnd" type="datetime-local"> 
-      <button class="btn btn-primary" id="query">查询</button>
-      <button class="btn" id="reset">重置</button>
-      <button class="btn btn-primary" id="add">新增记录</button>
-      <input id="adminToken" placeholder="Admin Token" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
-      <button class="btn" id="backup">备份数据库</button>
-      <input id="restoreFile" type="file">
-      <button class="btn" id="restore">还原数据库</button>
-    </div>
-    <table>
-      <thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th><th>warn_status</th><th>Tx电量</th><th>记录类型</th><th>操作</th></tr></thead>
-      <tbody id="adminTbl"></tbody>
-    </table>
-    <div class="toolbar">
-      <button class="btn" id="prev">上一页</button> <span id="pageInfo"></span> <button class="btn" id="next">下一页</button>
-    </div>
-  </div>
-  <div id="pane_reg" class="card hidden">
-    <div class="toolbar">
-      <input id="regCategory" placeholder="分类" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
-      <input id="regSearch" placeholder="搜索UUID/名称" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
-      <input id="regToken" placeholder="Admin Token" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;">
-      <button class="btn btn-primary" id="regQuery">查询</button>
-    </div>
-    <table>
-      <thead><tr><th>UUID</th><th>名称</th><th>分类</th><th>操作</th></tr></thead>
-      <tbody id="regTbl"></tbody>
-    </table>
-    <div class="toolbar">
-      <button class="btn" id="regPrev">上一页</button> <span id="regPageInfo"></span> <button class="btn" id="regNext">下一页</button>
-    </div>
-  </div>
-  <script>
-    const deviceSel = document.getElementById('device');
-    const startEl = document.getElementById('start');
-    const endEl = document.getElementById('end');
-    const autoEl = document.getElementById('auto');
-    const tbl = document.getElementById('tbl');
-    let dailyChart, hourChart, timer;
-    async function loadAllTotals(){
-      const res = await fetch('/api/v1/stats/total');
-      if(!res.ok){ return; }
-      const d = await res.json();
-      const el = document.getElementById('allTotals');
-      el.textContent = '全部设备 IN: ' + (d.in_total||0) + '  OUT: ' + (d.out_total||0);
-    }
-    function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
-    function fmtSignal(s){ return (s===0 || s==='0') ? '在线' : '离线'; }
-    function fmtTxOnline(s){ return (s===0 || s==='0') ? '在线' : '离线'; }
-    function fmtRecType(t){ return (t===1 || t==='1') ? '实时数据' : ((t===2 || t==='2') ? '历史数据' : (t??'')); }
-    async function loadDevices(){
-      const res = await fetch('/api/v1/devices');
-      const list = await res.json();
-      deviceSel.innerHTML = '';
-      for(const d of list){
-        const opt = document.createElement('option');
-        opt.value = d.uuid; opt.textContent = (d.name? `${d.name} (${d.uuid})` : d.uuid);
-        deviceSel.appendChild(opt);
-      }
-    }
-    async function loadStats(){
-      const uuid = deviceSel.value;
-      if (!uuid) {
-        console.log('No device selected, skipping loadStats.');
-        return;
-      }
-      console.log('--- Running loadStats for', uuid, '---');
-      try {
-        // --- 统一日期范围 ---
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10) + ' 00:00:00';
-        const monthEnd = (endEl.value || now.toISOString().slice(0,10)) + ' 23:59:59';
-        
-        // --- 左侧图表：当月每日IN/OUT ---
-        console.log('Fetching daily stats for left chart...');
-        const dailyQ = new URLSearchParams({uuid, start: monthStart, end: monthEnd});
-        const dailyRes = await fetch('/api/v1/stats/daily?' + dailyQ.toString());
-        if (!dailyRes.ok) throw new Error(`Failed to fetch daily stats: ${dailyRes.status}`);
-        const daily = await dailyRes.json();
-        console.log('Daily stats data:', daily);
-
-        const lab = daily.map(x=>x.day);
-        const inData = daily.map(x=>x.in_total || 0);
-        const outData = daily.map(x=>x.out_total || 0);
-        
-        const ctx = document.getElementById('dailyChart').getContext('2d');
-        if(dailyChart) dailyChart.destroy();
-        dailyChart = new Chart(ctx, {
-          type: 'line',
-          data: {labels: lab, datasets:[
-            {label:'IN', data: inData, borderColor:'#2b8a3e'},
-            {label:'OUT', data: outData, borderColor:'#d9480f'}
-          ]},
-          options: {responsive:true, maintainAspectRatio:false}
-        });
-        console.log('Left chart (dailyChart) rendered.');
-
-        // --- 右侧图表：所选设备当日按小时IN/OUT ---
-        let usedDate = (endEl.value || new Date().toISOString().slice(0,10));
-        let hourlyRes = await fetch('/api/v1/stats/hourly?' + new URLSearchParams({uuid, date: usedDate}).toString());
-        if (!hourlyRes.ok) throw new Error(`Failed to fetch hourly stats: ${hourlyRes.status}`);
-        let hourly = await hourlyRes.json();
-        let sumHour = hourly.reduce((a,x)=> a + (x.in_total||0) + (x.out_total||0), 0);
-        if(!hourly.length || sumHour===0){
-          const latestRes = await fetch('/api/v1/data/history?' + new URLSearchParams({uuid, limit: 1}).toString());
-          if(latestRes.ok){
-            const latest = await latestRes.json();
-            if(latest && latest.length>0){
-              const tt = String(latest[0].time||'');
-              usedDate = (/^[0-9]{14}$/.test(tt)) ? (tt.slice(0,4)+'-'+tt.slice(4,6)+'-'+tt.slice(6,8)) : tt.slice(0,10);
-              const h2 = await fetch('/api/v1/stats/hourly?' + new URLSearchParams({uuid, date: usedDate}).toString());
-              if(h2.ok){ hourly = await h2.json(); }
-            }
-          }
-        }
-        const hLab = hourly.map(x=>x.hour);
-        const hIn = hourly.map(x=>x.in_total||0);
-        const hOut = hourly.map(x=>x.out_total||0);
-        const hctx = document.getElementById('hourChart').getContext('2d');
-        if(hourChart) hourChart.destroy();
-        hourChart = new Chart(hctx, {type: 'bar', data: {labels: hLab, datasets:[{label:'IN', data: hIn, backgroundColor:'#74c69d'},{label:'OUT', data: hOut, backgroundColor:'#f4a261'}]}, options: {responsive:true, maintainAspectRatio:false}});
-        const dtEl = document.getElementById('hourDate'); if(dtEl) dtEl.textContent = '右侧图日期：' + usedDate;
-
-        // --- 统计概览 & 最近记录 ---
-        console.log('Fetching summary and history...');
-        const sumRes = await fetch('/api/v1/stats/summary?' + new URLSearchParams({uuid}).toString());
-        if (sumRes.ok) {
-            const sum = await sumRes.json();
-            document.getElementById('sum_in').innerText = 'IN总计：' + (sum.in_total||0);
-            document.getElementById('sum_out').innerText = 'OUT总计：' + (sum.out_total||0);
-            document.getElementById('sum_net').innerText = '净流量：' + ((sum.in_total||0)-(sum.out_total||0));
-            document.getElementById('sum_last').innerText = '最近上报：' + fmtTime(sum.last_time||'') + ' IN=' + (sum.last_in??'') + ' OUT=' + (sum.last_out??'');
-        } else {
-            console.error('Failed to fetch summary stats:', sumRes.status);
-        }
-        
-        const histRes = await fetch('/api/v1/data/history?' + new URLSearchParams({uuid, limit: 50}).toString());
-        if (histRes.ok) {
-            const hist = await histRes.json();
-            tbl.innerHTML = '';
-            for(const r of hist){
-              const tr = document.createElement('tr');
-              tr.innerHTML = `<td>${r.time}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;
-              tbl.appendChild(tr);
-            }
-        } else {
-            console.error('Failed to fetch history:', histRes.status);
-        }
-        console.log('Summary and history loaded.');
-
-      } catch (error) {
-        console.error('Error in loadStats:', error);
-      }
-    }
-    document.getElementById('load').addEventListener('click', ()=>{ loadStats(); loadAllTotals(); });
-    document.getElementById('today').addEventListener('click', ()=>{
-      const d = new Date().toISOString().slice(0,10);
-      startEl.value = d; endEl.value = d; loadStats();
-    });
-    document.getElementById('last7').addEventListener('click', ()=>{
-      const now = new Date();
-      const end = now.toISOString().slice(0,10);
-      const start = new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);
-      startEl.value = start; endEl.value = end; loadStats();
-    });
-    document.getElementById('resetFilter').addEventListener('click', ()=>{
-      deviceSel.selectedIndex = 0;
-      startEl.value = '';
-      endEl.value = '';
-      autoEl.checked = false;
-      if(timer) { clearInterval(timer); }
-      loadStats();
-      loadAllTotals();
-    });
-    autoEl.addEventListener('change', ()=>{
-      if(autoEl.checked){
-        timer = setInterval(()=>{ loadStats(); loadAllTotals(); }, 10000);
-      } else { clearInterval(timer); }
-    });
-    document.getElementById('exportDaily').addEventListener('click', ()=>{
-      const uuid = deviceSel.value;
-      const start = startEl.value? startEl.value + ' 00:00:00' : '';
-      const end = endEl.value? endEl.value + ' 23:59:59' : '';
-      const q = new URLSearchParams({uuid}); if(start) q.append('start', start); if(end) q.append('end', end);
-      window.open('/api/v1/export/daily?' + q.toString(), '_blank');
-    });
-    document.getElementById('exportHourly').addEventListener('click', ()=>{
-      const uuid = deviceSel.value;
-      const date = endEl.value || new Date().toISOString().slice(0,10);
-      window.open('/api/v1/export/hourly?' + new URLSearchParams({uuid,date}).toString(), '_blank');
-    });
-    document.getElementById('exportHistory').addEventListener('click', ()=>{
-      const uuid = deviceSel.value;
-      const start = startEl.value? startEl.value + ' 00:00:00' : '';
-      const end = endEl.value? endEl.value + ' 23:59:59' : '';
-      const q = new URLSearchParams({uuid}); if(start) q.append('start', start); if(end) q.append('end', end);
-      window.open('/api/v1/export/history?' + q.toString(), '_blank');
-    });
-    (async()=>{
-      try {
-        console.log('Initial script execution started.');
-        await loadDevices();
-        if(typeof Chart === 'undefined'){
-          console.log('Chart.js not found, attempting to load from CDN...');
-          const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-        s.onload = async ()=>{ 
-            console.log('Chart.js loaded successfully from CDN.');
-            await loadStats(); await buildCompareDevices(); await loadRank(); await loadAllTotals();
-          };
-          s.onerror = ()=>{
-            console.error('Failed to load Chart.js from CDN. Please check network connection and ad-blockers.');
-          };
-          document.head.appendChild(s);
-        } else {
-          console.log('Chart.js already loaded.');
-          await loadStats(); await buildCompareDevices(); await loadRank(); await loadAllTotals();
-        }
-      } catch (e) {
-        console.error('An error occurred during initial page load:', e);
-      }
-    })();
-    document.getElementById('downloadDaily').addEventListener('click', ()=>{
-      const url = document.getElementById('dailyChart').toDataURL('image/png');
-      const a = document.createElement('a'); a.href = url; a.download = 'daily.png'; a.click();
-    });
-    document.getElementById('downloadHour').addEventListener('click', ()=>{
-      const url = document.getElementById('hourChart').toDataURL('image/png');
-      const a = document.createElement('a'); a.href = url; a.download = 'hour.png'; a.click();
-    });
-    let compareChart;
-    function dateChanged(){
-      const s = startEl.value; const e = endEl.value;
-      if(s && e){ loadStats(); loadAllTotals(); }
-    }
-    document.getElementById('dateClear').addEventListener('click', ()=>{
-      startEl.value=''; endEl.value=''; loadStats(); loadAllTotals();
-    });
-    startEl.addEventListener('change', dateChanged);
-    endEl.addEventListener('change', dateChanged);
-    async function buildCompareDevices(){
-      const list = await (await fetch('/api/v1/devices')).json();
-      const wrap = document.getElementById('compareDevices');
-      wrap.innerHTML = '';
-      for(const d of list){
-        const id = 'chk_'+d.uuid;
-        const label = document.createElement('label');
-        label.style.marginRight = '8px';
-        label.innerHTML = `<input type='checkbox' id='${id}' value='${d.uuid}'> ${(d.name? `${d.name} (${d.uuid})` : d.uuid)}`;
-        wrap.appendChild(label);
-      }
-      wrap.addEventListener('change', loadCompare);
-    }
-    async function loadCompare(){
-      const wrap = document.getElementById('compareDevices');
-      const chks = wrap.querySelectorAll('input[type=checkbox]:checked');
-      const selected = Array.from(chks).map(x=>x.value).slice(0,6);
-      const start = startEl.value? startEl.value + ' 00:00:00' : '';
-      const end = endEl.value? endEl.value + ' 23:59:59' : '';
-      const labelsSet = new Set();
-      const datasets = [];
-      for(const u of selected){
-        const q = new URLSearchParams({uuid:u}); if(start) q.append('start', start); if(end) q.append('end', end);
-        const res = await fetch('/api/v1/stats/daily?' + q.toString());
-        const rows = await res.json();
-        rows.forEach(r=>labelsSet.add(r.day));
-        datasets.push({label:u, data: rows.map(r=>r.in_total||0), borderColor:'#'+Math.floor(Math.random()*16777215).toString(16)});
-      }
-      const labels = Array.from(labelsSet).sort();
-      const ctx = document.getElementById('compareChart').getContext('2d');
-      if(compareChart) compareChart.destroy();
-      compareChart = new Chart(ctx, {type:'line', data:{labels, datasets}, options:{responsive:true, maintainAspectRatio:false}});
-    }
-    async function loadRank(){
-      const rIn = await (await fetch('/api/v1/stats/top?metric=in&limit=10')).json();
-      const rOut = await (await fetch('/api/v1/stats/top?metric=out&limit=10')).json();
-      const rankIn = document.getElementById('rankIn'); const rankOut = document.getElementById('rankOut');
-      rankIn.innerHTML = ''; rankOut.innerHTML = '';
-      for(const r of rIn){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.uuid}</td><td>${r.total}</td>`; rankIn.appendChild(tr);} 
-      for(const r of rOut){ const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.uuid}</td><td>${r.total}</td>`; rankOut.appendChild(tr);} 
-    }
-    document.getElementById('rankRefresh').addEventListener('click', loadRank);
-    const tabs = document.querySelectorAll('.tab');
-    function showTab(name){
-      document.getElementById('pane_db').classList.toggle('hidden', name!=='db');
-      document.getElementById('pane_reg').classList.toggle('hidden', name!=='reg');
-      tabs.forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
-    }
-    tabs.forEach(t=>t.addEventListener('click', ()=>showTab(t.dataset.tab)));
-    const adminTbl = document.getElementById('adminTbl');
-    const filterUuid = document.getElementById('filterUuid');
-    const filterStart = document.getElementById('filterStart');
-    const filterEnd = document.getElementById('filterEnd');
-    const pageInfo = document.getElementById('pageInfo');
-    let page = 1, pageSize = 20, total = 0;
-    async function loadAdmin(){
-      const q = new URLSearchParams();
-      if(filterUuid.value) q.append('uuid', filterUuid.value);
-      if(filterStart.value) q.append('start', filterStart.value.replace('T',' '));
-      if(filterEnd.value) q.append('end', filterEnd.value.replace('T',' '));
-      q.append('page', page); q.append('page_size', pageSize);
-      const res = await fetch('/api/v1/admin/records?' + q.toString(), {headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}});
-      const data = await res.json();
-      total = data.total || 0;
-      adminTbl.innerHTML = '';
-      for(const r of (data.items||[])){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.id}</td><td>${r.uuid||''}</td><td>${r.time||''}</td><td>${r.in_count??''}</td><td>${r.out_count??''}</td><td>${r.battery_level??''}</td><td>${(r.signal_status===0||r.signal_status==='0')?'在线':'离线'}</td>`;
-        adminTbl.appendChild(tr);
-      }
-      const pages = Math.max(1, Math.ceil(total/pageSize));
-      pageInfo.textContent = `第 ${page}/${pages} 页，共 ${total} 条`;
-    }
-    document.getElementById('query').addEventListener('click', ()=>{ page=1; loadAdmin(); });
-    document.getElementById('reset').addEventListener('click', ()=>{ filterUuid.value=''; filterStart.value=''; filterEnd.value=''; page=1; loadAdmin(); });
-    document.getElementById('prev').addEventListener('click', ()=>{ if(page>1){ page--; loadAdmin(); }});
-    document.getElementById('next').addEventListener('click', ()=>{ page++; loadAdmin(); });
-    document.getElementById('add').addEventListener('click', async ()=>{
-      const uuid = prompt('UUID'); if(!uuid) return;
-      const time = prompt('时间 YYYY-MM-DD HH:MM:SS', new Date().toISOString().slice(0,19).replace('T',' '));
-      const inc = parseInt(prompt('IN', '0')||'0');
-      const outc = parseInt(prompt('OUT', '0')||'0');
-      const bat = parseInt(prompt('电量', '80')||'0');
-      const sig = parseInt(prompt('信号', '1')||'0');
-      await fetch('/api/v1/admin/record/create', {method:'POST', headers:{'Content-Type':'application/json','X-Admin-Token': document.getElementById('adminToken').value || ''}, body: JSON.stringify({uuid, time, in_count: inc, out_count: outc, battery_level: bat, signal_status: sig})});
-      loadAdmin();
-    });
-    const regTbl = document.getElementById('regTbl');
-    const regCategory = document.getElementById('regCategory');
-    const regSearch = document.getElementById('regSearch');
-    const regToken = document.getElementById('regToken');
-    const regPageInfo = document.getElementById('regPageInfo');
-    let regPage = 1, regPageSize = 20;
-    async function loadRegistry(){
-      const q = new URLSearchParams();
-      if(regCategory.value) q.append('category', regCategory.value);
-      if(regSearch.value) q.append('search', regSearch.value);
-      q.append('page', regPage); q.append('page_size', regPageSize);
-      const res = await fetch('/api/v1/admin/device/registry?' + q.toString(), {headers:{'X-Admin-Token': regToken.value || ''}});
-      const data = await res.json();
-      regTbl.innerHTML = '';
-      for(const r of (data.items||[])){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${r.uuid}</td><td><input value='${r.name||''}' data-uuid='${r.uuid}' class='rn'></td><td><input value='${r.category||''}' data-uuid='${r.uuid}' class='rc'></td><td><button class='btn btn-primary' data-uuid='${r.uuid}' class='rs'>保存</button></td>`;
-        regTbl.appendChild(tr);
-      }
-      regPageInfo.textContent = `第 ${regPage} 页`;
-    }
-    document.getElementById('regQuery').addEventListener('click', ()=>{ regPage=1; loadRegistry(); });
-    document.getElementById('regPrev').addEventListener('click', ()=>{ if(regPage>1){ regPage--; loadRegistry(); }});
-    document.getElementById('regNext').addEventListener('click', ()=>{ regPage++; loadRegistry(); });
-    regTbl.addEventListener('click', async (e)=>{
-      const b = e.target.closest('button'); if(!b) return;
-      const uuid = b.dataset.uuid;
-      const name = regTbl.querySelector(`input.rn[data-uuid='${uuid}']`).value;
-      const category = regTbl.querySelector(`input.rc[data-uuid='${uuid}']`).value;
-      await fetch('/api/v1/admin/device/registry/upsert', {method:'POST', headers:{'Content-Type':'application/json','X-Admin-Token': regToken.value || ''}, body: JSON.stringify({uuid, name, category})});
-      loadRegistry();
-    });
-    document.getElementById('backup').addEventListener('click', async ()=>{
-      const res = await fetch('/api/v1/admin/backup', {headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}});
-      if(!res.ok){ alert('备份失败'); return; }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'infrared.db'; a.click(); URL.revokeObjectURL(url);
-    });
-    document.getElementById('restore').addEventListener('click', async ()=>{
-      const f = document.getElementById('restoreFile').files[0]; if(!f){ alert('请选择文件'); return; }
-      const fd = new FormData(); fd.append('file', f);
-      const res = await fetch('/api/v1/admin/restore', {method:'POST', headers: {'X-Admin-Token': document.getElementById('adminToken').value || ''}, body: fd});
-      if(res.ok){ alert('还原成功'); } else { alert('还原失败'); }
-      loadAdmin();
-    });
-    // 默认隐藏管理面板
-    showTab('recent');
-  </script>
-</body>
-</html>
-"""
     return await page_board()
 
 @app.get("/board", response_class=HTMLResponse)
@@ -595,35 +100,8 @@ async def page_board():
 <!doctype html><html><head><meta charset='utf-8'><title>数据看板</title>
 <link rel="stylesheet" href="/static/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-.filters{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
-.filter-card{border:1px solid #ddd;border-radius:10px;padding:10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
-.filter-card h4{margin:0 0 8px 0;font-size:14px;color:#333}
-.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.filter-row label{color:#666;font-size:13px}
-.filter-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.ant-picker{display:inline-flex;align-items:center;gap:8px;border:1px solid #ddd;border-radius:8px;padding:4px 8px;background:#fff}
-.ant-picker-input input{border:none;outline:none;background:transparent;padding:4px 6px}
-.ant-picker-range-separator{color:#888}
-.filter-hint{font-size:12px;color:#888;margin-top:6px}
- .btn{transition:transform .3s ease, background-color .3s ease, opacity .3s ease}
- .btn:hover{transform:translateY(-1px)}
- .btn:active{transform:scale(0.98)}
- .btn.loading{position:relative;pointer-events:none;opacity:.85}
- .btn.loading::after{content:"";position:absolute;right:-26px;top:50%;width:16px;height:16px;border-radius:50%;border:2px solid #999;border-top-color:transparent;transform:translateY(-50%);animation:spin .9s linear infinite}
- @keyframes spin{to{transform:translateY(-50%) rotate(360deg)}}
- .toast-root{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(680px, 92vw)}
- .toast{display:flex;align-items:center;justify-content:space-between;border-radius:8px;padding:10px 12px;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.08);opacity:0;transform:translateY(-8px);transition:opacity .3s ease, transform .3s ease}
- .toast.enter{opacity:1;transform:translateY(0)}
- .toast.leave{opacity:0;transform:translateY(-8px)}
- .toast .msg{font-size:14px}
- .toast .close{background:transparent;border:none;color:inherit;cursor:pointer;font-size:14px}
- .toast-success{background:#2b8a3e}
- .toast-warning{background:#f59f00}
- .toast-error{background:#d9480f}
- .toast-info{background:#228be6}
-@media (max-width: 768px){.filter-row{flex-direction:column;align-items:flex-start}.filter-actions{flex-direction:column;align-items:flex-start}.ant-picker{width:100%}}
-</style>
+<script src="/static/dashboard.js" defer></script>
+
 </head><body>
 <div id='toastRoot' class='toast-root'></div>
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
@@ -679,38 +157,10 @@ async def page_board():
   <div class='grid' style='margin-top:16px'><div class='mini' id='sum_in'>IN总计：</div><div class='mini' id='sum_out'>OUT总计：</div><div class='mini' id='sum_net'>净流量：</div><div class='mini' id='sum_last'>最近上报：</div></div>
   <div class='card' style='margin-top:16px'><h3><a href='/history' style='text-decoration:none;color:inherit'>设备记录</a></h3><div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th></tr></thead><tbody id='tbl'></tbody></table></div></div>
 </div>
-<script>
-document.body.setAttribute('data-theme',(localStorage.getItem('theme')||'light'));
-document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
-document.getElementById('themeToggle').addEventListener('click',()=>{const cur=document.body.getAttribute('data-theme')||'light';const nxt=cur==='light'?'dark':'light';document.body.setAttribute('data-theme',nxt);localStorage.setItem('theme',nxt);});
-const deviceSel=document.getElementById('device');const startEl=document.getElementById('start');const endEl=document.getElementById('end');const autoEl=document.getElementById('auto');const tbl=document.getElementById('tbl');const filterWarn=document.getElementById('filterWarn');const filterRecType=document.getElementById('filterRecType');const filterBtxMin=document.getElementById('filterBtxMin');const filterBtxMax=document.getElementById('filterBtxMax');let dailyChart,hourChart,timer,fetchCtl;function fmtTime(s){if(!s)return'';const t=String(s).trim();if(/^[0-9]{14}$/.test(t))return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14);return t;}function fmtSignal(s){return (s===0||s==='0')?'在线':'离线'}window.addEventListener('load',()=>{(async()=>{try{await loadDevices();await loadStats();if(typeof Chart==='undefined'){const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';s.onload=()=>loadStats();document.head.appendChild(s);}}catch(e){}})();});
-async function loadDevices(){const res=await fetch('/api/v1/devices');const list=await res.json();deviceSel.innerHTML='';for(const d of list){const opt=document.createElement('option');opt.value=d.uuid;opt.textContent=(d.name? `${d.name} (${d.uuid})`:d.uuid);deviceSel.appendChild(opt);}}
-async function loadAllTotals(){const r=await fetch('/api/v1/stats/total');if(!r.ok)return;const j=await r.json();document.getElementById('allTotals').textContent='全部设备 IN: '+(j.in_total||0)+'  OUT: '+(j.out_total||0)}
-async function loadStats(){const uuid=deviceSel.value;const today=new Date().toISOString().slice(0,10);const startDate=startEl.value|| (endEl.value? '' : new Date(Date.now()-29*24*3600*1000).toISOString().slice(0,10));const endDate=endEl.value|| today;const start=startDate? startDate+' 00:00:00':'';const end=endDate? endDate+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);const sumRes=await fetch('/api/v1/stats/summary?'+new URLSearchParams({uuid}).toString());const sum=await sumRes.json();document.getElementById('sum_in').innerText='IN总计：'+(sum.in_total||0);document.getElementById('sum_out').innerText='OUT总计：'+(sum.out_total||0);document.getElementById('sum_net').innerText='净流量：'+((sum.in_total||0)-(sum.out_total||0));document.getElementById('sum_last').innerText='最近上报：'+fmtTime(sum.last_time||'')+' IN='+(sum.last_in??'')+' OUT='+(sum.last_out??'');const res=await fetch('/api/v1/stats/daily?'+q.toString());const daily=await res.json();const lab=daily.map(x=>x.day);const inData=daily.map(x=>x.in_total||0);const outData=daily.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const ctx=document.getElementById('dailyChart').getContext('2d');if(dailyChart)dailyChart.destroy();dailyChart=new Chart(ctx,{type:'line',data:{labels:lab,datasets:[{label:'IN',data:inData,borderColor:'#2b8a3e'},{label:'OUT',data:outData,borderColor:'#d9480f'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hq=new URLSearchParams({uuid,date:endDate});const hres=await fetch('/api/v1/stats/hourly?'+hq.toString());const hourly=await hres.json();const hLab=hourly.map(x=>x.hour);const hIn=hourly.map(x=>x.in_total||0);const hOut=hourly.map(x=>x.out_total||0);try{if(typeof Chart!=='undefined'){const hctx=document.getElementById('hourChart').getContext('2d');if(hourChart)hourChart.destroy();hourChart=new Chart(hctx,{type:'bar',data:{labels:hLab,datasets:[{label:'IN',data:hIn,backgroundColor:'#74c69d'},{label:'OUT',data:hOut,backgroundColor:'#f4a261'}]},options:{responsive:true,maintainAspectRatio:false}});}}catch(e){}const hparams=new URLSearchParams({uuid,limit:200});if(filterWarn&&filterWarn.value)hparams.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)hparams.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)hparams.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)hparams.append('batterytx_max',filterBtxMax.value);const hist=await (await fetch('/api/v1/data/history?'+hparams.toString())).json();tbl.innerHTML='';for(const r of hist){const tr=document.createElement('tr');tr.innerHTML=`<td>${fmtTime(r.time)}</td><td>${r.in_count??r.in??''}</td><td>${r.out_count??r.out??''}</td><td>${r.battery_level??''}</td><td>${fmtTxOnline(r.warn_status)}</td><td>${r.batterytx_level??''}</td><td>${fmtRecType(r.rec_type)}</td>`;tbl.appendChild(tr);}}
-document.getElementById('load').addEventListener('click',async(e)=>{const b=e.currentTarget;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
-document.getElementById('today').addEventListener('click',async(e)=>{const b=e.currentTarget;const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
-document.getElementById('last7').addEventListener('click',async(e)=>{const b=e.currentTarget;const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
-document.getElementById('resetFilter').addEventListener('click',async(e)=>{const b=e.currentTarget;deviceSel.selectedIndex=0;startEl.value='';endEl.value='';if(filterWarn)filterWarn.value='';if(filterRecType)filterRecType.value='';if(filterBtxMin)filterBtxMin.value='';if(filterBtxMax)filterBtxMax.value='';autoEl.checked=false;if(timer)clearInterval(timer);b.classList.add('loading');await loadStats();await loadAllTotals();b.classList.remove('loading');});
-autoEl.addEventListener('change',()=>{if(autoEl.checked){timer=setInterval(()=>{loadStats();loadAllTotals()},10000);}else{clearInterval(timer);}});
-document.getElementById('exportDaily').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);window.open('/api/v1/export/daily?'+q.toString(),'_blank');});
-document.getElementById('exportHourly').addEventListener('click',()=>{const uuid=deviceSel.value;const date=endEl.value||new Date().toISOString().slice(0,10);window.open('/api/v1/export/hourly?'+new URLSearchParams({uuid,date}).toString(),'_blank');});
-document.getElementById('exportHistory').addEventListener('click',()=>{const uuid=deviceSel.value;const start=startEl.value? startEl.value+' 00:00:00':'';const end=endEl.value? endEl.value+' 23:59:59':'';const q=new URLSearchParams({uuid});if(start)q.append('start',start);if(end)q.append('end',end);if(filterWarn&&filterWarn.value)q.append('warn_status',filterWarn.value);if(filterRecType&&filterRecType.value)q.append('rec_type',filterRecType.value);if(filterBtxMin&&filterBtxMin.value)q.append('batterytx_min',filterBtxMin.value);if(filterBtxMax&&filterBtxMax.value)q.append('batterytx_max',filterBtxMax.value);window.open('/api/v1/export/history?'+q.toString(),'_blank');});
-(async()=>{await loadDevices();await loadStats();await loadAllTotals();})();
-document.getElementById('runToastTests').addEventListener('click',()=>{const types=['info','success','warning','error'];const tr=document.getElementById('toastRoot');if(!tr)return;types.forEach((t,i)=>{setTimeout(()=>{const d=document.createElement('div');d.className='toast toast-'+t;const m=document.createElement('div');m.className='msg';m.textContent='测试 '+t;const c=document.createElement('button');c.className='close';c.textContent='×';d.appendChild(m);d.appendChild(c);tr.appendChild(d);requestAnimationFrame(()=>{d.classList.add('enter')});setTimeout(()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)},3000);c.addEventListener('click',()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)});},i*300)})});
-document.getElementById('runAnimPerf').addEventListener('click',()=>{let frames=0;const start=performance.now();function step(ts){frames++;if(ts-start<1000){requestAnimationFrame(step);}else{const tr=document.getElementById('toastRoot');if(!tr)return;const d=document.createElement('div');d.className='toast toast-info';const m=document.createElement('div');m.className='msg';m.textContent='1s帧数:'+frames;const c=document.createElement('button');c.className='close';c.textContent='×';d.appendChild(m);d.appendChild(c);tr.appendChild(d);requestAnimationFrame(()=>{d.classList.add('enter')});setTimeout(()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)},3000);c.addEventListener('click',()=>{d.classList.remove('enter');d.classList.add('leave');setTimeout(()=>{if(d.parentNode)tr.removeChild(d)},300)});}}requestAnimationFrame(step)});
-document.getElementById('refreshLatest').addEventListener('click',loadLatest);
-document.getElementById('load').addEventListener('click',()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
-document.getElementById('today').addEventListener('click',()=>{const d=new Date().toISOString().slice(0,10);startEl.value=d;endEl.value=d;const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
-document.getElementById('last7').addEventListener('click',()=>{const now=new Date();const end=now.toISOString().slice(0,10);const start=new Date(now.getTime()-6*24*3600*1000).toISOString().slice(0,10);startEl.value=start;endEl.value=end;const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},{capture:true});
-document.getElementById('resetFilter').addEventListener('click',()=>{localStorage.removeItem('dashboardFilters');},{capture:true});
-if(autoEl)autoEl.addEventListener('change',()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));});
-let debounceT;function debounceSave(){if(debounceT)clearTimeout(debounceT);debounceT=setTimeout(()=>{const v={device:deviceSel.value,start:startEl.value,end:endEl.value,warn:filterWarn?filterWarn.value:'',rectype:filterRecType?filterRecType.value:'',btxmin:filterBtxMin?filterBtxMin.value:'',btxmax:filterBtxMax?filterBtxMax.value:'',auto:autoEl?autoEl.checked:false};localStorage.setItem('dashboardFilters',JSON.stringify(v));},200);}startEl.addEventListener('change',debounceSave);endEl.addEventListener('change',debounceSave);
-async function loadLatest(){const uuid=deviceSel.value;await loadStats();const r=await fetch('/api/v1/data/latest?'+new URLSearchParams({uuid}).toString());const x=await r.json();const t=fmtTime(x.time||'');const inc=x.in_count??x.in??'';const outc=x.out_count??x.out??'';document.getElementById('sum_last').textContent='最近上报：'+t+' IN='+inc+' OUT='+outc;await fetch('/api/v1/device/time-sync/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uuid})});}
-</script>
-<script>
-function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}
-function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
-</script>
+
+
+
+
 </body></html>
 """
     return HTMLResponse(content=html)
@@ -724,7 +174,41 @@ async def page_history():
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>历史数据</h2>
-  <div class='toolbar'>设备：<select id='device'></select> 日期范围：<input id='start' type='date'> - <input id='end' type='date'> 过滤：<input id='filterWarn' type='number' placeholder='warn_status' style='width:90px'> <input id='filterRecType' type='number' placeholder='rec_type' style='width:90px'> <input id='filterBtxMin' type='number' placeholder='Tx电量最小' style='width:110px'> <input id='filterBtxMax' type='number' placeholder='Tx电量最大' style='width:110px'> <input id='histAdminToken' placeholder='Admin Token' style='width:140px'> <button id='query' class='btn btn-primary'>查询</button> <button id='reset' class='btn'>重置</button></div>
+  <div class='filters'>
+    <div class='filter-card'>
+      <h4>查询</h4>
+      <div class='filter-row'>
+        <label>设备</label>
+        <select id='device' style='min-width:200px'></select>
+        <label>日期范围</label>
+        <div class="ant-picker ant-picker-range">
+          <div class="ant-picker-input"><input id='start' type='date' placeholder='开始' size='12'></div>
+          <div class="ant-picker-range-separator"><span>-</span></div>
+          <div class="ant-picker-input"><input id='end' type='date' placeholder='结束' size='12'></div>
+        </div>
+      </div>
+      <div class='filter-actions'>
+        <button id='query' class='btn btn-primary'>查询</button>
+        <button id='reset' class='btn'>重置</button>
+        <button id='dataCompletion' class='btn btn-primary' style='background-color:#0ca678;border-color:#0ca678'>数据补全</button>
+      </div>
+    </div>
+    
+    <details class='filter-card'>
+       <summary><h4 style='display:inline'>高级过滤</h4></summary>
+       <div class='filter-row' style='margin-top:8px'>
+         <input id='filterWarn' type='number' placeholder='告警状态(warn_status)' style='width:140px'>
+         <input id='filterRecType' type='number' placeholder='记录类型(rec_type)' style='width:140px'>
+         <div class='ant-picker' style='padding:0 8px;width:auto'>
+            <span style='font-size:12px;color:var(--text-secondary);margin-right:6px'>Tx电量</span>
+            <input id='filterBtxMin' type='number' placeholder='Min' style='border:none;width:50px;text-align:center;outline:none'>
+            <span style='color:var(--text-secondary);margin:0 2px'>-</span>
+            <input id='filterBtxMax' type='number' placeholder='Max' style='border:none;width:50px;text-align:center;outline:none'>
+         </div>
+         <input id='histAdminToken' placeholder='Admin Token' style='width:140px;margin-left:auto'>
+       </div>
+    </details>
+  </div>
   <div class='table-wrap'><table><thead><tr><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th><th style='width:140px'>操作</th></tr></thead><tbody id='tbl'></tbody></table></div>
 </div>
 <script>
@@ -756,6 +240,219 @@ tbl.addEventListener('click',(e)=>{const b=e.target.closest('button');if(!b)retu
   newSave.addEventListener('click',async()=>{let ok=true;m_time.classList.remove('err');m_in.classList.remove('err');m_out.classList.remove('err');m_bat.classList.remove('err');m_btx.classList.remove('err');const t=fromLocalFixed(m_time.value);if(t&&t.length!==19){m_time.classList.add('err');ok=false}if(!nonNegInt(m_in.value)){m_in.classList.add('err');ok=false}if(!nonNegInt(m_out.value)){m_out.classList.add('err');ok=false}if(!inRange(m_bat.value,0,100)){m_bat.classList.add('err');ok=false}if(!inRange(m_btx.value,0,100)){m_btx.classList.add('err');ok=false}if(!ok){showToast('数据不合法');return}const cells=editingRow.querySelectorAll('td');let inc=parseInt(cells[1].textContent||'0');let outc=parseInt(cells[2].textContent||'0');if(m_in.value!=='')inc=parseInt(m_in.value);if(m_out.value!=='')outc=parseInt(m_out.value);const payload={id:editingId};if(t)payload.time=t;if(validInt(inc))payload.in_count=inc;if(validInt(outc))payload.out_count=outc;if(m_bat.value!=='')payload.battery_level=parseInt(m_bat.value);const radio=document.querySelector("input[name='m_txonline']:checked");if(radio)payload.signal_status=parseInt(radio.value);if(m_btx.value!=='')payload.batterytx_level=parseInt(m_btx.value);if(m_rectype.value!=='')payload.rec_type=parseInt(m_rectype.value);const saveBtn=document.getElementById('m_save');saveBtn.disabled=true;saveBtn.textContent='保存中…';try{const res=await fetch('/api/v1/admin/record/update',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':(document.getElementById('histAdminToken')?.value||'')},body:JSON.stringify(payload)});if(res.ok){showToast('保存成功');closeModal();await loadHistory()}else{showToast('保存失败')}}finally{saveBtn.disabled=false;saveBtn.textContent='保存'}});
 })();
 </script>
+
+  <div id='completionModal' class='modal-backdrop'>
+    <div class='modal' style='width: min(90vw, 420px);'>
+        <h3>数据补全</h3>
+        <div style='margin-bottom:20px;color:var(--muted);font-size:14px;line-height:1.5'>请选择需要补全的时间段，系统将从设备拉取数据并与本地记录智能合并。</div>
+        <div class='form-grid'>
+            <div class='form-row'>
+                <label style='font-weight:500;color:var(--text)'>起始时间</label>
+                <input id='compStart' class='input' type='datetime-local' step='60'>
+            </div>
+            <div class='form-row'>
+                <label style='font-weight:500;color:var(--text)'>结束时间</label>
+                <input id='compEnd' class='input' type='datetime-local' step='60'>
+            </div>
+        </div>
+        <div class='actions'>
+            <button class='btn' id='compCancel'>取消</button>
+            <button class='btn btn-primary' id='compConfirm'>获取数据</button>
+        </div>
+    </div>
+  </div>
+
+  <div id='mergeModal' class='modal-backdrop' style='z-index:2000;'>
+    <div class='modal' style='width:80%;max-width:900px;display:flex;flex-direction:column;max-height:85vh'>
+        <h3>合并预览</h3>
+        <div class='toolbar' style='margin-bottom:10px'>
+            <button class='btn' id='mergeSelectAll' style='padding:4px 10px;font-size:13px'>全选</button>
+            <button class='btn' id='mergeDeselectAll' style='padding:4px 10px;font-size:13px'>反选</button>
+        </div>
+        <div class='table-wrap' style='flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg)'>
+            <table class='table' style='border:none'>
+                <thead style='position:sticky;top:0;z-index:10;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,0.05)'>
+                    <tr>
+                        <th style='width:60px;text-align:center'>选择</th>
+                        <th>时间</th>
+                        <th style='width:100px'>IN</th>
+                        <th style='width:100px'>OUT</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id='mergeTbl'></tbody>
+            </table>
+        </div>
+        <div class='actions' style='margin-top:16px;padding-top:16px;border-top:1px solid var(--border)'>
+            <button class='btn' id='mergeCancel'>取消</button>
+            <button class='btn btn-primary' id='mergeApply'>应用修改</button>
+        </div>
+    </div>
+  </div>
+<script>
+const compModal=document.getElementById('completionModal');
+const mergeModal=document.getElementById('mergeModal');
+const compStart=document.getElementById('compStart');
+const compEnd=document.getElementById('compEnd');
+const mergeTbl=document.getElementById('mergeTbl');
+let fetchedData = [];
+
+document.getElementById('dataCompletion').addEventListener('click', ()=>{
+    if(!deviceSel.value){ alert('请先选择设备'); return; }
+    const now = new Date();
+    const ymd = now.toISOString().slice(0,10);
+    compStart.value = ymd + 'T00:00';
+    compEnd.value = ymd + 'T23:59';
+    compModal.classList.add('show');
+});
+
+document.getElementById('compCancel').addEventListener('click', ()=>compModal.classList.remove('show'));
+
+document.getElementById('compConfirm').addEventListener('click', async ()=>{
+    const uuid = deviceSel.value;
+    if(!uuid) return;
+    const s = compStart.value;
+    const e = compEnd.value;
+    if(!s || !e){ alert('请选择时间'); return; }
+    
+    const btn = document.getElementById('compConfirm');
+    btn.disabled = true;
+    btn.textContent = '获取中...';
+    
+    try {
+        const resDev = await fetch('/api/v1/admin/device/fetch-history', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-Admin-Token': document.getElementById('histAdminToken').value||''},
+            body: JSON.stringify({uuid, start: s.replace('T', ' ') + ':00', end: e.replace('T', ' ') + ':59'})
+        });
+        if(!resDev.ok) throw new Error('获取设备数据失败');
+        const devData = await resDev.json();
+        
+        const q = new URLSearchParams();
+        q.append('uuid', uuid);
+        q.append('start', s.replace('T', ' ') + ':00');
+        q.append('end', e.replace('T', ' ') + ':59');
+        q.append('limit', 10000); 
+        const resLoc = await fetch('/api/v1/data/history?' + q.toString());
+        if(!resLoc.ok) throw new Error('获取本地数据失败');
+        const locData = await resLoc.json();
+        
+        const locMap = new Map();
+        locData.forEach(r => {
+            locMap.set(r.time, r);
+        });
+        
+        fetchedData = [];
+        for(const d of devData) {
+            const t = d.time;
+            const loc = locMap.get(t);
+            if(loc) {
+                fetchedData.push({
+                    ...d,
+                    _status: 'exist',
+                    _local: loc,
+                    in_count: loc.in_count??loc.in,
+                    out_count: loc.out_count??loc.out
+                });
+            } else {
+                fetchedData.push({
+                    ...d,
+                    _status: 'new'
+                });
+            }
+        }
+        
+        renderMergeTable();
+        compModal.classList.remove('show');
+        mergeModal.classList.add('show');
+        
+    } catch(err) {
+        alert(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '获取数据';
+    }
+});
+
+function renderMergeTable() {
+    mergeTbl.innerHTML = '';
+    fetchedData.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        const isNew = r._status === 'new';
+        const checked = isNew ? 'checked' : '';
+        const statusText = isNew ? '<span style="color:green">新增</span>' : '<span style="color:gray">已存在(保留本地)</span>';
+        
+        tr.innerHTML = `
+            <td><input type='checkbox' class='merge-chk' data-idx='${idx}' ${checked}></td>
+            <td>${r.time}</td>
+            <td><input type='number' class='input-mini' value='${r.in_count}' onchange='updateFetched(${idx}, "in_count", this.value)' style='width:60px'></td>
+            <td><input type='number' class='input-mini' value='${r.out_count}' onchange='updateFetched(${idx}, "out_count", this.value)' style='width:60px'></td>
+            <td>${statusText}</td>
+        `;
+        mergeTbl.appendChild(tr);
+    });
+}
+
+window.updateFetched = function(idx, field, val) {
+    fetchedData[idx][field] = parseInt(val);
+};
+
+document.getElementById('mergeSelectAll').addEventListener('click', ()=>{
+    document.querySelectorAll('.merge-chk').forEach(c => c.checked = true);
+});
+document.getElementById('mergeDeselectAll').addEventListener('click', ()=>{
+    document.querySelectorAll('.merge-chk').forEach(c => c.checked = !c.checked);
+});
+document.getElementById('mergeCancel').addEventListener('click', ()=>mergeModal.classList.remove('show'));
+
+document.getElementById('mergeApply').addEventListener('click', async ()=>{
+    const chks = document.querySelectorAll('.merge-chk:checked');
+    if(chks.length === 0) { alert('未选择任何记录'); return; }
+    
+    const toMerge = [];
+    chks.forEach(c => {
+        const idx = parseInt(c.dataset.idx);
+        const r = fetchedData[idx];
+        const payload = {
+            uuid: r.uuid,
+            time: r.time,
+            in_count: r.in_count,
+            out_count: r.out_count,
+            battery_level: r.battery_level,
+            signal_status: r.signal_status,
+            warn_status: r.warn_status,
+            batterytx_level: r.batterytx_level,
+            rec_type: r.rec_type
+        };
+        if(r._local && r._local.id) {
+            payload.id = r._local.id;
+        }
+        toMerge.push(payload);
+    });
+    
+    const btn = document.getElementById('mergeApply');
+    btn.disabled = true;
+    btn.textContent = '应用中...';
+    
+    try {
+        const res = await fetch('/api/v1/admin/device/merge-history', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-Admin-Token': document.getElementById('histAdminToken').value||''},
+            body: JSON.stringify({records: toMerge})
+        });
+        if(!res.ok) throw new Error('合并失败');
+        const ret = await res.json();
+        alert(`成功合并 ${ret.count} 条记录`);
+        mergeModal.classList.remove('show');
+        loadHistory();
+    } catch(e) {
+        alert(e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '应用修改';
+    }
+});
+</script>
 </body></html>
 """
     return HTMLResponse(content=html)
@@ -786,6 +483,7 @@ async def page_admin_db():
   </div>
   <div class='table-wrap'><table><thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>信号</th><th>操作</th></tr></thead><tbody id='adminTbl'></tbody></table></div>
   <div class='toolbar'><button class='btn' id='prev'>上一页</button> <span id='pageInfo'></span> <button class='btn' id='next'>下一页</button></div>
+
 </div>
 <script>
 document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
@@ -797,6 +495,9 @@ document.getElementById('paged').addEventListener('click',()=>{showAll=false;pag
 adminTbl.addEventListener('click',async(e)=>{const btn=e.target.closest('button');if(!btn)return;const id=parseInt(btn.dataset.id);if(btn.dataset.act==='del'){if(confirm('确认删除?')){await fetch('/api/v1/admin/record/delete',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify({id})});loadAdmin();}}else if(btn.dataset.act==='edit'){const inc=prompt('IN');const outc=prompt('OUT');const bat=prompt('电量');const sig=prompt('信号(0在线/1离线)');const warn=prompt('warn_status');const btx=prompt('Tx电量');const rtype=prompt('记录类型rec_type');const time=prompt('时间 YYYY-MM-DD HH:MM:SS');const payload={id};if(inc)payload.in_count=parseInt(inc);if(outc)payload.out_count=parseInt(outc);if(bat)payload.battery_level=parseInt(bat);if(sig)payload.signal_status=parseInt(sig);if(warn)payload.warn_status=parseInt(warn);if(btx)payload.batterytx_level=parseInt(btx);if(rtype)payload.rec_type=parseInt(rtype);if(time)payload.time=time;await fetch('/api/v1/admin/record/update',{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Token':document.getElementById('adminToken').value||''},body:JSON.stringify(payload)});loadAdmin();}});
 document.getElementById('backup').addEventListener('click',async()=>{const res=await fetch('/api/v1/admin/backup',{headers:{'X-Admin-Token':document.getElementById('adminToken').value||''}});if(!res.ok){alert('备份失败');return;}const blob=await res.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='infrared.db';a.click();URL.revokeObjectURL(url);});
 document.getElementById('restore').addEventListener('click',async()=>{const f=document.getElementById('restoreFile').files[0];if(!f){alert('请选择文件');return;}const fd=new FormData();fd.append('file',f);const res=await fetch('/api/v1/admin/restore',{method:'POST',headers:{'X-Admin-Token':document.getElementById('adminToken').value||''},body:fd});if(res.ok){alert('还原成功');}else{alert('还原失败');}loadAdmin();});
+
+
+
 (async()=>{await loadAdmin();})();
 </script>
 </body></html>
@@ -812,17 +513,26 @@ async def page_classification():
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>设备分类与名称管理</h2>
-  <div class='toolbar'>
-    <input id='regCategory' placeholder='分类'>
-    <input id='regSearch' placeholder='搜索UUID/名称'>
-    <input id='regToken' placeholder='Admin Token'>
-    <button class='btn btn-primary' id='regQuery'>查询</button>
+  <div class='filters'>
+    <div class='filter-card'>
+      <h4>查询</h4>
+      <div class='filter-row'>
+        <input id='regCategory' placeholder='分类' style='width:160px'>
+        <input id='regSearch' placeholder='搜索UUID/名称' style='width:200px'>
+        <input id='regToken' placeholder='Admin Token' style='width:160px'>
+        <button class='btn btn-primary' id='regQuery'>查询</button>
+      </div>
+    </div>
   </div>
   <div class='table-wrap'><table><thead><tr><th>UUID</th><th>名称</th><th>分类</th><th>操作</th></tr></thead><tbody id='regTbl'></tbody></table></div>
-  <div class='toolbar'><button class='btn' id='regPrev'>上一页</button> <span id='regPageInfo'></span> <button class='btn' id='regNext'>下一页</button></div>
+  <div class='toolbar' style='margin-top:16px;justify-content:flex-end'>
+    <button class='btn' id='regPrev'>上一页</button> 
+    <span id='regPageInfo' style='display:flex;align-items:center;padding:0 8px;font-weight:500;color:var(--text-secondary)'></span> 
+    <button class='btn' id='regNext'>下一页</button>
+  </div>
 </div>
-<div id='editModal' class='modal-backdrop'><div class='modal'><h3>编辑设备名称</h3><input id='editName' placeholder='显示名称(<=32)'><div class='toolbar'><button class='btn' id='editCancel'>取消</button><button class='btn btn-primary' id='editSave'>保存</button></div></div></div>
-<div id='editCatModal' class='modal-backdrop'><div class='modal'><h3>编辑设备分类</h3><input id='editCategory' placeholder='设备分类(<=32)'><div class='toolbar'><button class='btn' id='editCatCancel'>取消</button><button class='btn btn-primary' id='editCatSave'>保存</button></div></div></div>
+<div id='editModal' class='modal-backdrop'><div class='modal'><h3>编辑设备名称</h3><div class='form-grid'><div class='form-row'><label>名称</label><input id='editName' class='input' placeholder='显示名称(<=32)'></div></div><div class='actions'><button class='btn' id='editCancel'>取消</button><button class='btn btn-primary' id='editSave'>保存</button></div></div></div>
+<div id='editCatModal' class='modal-backdrop'><div class='modal'><h3>编辑设备分类</h3><div class='form-grid'><div class='form-row'><label>分类</label><input id='editCategory' class='input' placeholder='设备分类(<=32)'></div></div><div class='actions'><button class='btn' id='editCatCancel'>取消</button><button class='btn btn-primary' id='editCatSave'>保存</button></div></div></div>
 <div id='regToast' class='toast'></div>
 <script>
 document.querySelectorAll('.sidebar a').forEach(a=>{if(a.getAttribute('href')===location.pathname){a.classList.add('active');}});
@@ -858,10 +568,15 @@ async def page_alerts():
           <div class='sidebar'><h3>导航</h3><a class='nav-link' href='/dashboard'>数据看板</a><a class='nav-link' href='/history'>历史数据</a><a class='nav-link' href='/classification'>设备分类</a><a class='nav-link' href='/alerts'>告警中心</a></div>
 <div class='main'>
   <h2>告警中心</h2>
-  <div class='toolbar'>
-    <input id='alertUuid' placeholder='设备UUID'>
-    <input id='alertLimit' type='number' value='100'>
-    <button class='btn' id='alertQuery'>查询</button>
+  <div class='filters'>
+    <div class='filter-card'>
+      <h4>查询</h4>
+      <div class='filter-row'>
+        <input id='alertUuid' placeholder='设备UUID' style='width:200px'>
+        <input id='alertLimit' type='number' value='100' placeholder='数量' style='width:100px'>
+        <button class='btn btn-primary' id='alertQuery'>查询</button>
+      </div>
+    </div>
   </div>
   <div class='table-wrap'><table><thead><tr><th>ID</th><th>UUID</th><th>类型</th><th>等级</th><th>信息</th><th>时间</th></tr></thead><tbody id='alertTbl'></tbody></table></div>
 </div>
@@ -881,28 +596,37 @@ async def page_recent():
     html = """
 <!doctype html><html><head><meta charset='utf-8'><title>最近记录</title>
 <link rel='stylesheet' href='/static/style.css'>
-<style>
-body{margin:0}
-.wrap{width:98vw;margin:0 auto;padding:8px}
-h2{margin:8px 0 6px;font-size:18px}
-.toolbar{margin:6px 0}
-.table-wrap{min-height:calc(100vh - 70px);height:auto;overflow:visible;border-radius:10px}
-</style>
 </head><body>
-<div class='wrap'>
+<div class='main'>
   <h2>最近记录</h2>
-  <div class='toolbar'>
-    <input id='filterUuid' placeholder='设备UUID'>
-    <input id='filterStart' type='datetime-local'>
-    <input id='filterEnd' type='datetime-local'>
-    <input id='filterWarn' type='number' placeholder='warn_status'>
-    <input id='filterRecType' type='number' placeholder='rec_type'>
-    <input id='filterBtxMin' type='number' placeholder='Tx电量最小'>
-    <input id='filterBtxMax' type='number' placeholder='Tx电量最大'>
-    <input id='adminToken' placeholder='Admin Token'>
-    <button class='btn btn-primary' id='query'>查询</button>
-    <button class='btn' id='reset'>重置</button>
-    <button class='btn btn-danger' id='delRange'>删除区间</button>
+  <div class='filters'>
+    <div class='filter-card'>
+      <h4>查询</h4>
+      <div class='filter-row'>
+        <input id='filterUuid' placeholder='设备UUID' style='width:160px'>
+        <div class="ant-picker ant-picker-range" style='width:auto'>
+          <div class="ant-picker-input"><input id='filterStart' type='date' placeholder='开始'></div>
+          <div class="ant-picker-range-separator"><span>-</span></div>
+          <div class="ant-picker-input"><input id='filterEnd' type='date' placeholder='结束'></div>
+        </div>
+        <input id='adminToken' placeholder='Admin Token' style='width:140px'>
+        <button class='btn btn-primary' id='query'>查询</button>
+        <button class='btn' id='reset'>重置</button>
+        <button class='btn btn-danger' id='delRange'>删除区间</button>
+      </div>
+    </div>
+    <details class='filter-card'>
+      <summary><h4 style='display:inline'>高级过滤</h4></summary>
+      <div class='filter-row' style='margin-top:8px'>
+        <input id='filterWarn' type='number' placeholder='warn_status' style='width:120px'>
+        <input id='filterRecType' type='number' placeholder='rec_type' style='width:120px'>
+        <div class='ant-picker' style='padding:0 8px;width:auto'>
+           <input id='filterBtxMin' type='number' placeholder='Tx Min' style='border:none;width:60px;text-align:center;outline:none'>
+           <span style='color:var(--text-secondary);margin:0 2px'>-</span>
+           <input id='filterBtxMax' type='number' placeholder='Tx Max' style='border:none;width:60px;text-align:center;outline:none'>
+        </div>
+      </div>
+    </details>
   </div>
   <div class='table-wrap'><table style='width:100%'><thead><tr><th>ID</th><th>UUID</th><th>时间</th><th>IN</th><th>OUT</th><th>电量</th><th>发射端是否在线</th><th>Tx电量</th><th>记录类型</th><th>操作</th></tr></thead><tbody id='adminTbl'></tbody></table></div>
   
@@ -972,6 +696,76 @@ async def admin_record_create(request: Request, payload: dict = Body(...)):
         return Response(status_code=403)
     rid = await admin_create_record(payload)
     return {"id": rid}
+
+@app.post("/api/v1/admin/device/fetch-history")
+async def admin_device_fetch_history(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    uuid = payload.get("uuid")
+    start = payload.get("start") # YYYY-MM-DD HH:MM:SS
+    end = payload.get("end")
+    if not uuid or not start or not end:
+        return Response(status_code=400)
+    
+    # 模拟从设备获取数据 (Simulation of fetching from device)
+    # In real scenario, this would call the device API or Protocol.
+    # Here we simulate returning data with some random values for testing.
+    import random
+    from datetime import datetime, timedelta
+    
+    try:
+        s_dt = datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
+        e_dt = datetime.strptime(end, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return Response(status_code=400)
+
+    data = []
+    curr = s_dt
+    while curr <= e_dt:
+        # Simulate a record every minute
+        t_str = curr.strftime("%Y-%m-%d %H:%M:%S")
+        # Simulate data: IN/OUT random
+        data.append({
+            "uuid": uuid,
+            "in_count": random.randint(0, 5),
+            "out_count": random.randint(0, 5),
+            "time": t_str,
+            "battery_level": 80,
+            "signal_status": 1,
+            "warn_status": 0,
+            "batterytx_level": 80,
+            "rec_type": 0
+        })
+        curr += timedelta(minutes=1) # Default 1 minute interval
+    
+    return data
+
+@app.post("/api/v1/admin/device/merge-history")
+async def admin_device_merge_history(request: Request, payload: dict = Body(...)):
+    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
+        return Response(status_code=403)
+    
+    records = payload.get("records", [])
+    if not records:
+        return {"ok": True, "count": 0}
+    
+    # Format time if needed (frontend sends YYYY-MM-DD HH:MM:SS, we convert to compact for storage)
+    for r in records:
+        if "time" in r and r["time"]:
+             t = str(r["time"]).strip()
+             t = t.replace("-", "").replace(":", "").replace(" ", "")
+             r["time"] = t
+             
+    cnt = await admin_batch_upsert(records)
+    
+    try:
+        actor = request.headers.get("X-Admin-Token", "")
+        await admin_write_op(actor, "merge_history", records[0].get("uuid") if records else "", f"count={cnt}")
+    except Exception:
+        pass
+        
+    return {"ok": True, "count": cnt}
+
 
 @app.get("/api/v1/admin/device/registry")
 async def admin_device_registry(request: Request, category: Optional[str] = None, search: Optional[str] = None, page: int = 1, page_size: int = 20):
