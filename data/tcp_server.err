@@ -33,3 +33,4 @@ Traceback (most recent call last):
     raise OSError(err.errno, 'error while attempting '
 OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
 2025-12-03 20:27:26,372 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 21:22:27,023 INFO root TCP Server listening on 0.0.0.0:8085
