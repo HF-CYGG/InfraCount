@@ -16,3 +16,4 @@ Traceback (most recent call last):
   File "E:\python310\lib\asyncio\windows_events.py", line 783, in _poll
     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
 KeyboardInterrupt
+2025-12-03 19:46:40,651 INFO root TCP Server listening on 0.0.0.0:8085

@@ -40,6 +40,15 @@ def parse_sensor_xml(xml_str: str):
     batterytx_level = to_int(_get_text(root, ["batterytx_level", "battery_tx", "btx"]))
     rec_type = to_int(_get_text(root, ["rec_type"]))
     ts = _get_text(root, ["time", "timestamp", "datetime"]) or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Normalize time format if it's compacted (YYYYMMDDHHMMSS)
+    if ts and len(ts) == 14 and ts.isdigit():
+        try:
+            dt = datetime.strptime(ts, "%Y%m%d%H%M%S")
+            ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+            
     return {
         "uuid": uuid,
         "in": in_count,

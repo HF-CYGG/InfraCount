@@ -1,1 +1,64 @@
 INFO:     127.0.0.1:7288 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8361 - "GET /static/dashboard.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8361 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8361 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8197 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-04+00%3A00%3A00&end=2025-12-03+23%3A59%3A59 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-03 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12189 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1511 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14696 - "GET /api/v1/devices%20500%20%28Internal%20Server%20Error%29 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14697 - "GET /api/v1/devices%20500%20%28Internal%20Server%20Error%29 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14702 - "GET /api/v1/devices%20500%20%28Internal%20Server%20Error%29 HTTP/1.1" 404 Not Found

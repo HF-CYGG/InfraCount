@@ -99,7 +99,7 @@ async def page_board():
     html = """
 <!doctype html><html><head><meta charset='utf-8'><title>数据看板</title>
 <link rel="stylesheet" href="/static/style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/chart.umd.min.js"></script>
 <script src="/static/dashboard.js" defer></script>
 
 </head><body>

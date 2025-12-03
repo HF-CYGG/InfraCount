@@ -93,9 +93,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                         root = ET.fromstring(msg["xml"]) if msg.get("xml") else None
                         uuid_el = root.find("uuid") if root is not None else None
                         uuid = (uuid_el.text.strip() if (uuid_el is not None and uuid_el.text) else "")
-                        os.makedirs(os.path.join("data", "sync"), exist_ok=True)
-                        flag = os.path.join("data", "sync", f"{uuid}.flag") if uuid else None
-                        if flag and os.path.exists(flag):
+                        
+                        # Always respond to Time Sync Request
+                        if uuid:
                             res = build_time_sync_xml(uuid)
                             writer.write(build_frame(0x22, res, msg["seq"]))
                             await writer.drain()
@@ -103,8 +103,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                                 raw_lg.info(f"peer={peer} time_sync_sent xml={res}")
                             except Exception:
                                 pass
+                            
+                            # Clear flag if it exists (cleanup)
                             try:
-                                os.remove(flag)
+                                flag = os.path.join("data", "sync", f"{uuid}.flag")
+                                if os.path.exists(flag):
+                                    os.remove(flag)
                             except Exception:
                                 pass
                     except Exception:

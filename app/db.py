@@ -313,30 +313,48 @@ async def fetch_history(uuid: str, start: str | None, end: str | None, limit: in
             ]
 
 async def list_devices(limit: int):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id, (SELECT name FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS name, (SELECT category FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS category FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT ?"
-        if _sqlite:
-            cur = await _sqlite.execute(sql, (limit,))
-            rows = await cur.fetchall()
-            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
-        else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, (limit,))
-            return rows
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
+    try:
+        if use_sqlite():
+            global _sqlite
+            if _sqlite is None:
+                try:
+                    await init_sqlite()
+                except Exception as e:
+                    print(f"Init SQLite error in list_devices: {e}")
+            
+            sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id, (SELECT name FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS name, (SELECT category FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS category FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT ?"
+            
+            if _sqlite:
+                try:
+                    cur = await _sqlite.execute(sql, (limit,))
+                    rows = await cur.fetchall()
+                    return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
+                except Exception as e:
+                    print(f"SQLite error in list_devices: {e}")
+                    return []
+            else:
+                try:
+                    rows = await asyncio.to_thread(_sqlite_query_all, sql, (limit,))
+                    return rows
+                except Exception as e:
+                    print(f"SQLite thread error in list_devices: {e}")
+                    return []
+        
+        if _pool is None:
+            await init_pool()
+        if _pool is None:
+            return []
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT t.uuid, t.last_time, t.last_id, r.name, r.category FROM (SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid) t LEFT JOIN device_registry r ON r.uuid=t.uuid ORDER BY t.last_time DESC LIMIT %s",
+                    (limit,),
+                )
+                rows = await cur.fetchall()
+                return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
+    except Exception as e:
+        print(f"Unexpected error in list_devices: {e}")
         return []
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "SELECT t.uuid, t.last_time, t.last_id, r.name, r.category FROM (SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid) t LEFT JOIN device_registry r ON r.uuid=t.uuid ORDER BY t.last_time DESC LIMIT %s",
-                (limit,),
-            )
-            rows = await cur.fetchall()
-            return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
 
 async def stats_daily(uuid: str, start: str | None, end: str | None):
     if use_sqlite():
