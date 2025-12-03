@@ -6,7 +6,7 @@ DB_PORT = int(os.getenv("DB_PORT", "3306"))
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "infrared")
-DB_SQLITE_PATH = os.getenv("DB_SQLITE_PATH", r"e:\项目\书院人流计数器后端\data\infrared.db")
+DB_SQLITE_PATH = os.getenv("DB_SQLITE_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "infrared.db"))
 
 TCP_HOST = os.getenv("TCP_HOST", "0.0.0.0")
 TCP_PORT = int(os.getenv("TCP_PORT", "8085"))

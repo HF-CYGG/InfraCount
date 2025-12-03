@@ -17,3 +17,19 @@ Traceback (most recent call last):
     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
 KeyboardInterrupt
 2025-12-03 19:46:40,651 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 20:26:03,672 CRITICAL root Port 8085 is already in use! The service might be already running.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 147, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 641, in run_until_complete
+    return future.result()
+  File "E:\项目\InfraCount\tcp_server.py", line 131, in main
+    server = await asyncio.start_server(handle_client, config.TCP_HOST, config.TCP_PORT)
+  File "E:\python310\lib\asyncio\streams.py", line 84, in start_server
+    return await loop.create_server(factory, host, port, **kwds)
+  File "E:\python310\lib\asyncio\base_events.py", line 1493, in create_server
+    raise OSError(err.errno, 'error while attempting '
+OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+2025-12-03 20:27:26,372 INFO root TCP Server listening on 0.0.0.0:8085

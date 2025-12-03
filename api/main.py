@@ -298,7 +298,7 @@ tbl.addEventListener('click',(e)=>{const b=e.target.closest('button');if(!b)retu
             <button class='btn' id='mergeSelectAll' style='padding:4px 10px;font-size:13px'>全选</button>
             <button class='btn' id='mergeDeselectAll' style='padding:4px 10px;font-size:13px'>反选</button>
         </div>
-        <div class='table-wrap' style='flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg)'>
+        <div class='table-wrap' style='flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);min-height:0'>
             <table class='table' style='border:none'>
                 <thead style='position:sticky;top:0;z-index:10;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,0.05)'>
                     <tr>
