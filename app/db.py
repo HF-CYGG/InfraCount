@@ -791,6 +791,38 @@ async def admin_delete_range(uuid: str, start: str, end: str):
             await cur.execute("DELETE FROM device_data WHERE uuid=%s AND time>=%s AND time<=%s", (uuid, start, end))
             return getattr(cur, "rowcount", 0)
 
+async def admin_fetch_range(uuid: str, start: str, end: str):
+    sql = "SELECT uuid, in_count, out_count, time, battery_level, signal_status, warn_status, batterytx_level, rec_type FROM device_data WHERE uuid=? AND time>=? AND time<=? ORDER BY time ASC"
+    if use_sqlite():
+        global _sqlite
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite is None:
+            return []
+        cur = await _sqlite.execute(sql, (uuid, start, end))
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+        
+    if _pool is None:
+        await init_pool()
+    if _pool is None:
+        return []
+    
+    mysql_sql = sql.replace("?", "%s")
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(mysql_sql, (uuid, start, end))
+            rows = await cur.fetchall()
+            # aiomysql returns tuples, need to map to dict
+            cols = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
+            res = []
+            for r in rows:
+                d = {}
+                for i, v in enumerate(cols):
+                    d[v] = r[i]
+                res.append(d)
+            return res
+
 async def admin_batch_upsert(records: list[dict]):
     if not records:
         return 0

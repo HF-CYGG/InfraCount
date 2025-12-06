@@ -34,3 +34,10 @@ Traceback (most recent call last):
 OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
 2025-12-03 20:27:26,372 INFO root TCP Server listening on 0.0.0.0:8085
 2025-12-03 21:22:27,023 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 21:37:39,799 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 22:14:40,647 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 23:54:46,287 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-03 23:58:28,961 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-04 00:07:06,187 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-04 00:11:29,081 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-04 00:15:33,959 INFO root TCP Server listening on 0.0.0.0:8085

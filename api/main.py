@@ -8,7 +8,7 @@ from fastapi import Body, UploadFile, Request, WebSocket
 from starlette.staticfiles import StaticFiles
 import os
 from app import config
-from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, stats_total as db_stats_total, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range, admin_get_categories, admin_get_uuids, get_device_mapping
+from app.db import init_pool, close_pool, fetch_latest, fetch_history, list_devices as db_list_devices, stats_daily as db_stats_daily, stats_hourly as db_stats_hourly, stats_summary as db_stats_summary, stats_top as db_stats_top, stats_total as db_stats_total, admin_count_records, admin_list_records, admin_update_record, admin_delete_record, admin_create_record, list_alerts, admin_list_registry, admin_upsert_registry, admin_write_op, admin_delete_range, admin_get_categories, admin_get_uuids, get_device_mapping, admin_batch_upsert, admin_fetch_range
 from app.security import issue_csrf, validate_csrf
 
 pass
@@ -205,6 +205,7 @@ async def page_history():
         <button id='reset' class='btn'>重置</button>
         <button id='toggleAdvanced' class='btn'>高级筛选</button>
         <button id='dataCompletion' class='btn btn-primary' style='background-color:#0ca678;border-color:#0ca678'>数据补全</button>
+        <button id='batchDelete' class='btn btn-danger' style='background-color:#e03131;border-color:#e03131'>批量删除</button>
         
         <div id='advancedPopup' class='popup-card'>
            <div class='form-grid'>
@@ -318,13 +319,88 @@ tbl.addEventListener('click',(e)=>{const b=e.target.closest('button');if(!b)retu
         </div>
     </div>
   </div>
+
+  <div id='deleteRangeModal' class='modal-backdrop'>
+    <div class='modal' style='width: min(90vw, 420px);'>
+        <h3>批量删除</h3>
+        <div style='margin-bottom:20px;font-size:14px;line-height:1.5;color:#e03131'>⚠️ 警告：此操作将永久删除指定时间段内的所有数据，无法恢复！</div>
+        <div class='form-grid'>
+            <div class='form-row'>
+                <label style='font-weight:500;color:var(--text)'>起始时间</label>
+                <input id='delStart' class='input' type='datetime-local' step='60'>
+            </div>
+            <div class='form-row'>
+                <label style='font-weight:500;color:var(--text)'>结束时间</label>
+                <input id='delEnd' class='input' type='datetime-local' step='60'>
+            </div>
+        </div>
+        <div class='actions'>
+            <button class='btn' id='delCancel'>取消</button>
+            <button class='btn btn-danger' id='delConfirm' style='background-color:#e03131;border-color:#e03131'>确认删除</button>
+        </div>
+    </div>
+  </div>
 <script>
+const delModal=document.getElementById('deleteRangeModal');
+const delStart=document.getElementById('delStart');
+const delEnd=document.getElementById('delEnd');
 const compModal=document.getElementById('completionModal');
 const mergeModal=document.getElementById('mergeModal');
 const compStart=document.getElementById('compStart');
 const compEnd=document.getElementById('compEnd');
 const mergeTbl=document.getElementById('mergeTbl');
 let fetchedData = [];
+
+document.getElementById('batchDelete').addEventListener('click', ()=>{
+    if(!deviceSel.value){ alert('请先选择设备'); return; }
+    const now = new Date();
+    const ymd = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    delStart.value = ymd + 'T00:00';
+    delEnd.value = ymd + 'T23:59';
+    delModal.classList.add('show');
+});
+
+document.getElementById('delCancel').addEventListener('click', ()=>delModal.classList.remove('show'));
+
+document.getElementById('delConfirm').addEventListener('click', async ()=>{
+    const uuid = deviceSel.value;
+    if(!uuid) return;
+    const s = delStart.value;
+    const e = delEnd.value;
+    if(!s || !e){ alert('请选择时间'); return; }
+    
+    if(!confirm('确定要删除该时间段内的数据吗？此操作不可逆！')) return;
+    
+    const btn = document.getElementById('delConfirm');
+    btn.disabled = true;
+    btn.textContent = '删除中...';
+    
+    try {
+        const fmt = (t) => t.replace('T', '').replace(/-/g, '').replace(/:/g, '');
+        const startStr = fmt(s) + '00';
+        const endStr = fmt(e) + '59'; 
+        
+        const res = await fetch('/api/v1/admin/records/delete-range', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json', 'X-Admin-Token': document.getElementById('histAdminToken').value||''},
+            body: JSON.stringify({uuid, start: startStr, end: endStr}) 
+        });
+        
+        if(res.ok) {
+            const d = await res.json();
+            alert(`删除成功，共删除 ${d.deleted} 条记录`);
+            delModal.classList.remove('show');
+            loadHistory();
+        } else {
+            alert('删除失败');
+        }
+    } catch(err) {
+        alert('请求出错: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '确认删除';
+    }
+});
 
 document.getElementById('dataCompletion').addEventListener('click', ()=>{
     if(!deviceSel.value){ alert('请先选择设备'); return; }
@@ -349,11 +425,15 @@ document.getElementById('compConfirm').addEventListener('click', async ()=>{
     btn.textContent = '获取中...';
     
     try {
-        const resDev = await fetch('/api/v1/admin/device/fetch-history', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json', 'X-Admin-Token': document.getElementById('histAdminToken').value||''},
-            body: JSON.stringify({uuid, start: s.replace('T', ' ') + ':00', end: e.replace('T', ' ') + ':59'})
-        });
+        // 使用文档中定义的标准接口获取数据
+        // Use standard API defined in doc
+        const qDev = new URLSearchParams();
+        qDev.append('uuid', uuid);
+        qDev.append('start', s.replace('T', ' ') + ':00');
+        qDev.append('end', e.replace('T', ' ') + ':59');
+        qDev.append('limit', 10000);
+        
+        const resDev = await fetch('/api/v1/data/history?' + qDev.toString());
         if(!resDev.ok) throw new Error('获取设备数据失败');
         const devData = await resDev.json();
         
@@ -840,49 +920,6 @@ async def admin_record_create(request: Request, payload: dict = Body(...)):
         return Response(status_code=403)
     rid = await admin_create_record(payload)
     return {"id": rid}
-
-@app.post("/api/v1/admin/device/fetch-history")
-async def admin_device_fetch_history(request: Request, payload: dict = Body(...)):
-    if config.ADMIN_TOKEN and request.headers.get("X-Admin-Token", "") != config.ADMIN_TOKEN:
-        return Response(status_code=403)
-    uuid = payload.get("uuid")
-    start = payload.get("start") # YYYY-MM-DD HH:MM:SS
-    end = payload.get("end")
-    if not uuid or not start or not end:
-        return Response(status_code=400)
-    
-    # 模拟从设备获取数据 (Simulation of fetching from device)
-    # In real scenario, this would call the device API or Protocol.
-    # Here we simulate returning data with some random values for testing.
-    import random
-    from datetime import datetime, timedelta
-    
-    try:
-        s_dt = datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
-        e_dt = datetime.strptime(end, "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        return Response(status_code=400)
-
-    data = []
-    curr = s_dt
-    while curr <= e_dt:
-        # Simulate a record every minute
-        t_str = curr.strftime("%Y-%m-%d %H:%M:%S")
-        # Simulate data: IN/OUT random
-        data.append({
-            "uuid": uuid,
-            "in_count": random.randint(0, 5),
-            "out_count": random.randint(0, 5),
-            "time": t_str,
-            "battery_level": 80,
-            "signal_status": 1,
-            "warn_status": 0,
-            "batterytx_level": 80,
-            "rec_type": 0
-        })
-        curr += timedelta(minutes=1) # Default 1 minute interval
-    
-    return data
 
 @app.post("/api/v1/admin/device/merge-history")
 async def admin_device_merge_history(request: Request, payload: dict = Body(...)):
