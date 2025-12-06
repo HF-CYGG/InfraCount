@@ -1446,3 +1446,12 @@ INFO:     127.0.0.1:8327 - "GET /api/v1/academies HTTP/1.1" 200 OK
 INFO:     127.0.0.1:9011 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
 INFO:     127.0.0.1:8327 - "GET /favicon.ico HTTP/1.1" 204 No Content
 INFO:     127.0.0.1:9011 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7655 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:7655 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2213 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7655 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7655 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7655 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2213 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6823 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6106 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK

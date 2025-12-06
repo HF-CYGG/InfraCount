@@ -1,7 +1,46 @@
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+function Kill-Port-Process {
+    param([int]$port)
+    Write-Host "Checking Port $port..." -ForegroundColor Cyan
+    $netstat = cmd /c "netstat -ano | findstr :$port"
+    if ($netstat) {
+        $lines = $netstat -split "`r`n"
+        foreach ($line in $lines) {
+            if ($line -match ":$port\s") {
+                $parts = $line.Trim() -split "\s+"
+                $pidFound = $parts[-1]
+                if ($pidFound -match "^\d+$") {
+                    Write-Host "Found process with PID: $pidFound on port $port"
+                    Write-Host "Attempting to kill PID $pidFound..."
+                    try {
+                        Stop-Process -Id $pidFound -Force -ErrorAction SilentlyContinue
+                        Write-Host "Process killed." -ForegroundColor Green
+                    } catch {
+                        Write-Host "[WARN] Failed to kill process $pidFound. Access Denied or already gone." -ForegroundColor Yellow
+                    }
+                }
+            }
+        }
+    }
+}
+
+function Cleanup-Resources {
+    Write-Host "`n[INFO] Cleaning up resources..." -ForegroundColor Yellow
+    
+    # Kill known ports
+    Kill-Port-Process 8085 # TCP Server
+    Kill-Port-Process 8000 # Web Server (if running on 8000)
+    
+    # Kill Python processes launched by this env (rough check)
+    # This is a bit aggressive, so we focus on ports mostly.
+    
+    Write-Host "[INFO] Cleanup complete." -ForegroundColor Green
+}
+
 function Pause-Exit {
+    Cleanup-Resources
     Write-Host "`nPress Enter to exit..." -NoNewline -ForegroundColor Cyan
     Read-Host
     exit
@@ -51,32 +90,9 @@ if ($taskRunning) {
     }
 }
 
-# Check Port 8085 (TCP Server)
-$port = 8085
-Write-Host "Checking Port $port..." -ForegroundColor Cyan
-$netstat = cmd /c "netstat -ano | findstr :$port"
-if ($netstat) {
-    Write-Host "[WARN] Port $port seems to be in use." -ForegroundColor Yellow
-    # Try to parse PID from netstat output (last token)
-    # TCP    0.0.0.0:8085           0.0.0.0:0              LISTENING       1234
-    $lines = $netstat -split "`r`n"
-    foreach ($line in $lines) {
-        if ($line -match ":$port\s") {
-             $parts = $line.Trim() -split "\s+"
-             $pidFound = $parts[-1]
-             if ($pidFound -match "^\d+$") {
-                 Write-Host "Found process with PID: $pidFound"
-                 Write-Host "Attempting to kill PID $pidFound..."
-                 try {
-                     Stop-Process -Id $pidFound -Force -ErrorAction Stop
-                     Write-Host "Process killed." -ForegroundColor Green
-                 } catch {
-                     Write-Host "[ERROR] Failed to kill process $pidFound. Access Denied?" -ForegroundColor Red
-                 }
-             }
-        }
-    }
-}
+# Initial Port Check using helper
+Kill-Port-Process 8085
+
 # --- Conflict Resolution End ---
 
 Write-Host "[INFO] Starting InfraCount Services..." -ForegroundColor Green
