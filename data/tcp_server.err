@@ -73,3 +73,22 @@ Traceback (most recent call last):
 2025-12-07 02:45:28,048 INFO root TCP Server listening on 0.0.0.0:8085
 2025-12-07 02:45:35,219 INFO root TCP Server stopped by signal.
 Traceback (most recent call last):
+2025-12-07 02:47:09,624 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 03:07:30,629 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+ib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 641, in run_until_complete
+    return future.result()
+  File "e:\项目\InfraCount\tcp_server.py", line 132, in main
+    server = await asyncio.start_server(handle_client, config.TCP_HOST, config.TCP_PORT)
+  File "E:\python310\lib\asyncio\streams.py", line 84, in start_server
+    return await loop.create_server(factory, host, port, **kwds)
+  File "E:\python310\lib\asyncio\base_events.py", line 1493, in create_server
+    raise OSError(err.errno, 'error while attempting '
+OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+2025-12-07 03:07:33,242 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-07 03:07:33,243 INFO root TCP Server listening on 0.0.0.0:8085

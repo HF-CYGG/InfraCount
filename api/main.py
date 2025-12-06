@@ -18,7 +18,7 @@ from app.db import (
     get_device_mapping, admin_batch_upsert, admin_fetch_range, 
     activity_bulk_insert, activity_list, activity_stats, activity_get_options,
     get_academies, add_academy, delete_academy, admin_batch_update, admin_batch_save_records,
-    get_device_ip
+    get_device_ip, update_academy_order
 )
 from app.security import issue_csrf, validate_csrf
 import urllib.request
@@ -183,6 +183,14 @@ async def api_add_academy(payload: dict = Body(...)):
         raise HTTPException(400, "Missing name")
     ok = await add_academy(name)
     return {"ok": ok}
+
+@app.post("/api/v1/academies-reorder")
+async def api_reorder_academies(payload: dict = Body(...)):
+    order = payload.get("order") # List of IDs
+    if not order:
+        raise HTTPException(400, "Missing order list")
+    await update_academy_order(order)
+    return {"status": "ok"}
 
 @app.delete("/api/v1/academies/{id}")
 async def api_delete_academy(id: int):

@@ -5,6 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设备管理 - InfraCount</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        .sortable-item {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: grab;
+            transition: all 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+        .sortable-item:last-child { margin-bottom: 0; }
+        .sortable-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-1px);
+        }
+        .sortable-item.sortable-ghost {
+            opacity: 0.4;
+            background: #f1f3f5;
+        }
+        .sortable-handle {
+            color: #adb5bd;
+            margin-right: 12px;
+            cursor: grab;
+            font-size: 18px;
+        }
+        .academy-name {
+            font-weight: 500;
+            color: var(--text);
+            flex: 1;
+        }
+    </style>
 </head>
 <body>
 
@@ -57,19 +94,25 @@
 
 <!-- Academy Manager Modal -->
 <div id="academyModal" class="modal-backdrop">
-    <div class="modal">
-        <h3>书院分类管理</h3>
+    <div class="modal" style="width: 480px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+            <h3 style="margin:0">书院分类管理</h3>
+            <button class="btn btn-sm" id="closeAcademy" style="border:none;font-size:20px;color:#999;background:transparent">✕</button>
+        </div>
+        
         <div class="flex gap-2 mb-4">
-            <input id="newAcademy" class="input" placeholder="新书院名称">
+            <input id="newAcademy" class="input" placeholder="新书院名称" style="flex:1">
             <button class="btn btn-primary" id="addAcademy">添加</button>
         </div>
-        <div style="border:1px solid var(--border);border-radius:4px;max-height:300px;overflow-y:auto">
-            <table style="margin:0">
-                <tbody id="academyList"></tbody>
-            </table>
+        
+        <div style="background:#f8f9fa; border:1px solid var(--border); border-radius:8px; padding:12px; max-height:400px; overflow-y:auto;">
+            <div id="academyList" class="sortable-list">
+                <!-- Items injected here -->
+            </div>
         </div>
-        <div class="actions">
-            <button class="btn" id="closeAcademy">关闭</button>
+        
+        <div style="margin-top:12px; text-align:center; font-size:12px; color:#adb5bd;">
+            💡 拖动列表项即可调整顺序
         </div>
     </div>
 </div>
@@ -105,9 +148,10 @@
         setTimeout(() => t.style.display = 'none', 2000);
     }
 
+    let academySortable = null;
+
     async function loadAcademies() {
-        // Fetch academies. If separate API exists use it, otherwise extract from existing.
-        // We need to implement /api/v1/academies
+        // Fetch academies.
         const res = await fetch('/api/v1/academies');
         let list = [];
         if(res.ok) {
@@ -118,15 +162,45 @@
         els.editCategory.innerHTML = '<option value="">-- 未分类 --</option>' + 
             list.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
             
-        // Render in Manager
+        // Render in Manager (Sortable List)
         els.academyList.innerHTML = list.map(a => `
-            <tr>
-                <td>${a.name}</td>
-                <td style="width:60px;text-align:right">
-                    <button class="btn btn-sm btn-danger" onclick="delAcademy('${a.id}')">删除</button>
-                </td>
-            </tr>
+            <div class="sortable-item" data-id="${a.id}">
+                <div style="display:flex;align-items:center">
+                    <span class="sortable-handle">☰</span>
+                    <span class="academy-name">${a.name}</span>
+                </div>
+                <button class="btn btn-sm btn-danger" onclick="delAcademy('${a.id}')" style="padding:4px 8px;font-size:12px">删除</button>
+            </div>
         `).join('');
+        
+        // Re-init Sortable
+        if(academySortable) academySortable.destroy();
+        
+        academySortable = new Sortable(els.academyList, {
+            animation: 150,
+            handle: '.sortable-handle',
+            ghostClass: 'sortable-ghost',
+            onEnd: async function (evt) {
+                const newOrder = [];
+                els.academyList.querySelectorAll('.sortable-item').forEach(el => {
+                    newOrder.push(parseInt(el.dataset.id));
+                });
+                
+                // Save order
+                try {
+                    const res = await fetch('/api/v1/academies-reorder', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({order: newOrder})
+                    });
+                    if(!res.ok) throw new Error('Failed to save order');
+                    // Optional: showToast('排序已保存');
+                } catch(e) {
+                    showToast('排序保存失败');
+                    console.error(e);
+                }
+            }
+        });
     }
 
     async function loadDevices() {

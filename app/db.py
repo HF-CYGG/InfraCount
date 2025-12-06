@@ -84,9 +84,14 @@ async def init_sqlite():
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS academies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE
+            name TEXT UNIQUE,
+            sort_order INTEGER DEFAULT 0
         )
     """)
+    try:
+        await _sqlite.execute("ALTER TABLE academies ADD COLUMN sort_order INTEGER DEFAULT 0")
+    except Exception as e:
+        logging.info(f"Migration: sort_order column might already exist or failed: {e}")
     
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS activity_events (
@@ -193,9 +198,14 @@ async def init_pool():
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS academies (
                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR(128) UNIQUE
+                        name VARCHAR(128) UNIQUE,
+                        sort_order INT DEFAULT 0
                     )
                 """)
+                try:
+                    await cur.execute("ALTER TABLE academies ADD COLUMN sort_order INT DEFAULT 0")
+                except Exception:
+                    pass
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS activity_events (
                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -472,19 +482,46 @@ async def stats_top(limit=10):
 # --- Academies ---
 
 async def get_academies():
-    sql = "SELECT * FROM academies ORDER BY name"
+    sql = "SELECT * FROM academies ORDER BY sort_order ASC, name ASC"
     if use_sqlite():
         if not _sqlite: await init_sqlite()
         async with _sqlite.execute(sql) as cur:
             rows = await cur.fetchall()
-            return [{"id": r[0], "name": r[1]} for r in rows]
+            return [{"id": r[0], "name": r[1], "sort_order": r[2] if len(r)>2 else 0} for r in rows]
     else:
         if not _pool: await init_pool()
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql)
                 rows = await cur.fetchall()
-                return [{"id": r[0], "name": r[1]} for r in rows]
+                return [{"id": r[0], "name": r[1], "sort_order": r[2] if len(r)>2 else 0} for r in rows]
+
+async def update_academy_order(order_list: List[int]):
+    # order_list is a list of IDs in the desired order
+    logging.info(f"Updating academy order: {order_list}")
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        try:
+            for idx, aid in enumerate(order_list):
+                await _sqlite.execute("UPDATE academies SET sort_order=? WHERE id=?", (idx, aid))
+            await _sqlite.commit()
+            logging.info("Academy order updated successfully (SQLite)")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to update academy order: {e}")
+            return False
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    for idx, aid in enumerate(order_list):
+                        await cur.execute("UPDATE academies SET sort_order=%s WHERE id=%s", (idx, aid))
+                    logging.info("Academy order updated successfully (MySQL)")
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to update academy order: {e}")
+                    return False
 
 async def add_academy(name):
     sql = "INSERT INTO academies (name) VALUES (?)" if use_sqlite() else "INSERT INTO academies (name) VALUES (%s)"
