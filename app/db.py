@@ -1,1155 +1,1161 @@
-from app import config
 import os
-import sqlite3
+import time
 import asyncio
-from app.events import bus
+import logging
+import json
+from typing import Optional, List, Dict, Any
 
-def _aiomysql():
-    try:
-        import aiomysql  # type: ignore
-        return aiomysql
-    except Exception:
-        return None
+import aiomysql
+import aiosqlite
+from . import config
 
 _pool = None
 _sqlite = None
 
-def _aiosqlite():
-    try:
-        import aiosqlite  # type: ignore
-        return aiosqlite
-    except Exception:
-        return None
-
 def use_sqlite():
-    return str(getattr(config, "DB_DRIVER", "sqlite")).lower() == "sqlite"
-
-async def init_pool():
-    if use_sqlite():
-        await init_sqlite()
-        return
-    global _pool
-    try:
-        aio = _aiomysql()
-        if not aio:
-            _pool = None
-            return
-        _pool = await aio.create_pool(
-                host=config.DB_HOST,
-                port=config.DB_PORT,
-                user=config.DB_USER,
-                password=config.DB_PASSWORD,
-                db=config.DB_NAME,
-                autocommit=True,
-                minsize=1,
-                maxsize=10,
-                charset="utf8mb4",
-        )
-    except Exception:
-        _pool = None
-
-async def close_pool():
-    if use_sqlite():
-        await close_sqlite()
-        return
-    global _pool
-    if _pool:
-        _pool.close()
-        await _pool.wait_closed()
-        _pool = None
+    return config.DB_DRIVER == "sqlite"
 
 async def init_sqlite():
     global _sqlite
-    aio = _aiosqlite()
-    os.makedirs(os.path.dirname(config.DB_SQLITE_PATH), exist_ok=True)
-    if aio:
-        _sqlite = await aio.connect(config.DB_SQLITE_PATH)
-        _sqlite.row_factory = aio.Row
-        await _sqlite.execute(
-            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, warn_status INTEGER, batterytx_level INTEGER, rec_type INTEGER, create_time TEXT DEFAULT (datetime('now')))"
-        )
-        try:
-            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN warn_status INTEGER")
-        except Exception:
-            pass
-        try:
-            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN batterytx_level INTEGER")
-        except Exception:
-            pass
-        try:
-            await _sqlite.execute("ALTER TABLE device_data ADD COLUMN rec_type INTEGER")
-        except Exception:
-            pass
-        await _sqlite.execute(
-            "CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)"
-        )
-        await _sqlite.execute(
-            "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
-        )
-        await _sqlite.execute(
-            "CREATE TABLE IF NOT EXISTS device_registry (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT UNIQUE, name TEXT, category TEXT, create_time TEXT DEFAULT (datetime('now')))"
-        )
-        await _sqlite.execute(
-            "CREATE TABLE IF NOT EXISTS ops_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, target_uuid TEXT, payload TEXT, time TEXT DEFAULT (datetime('now')))"
-        )
-        await _sqlite.commit()
-    else:
-        _sqlite = None
-        await asyncio.to_thread(_init_sqlite_sync)
-
-def _init_sqlite_sync():
-    conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
-    try:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS device_data (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, in_count INTEGER, out_count INTEGER, time TEXT, battery_level INTEGER, signal_status INTEGER, warn_status INTEGER, batterytx_level INTEGER, rec_type INTEGER, create_time TEXT DEFAULT (datetime('now')))"
-        )
-        try:
-            conn.execute("ALTER TABLE device_data ADD COLUMN warn_status INTEGER")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE device_data ADD COLUMN batterytx_level INTEGER")
-        except Exception:
-            pass
-        try:
-            conn.execute("ALTER TABLE device_data ADD COLUMN rec_type INTEGER")
-        except Exception:
-            pass
-        try:
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_device_data_uuid_time ON device_data(uuid, time)")
-        except Exception:
-            pass
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS alerts (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT, type TEXT, level INTEGER, info TEXT, time TEXT DEFAULT (datetime('now')))"
-        )
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS device_registry (id INTEGER PRIMARY KEY AUTOINCREMENT, uuid TEXT UNIQUE, name TEXT, category TEXT, create_time TEXT DEFAULT (datetime('now')))"
-        )
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS ops_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor TEXT, action TEXT, target_uuid TEXT, payload TEXT, time TEXT DEFAULT (datetime('now')))"
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-async def close_sqlite():
-    global _sqlite
     if _sqlite:
-        await _sqlite.close()
-        _sqlite = None
-
-async def save_device_data(d):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            await _sqlite.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
-                (
-                    d.get("uuid"),
-                    d.get("in"),
-                    d.get("out"),
-                    d.get("time"),
-                    d.get("battery_level"),
-                    d.get("signal_status"),
-                    d.get("warn_status"),
-                    d.get("batterytx_level"),
-                    d.get("rec_type"),
-                ),
-            )
-            await _sqlite.commit()
-            await bus.publish(d.get("uuid"), {
-                "type": "update",
-                "data": d,
-            })
-            await _maybe_alert(d)
-            return
-        else:
-            await asyncio.to_thread(_sqlite_exec_sync,
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
-                (
-                    d.get("uuid"),
-                    d.get("in"),
-                    d.get("out"),
-                    d.get("time"),
-                    d.get("battery_level"),
-                    d.get("signal_status"),
-                    d.get("warn_status"),
-                    d.get("batterytx_level"),
-                    d.get("rec_type"),
-                )
-            )
-            await bus.publish(d.get("uuid"), {
-                "type": "update",
-                "data": d,
-            })
-            await _maybe_alert(d)
-            return
-    global _pool
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
         return
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "CREATE TABLE IF NOT EXISTS device_data (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64), in_count INT, out_count INT, time VARCHAR(32), battery_level INT, signal_status INT, warn_status INT, batterytx_level INT, rec_type INT, create_time DATETIME DEFAULT CURRENT_TIMESTAMP)"
-            )
-            await cur.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (
-                    d.get("uuid"),
-                    d.get("in"),
-                    d.get("out"),
-                    d.get("time"),
-                    d.get("battery_level"),
-                    d.get("signal_status"),
-                    d.get("warn_status"),
-                    d.get("batterytx_level"),
-                    d.get("rec_type"),
-                ),
-            )
-            await bus.publish(d.get("uuid"), {
-                "type": "update",
-                "data": d,
-            })
-            await _maybe_alert(d)
-
-async def fetch_latest(uuid: str):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            cur = await _sqlite.execute(
-                "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE uuid=? ORDER BY id DESC LIMIT 1",
-                (uuid,),
-            )
-            row = await cur.fetchone()
-            return dict(row) if row else None
-        else:
-            row = await asyncio.to_thread(_sqlite_query_one,
-                "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE uuid=? ORDER BY id DESC LIMIT 1",
-                (uuid,)
-            )
-            return row
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return None
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "SELECT uuid,in_count,out_count,time,battery_level,signal_status FROM device_data WHERE uuid=%s ORDER BY id DESC LIMIT 1",
-                (uuid,),
-            )
-            row = await cur.fetchone()
-            if not row:
-                return None
-            return {
-                "uuid": row[0],
-                "in_count": row[1],
-                "out_count": row[2],
-                "time": row[3],
-                "battery_level": row[4],
-                "signal_status": row[5],
-            }
-
-async def fetch_history(uuid: str, start: str | None, end: str | None, limit: int, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE uuid=?"
-        params = [uuid]
-        if start:
-            sql += " AND time>=?"; params.append(start)
-        if end:
-            sql += " AND time<=?"; params.append(end)
-        if warn_status is not None:
-            sql += " AND warn_status=?"; params.append(warn_status)
-        if rec_type is not None:
-            sql += " AND rec_type=?"; params.append(rec_type)
-        if batterytx_min is not None:
-            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
-        if batterytx_max is not None:
-            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
-        sql += " ORDER BY time DESC, id DESC LIMIT ?"; params.append(limit)
-        if _sqlite:
-            cur = await _sqlite.execute(sql, params)
-            rows = await cur.fetchall()
-            return [dict(r) for r in rows]
-        else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
-            return rows
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    where = ["uuid=%s"]
-    params = [uuid]
-    if start:
-        where.append("time>=%s"); params.append(start)
-    if end:
-        where.append("time<=%s"); params.append(end)
-    if warn_status is not None:
-        where.append("warn_status=%s"); params.append(warn_status)
-    if rec_type is not None:
-        where.append("rec_type=%s"); params.append(rec_type)
-    if batterytx_min is not None:
-        where.append("batterytx_level>=%s"); params.append(batterytx_min)
-    if batterytx_max is not None:
-        where.append("batterytx_level<=%s"); params.append(batterytx_max)
-    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE " + " AND ".join(where) + " ORDER BY time DESC, id DESC LIMIT %s"
-    params.append(limit)
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [
-                {"id": r[0], "uuid": r[1], "in_count": r[2], "out_count": r[3], "time": r[4], "battery_level": r[5], "signal_status": r[6], "warn_status": r[7], "batterytx_level": r[8], "rec_type": r[9]}
-                for r in rows
-            ]
-
-async def list_devices(limit: int):
+    db_path = config.DB_SQLITE_PATH
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    _sqlite = await aiosqlite.connect(db_path)
+    _sqlite.row_factory = aiosqlite.Row
+    
+    # Init tables
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT,
+            time DATETIME,
+            in_count INTEGER,
+            out_count INTEGER,
+            battery INTEGER,
+            btx INTEGER,
+            rec_type INTEGER,
+            signal_strength INTEGER,
+            warn_status INTEGER,
+            activity_type TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    await _sqlite.execute("CREATE INDEX IF NOT EXISTS idx_records_uuid_time ON records(uuid, time)")
+    
+    # Migration: Add activity_type if not exists
     try:
-        if use_sqlite():
-            global _sqlite
-            if _sqlite is None:
-                try:
-                    await init_sqlite()
-                except Exception as e:
-                    print(f"Init SQLite error in list_devices: {e}")
-            
-            sql = "SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id, (SELECT name FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS name, (SELECT category FROM device_registry WHERE device_registry.uuid=device_data.uuid) AS category FROM device_data GROUP BY uuid ORDER BY last_time DESC LIMIT ?"
-            
-            if _sqlite:
-                try:
-                    cur = await _sqlite.execute(sql, (limit,))
-                    rows = await cur.fetchall()
-                    return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
-                except Exception as e:
-                    print(f"SQLite error in list_devices: {e}")
-                    return []
-            else:
-                try:
-                    rows = await asyncio.to_thread(_sqlite_query_all, sql, (limit,))
-                    return rows
-                except Exception as e:
-                    print(f"SQLite thread error in list_devices: {e}")
-                    return []
-        
-        if _pool is None:
-            await init_pool()
-        if _pool is None:
-            return []
+        await _sqlite.execute("ALTER TABLE records ADD COLUMN activity_type TEXT")
+    except Exception:
+        pass
+    
+    # Migration: Add warn_status if not exists
+    try:
+        await _sqlite.execute("ALTER TABLE records ADD COLUMN warn_status INTEGER")
+    except Exception:
+        pass
+    
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS registry (
+            uuid TEXT PRIMARY KEY,
+            name TEXT,
+            category TEXT,
+            description TEXT,
+            last_seen DATETIME,
+            ip TEXT
+        )
+    """)
+    try:
+        await _sqlite.execute("ALTER TABLE registry ADD COLUMN ip TEXT")
+    except Exception:
+        pass
+    
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor TEXT,
+            action TEXT,
+            target TEXT,
+            details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS academies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )
+    """)
+    
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS activity_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            weekday TEXT,
+            start_time TEXT,
+            end_time TEXT,
+            duration_minutes INTEGER,
+            academy TEXT,
+            location TEXT,
+            activity_name TEXT,
+            activity_type TEXT,
+            audience_count INTEGER,
+            notes TEXT,
+            create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT,
+            type TEXT,
+            level INTEGER,
+            info TEXT,
+            time DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    await _sqlite.commit()
+
+async def init_pool():
+    global _pool, _sqlite
+    if use_sqlite():
+        await init_sqlite()
+        return
+
+    if _pool:
+        return
+    
+    try:
+        _pool = await aiomysql.create_pool(
+            host=config.DB_HOST,
+            port=config.DB_PORT,
+            user=config.DB_USER,
+            password=config.DB_PASSWORD,
+            db=config.DB_NAME,
+            autocommit=True
+        )
+        # Create tables if not exist (MySQL)
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(
-                    "SELECT t.uuid, t.last_time, t.last_id, r.name, r.category FROM (SELECT uuid, MAX(time) AS last_time, MAX(id) AS last_id FROM device_data GROUP BY uuid) t LEFT JOIN device_registry r ON r.uuid=t.uuid ORDER BY t.last_time DESC LIMIT %s",
-                    (limit,),
-                )
-                rows = await cur.fetchall()
-                return [{"uuid": r[0], "last_time": r[1], "last_id": r[2], "name": r[3], "category": r[4]} for r in rows]
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS records (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        uuid VARCHAR(64),
+                        time DATETIME,
+                        in_count INT,
+                        out_count INT,
+                        battery INT,
+                        btx INT,
+                        rec_type INT,
+                        signal_strength INT,
+                        warn_status INT,
+                        activity_type VARCHAR(64),
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_uuid_time (uuid, time)
+                    )
+                """)
+                # Migration MySQL
+                try:
+                    await cur.execute("ALTER TABLE records ADD COLUMN activity_type VARCHAR(64)")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE records ADD COLUMN warn_status INT")
+                except Exception:
+                    pass
+
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS registry (
+                        uuid VARCHAR(64) PRIMARY KEY,
+                        name VARCHAR(128),
+                        category VARCHAR(64),
+                        description TEXT,
+                        last_seen DATETIME,
+                        ip VARCHAR(64)
+                    )
+                """)
+                try:
+                    await cur.execute("ALTER TABLE registry ADD COLUMN ip VARCHAR(64)")
+                except Exception:
+                    pass
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        actor VARCHAR(128),
+                        action VARCHAR(64),
+                        target VARCHAR(64),
+                        details TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS academies (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(128) UNIQUE
+                    )
+                """)
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS activity_events (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        date VARCHAR(20),
+                        weekday VARCHAR(20),
+                        start_time VARCHAR(20),
+                        end_time VARCHAR(20),
+                        duration_minutes INT,
+                        academy VARCHAR(128),
+                        location VARCHAR(128),
+                        activity_name VARCHAR(255),
+                        activity_type VARCHAR(64),
+                        audience_count INT,
+                        notes TEXT,
+                        create_time DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS alerts (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        uuid VARCHAR(64),
+                        type VARCHAR(64),
+                        level INT,
+                        info TEXT,
+                        time DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
     except Exception as e:
-        print(f"Unexpected error in list_devices: {e}")
-        return []
+        logging.error(f"DB init failed: {e}")
 
-async def stats_daily(uuid: str, start: str | None, end: str | None):
+async def close_pool():
+    global _pool, _sqlite
+    if _pool:
+        _pool.close()
+        await _pool.wait_closed()
+    if _sqlite:
+        await _sqlite.close()
+
+# --- Device / Records ---
+
+async def fetch_latest():
+    # Return list of latest record per device
+    # Join with registry to get names
+    sql = """
+    SELECT r.*, reg.name, reg.category 
+    FROM records r
+    LEFT JOIN registry reg ON r.uuid = reg.uuid
+    WHERE r.id IN (SELECT MAX(id) FROM records GROUP BY uuid)
+    """
     if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        # 统一按天分组，兼容 "YYYY-MM-DD HH:MM:SS" 与 "YYYYMMDDHHMMSS"
-        sql = (
-            "SELECT "
-            "CASE WHEN instr(time,'-')=0 THEN substr(time,1,4)||'-'||substr(time,5,2)||'-'||substr(time,7,2) "
-            "     ELSE substr(time,1,10) END AS day, "
-            "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
-            "FROM device_data WHERE uuid=?"
-        )
-        params: list = [uuid]
-        # 兼容开始/结束时间过滤（两种格式）
-        if start:
-            start_digits = str(start).replace('-', '').replace(' ', '').replace(':', '')
-            sql += " AND ((instr(time,'-')=0 AND time>=?) OR (instr(time,'-')>0 AND time>=?))"
-            params.extend([start_digits, start])
-        if end:
-            end_digits = str(end).replace('-', '').replace(' ', '').replace(':', '')
-            sql += " AND ((instr(time,'-')=0 AND time<=?) OR (instr(time,'-')>0 AND time<=?))"
-            params.extend([end_digits, end])
-        sql += " GROUP BY day ORDER BY day ASC"
-        if _sqlite:
-            cur = await _sqlite.execute(sql, params)
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
             rows = await cur.fetchall()
-            return [dict(r) for r in rows]
-        else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
-            return rows
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    # MySQL: time 为 VARCHAR，兼容两种时间格式，统一按天分组
-    sql = (
-        "SELECT "
-        "CASE WHEN INSTR(time,'-')=0 THEN CONCAT(SUBSTR(time,1,4),'-',SUBSTR(time,5,2),'-',SUBSTR(time,7,2)) "
-        "     ELSE SUBSTR(time,1,10) END AS day, "
-        "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
-        "FROM device_data WHERE uuid=%s"
-    )
-    params = [uuid]
-    if start:
-        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') <= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time>=%s))"
-        # 注意：使用参数两次，顺序与 SQL 对应
-        params.extend([start, start])
-    if end:
-        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') >= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time<=%s))"
-        params.extend([end, end])
-    sql += " GROUP BY day ORDER BY day ASC"
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [{"day": r[0], "in_total": r[1], "out_total": r[2]} for r in rows]
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql)
+                return await cur.fetchall()
 
-async def stats_hourly(uuid: str, date: str):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        # 统一小时分组并兼容日期过滤（date 格式为 YYYY-MM-DD）
-        sql = (
-            "SELECT "
-            "CASE WHEN instr(time,'-')=0 THEN substr(time,9,2) || ':00' ELSE substr(time,12,2) || ':00' END AS hour, "
-            "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
-            "FROM device_data WHERE uuid=? AND ("
-            "(instr(time,'-')=0 AND substr(time,1,8)=?) OR (instr(time,'-')>0 AND substr(time,1,10)=?)"
-            ") GROUP BY hour ORDER BY hour ASC"
-        )
-        date_digits = str(date).replace('-', '')
-        params = (uuid, date_digits, date)
-        if _sqlite:
-            cur = await _sqlite.execute(sql, params)
-            rows = await cur.fetchall()
-            return [dict(r) for r in rows]
-        else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, params)
-            return rows
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    # MySQL: 兼容字符串时间格式的日期匹配与小时分组
-    sql = (
-        "SELECT "
-        "CASE WHEN INSTR(time,'-')=0 THEN CONCAT(SUBSTR(time,9,2), ':00') ELSE DATE_FORMAT(time, '%H:00') END AS hour, "
-        "SUM(in_count) AS in_total, SUM(out_count) AS out_total "
-        "FROM device_data WHERE uuid=%s AND ("
-        "(INSTR(time,'-')=0 AND SUBSTR(time,1,8)=%s) OR (INSTR(time,'-')>0 AND SUBSTR(time,1,10)=%s)"
-        ") GROUP BY hour ORDER BY hour ASC"
-    )
-    date_digits_mysql = date.replace('-', '')
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, (uuid, date_digits_mysql, date))
-            rows = await cur.fetchall()
-            return [{"hour": r[0], "in_total": r[1], "out_total": r[2]} for r in rows]
-
-async def stats_summary(uuid: str):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            cur = await _sqlite.execute("SELECT SUM(in_count), SUM(out_count) FROM device_data WHERE uuid=?", (uuid,))
-            totals = await cur.fetchone()
-            cur2 = await _sqlite.execute("SELECT in_count,out_count,time FROM device_data WHERE uuid=? ORDER BY id DESC LIMIT 1", (uuid,))
-            last = await cur2.fetchone()
-            return {
-                "in_total": (totals[0] or 0) if totals else 0,
-                "out_total": (totals[1] or 0) if totals else 0,
-                "last_in": last[0] if last else None,
-                "last_out": last[1] if last else None,
-                "last_time": last[2] if last else None,
-            }
-        else:
-            totals = await asyncio.to_thread(_sqlite_query_one, "SELECT SUM(in_count), SUM(out_count) FROM device_data WHERE uuid=?", (uuid,))
-            last = await asyncio.to_thread(_sqlite_query_one, "SELECT in_count,out_count,time FROM device_data WHERE uuid=? ORDER BY id DESC LIMIT 1", (uuid,))
-            tv = list(totals.values()) if isinstance(totals, dict) else (totals or [])
-            lv = list(last.values()) if isinstance(last, dict) else (last or [])
-            return {
-                "in_total": (tv[0] if len(tv)>0 else 0) or 0,
-                "out_total": (tv[1] if len(tv)>1 else 0) or 0,
-                "last_in": lv[0] if len(lv)>0 else None,
-                "last_out": lv[1] if len(lv)>1 else None,
-                "last_time": lv[2] if len(lv)>2 else None,
-            }
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return {"in_total": 0, "out_total": 0, "last_in": None, "last_out": None, "last_time": None}
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT SUM(in_count), SUM(out_count) FROM device_data WHERE uuid=%s", (uuid,))
-            totals = await cur.fetchone()
-            await cur.execute("SELECT in_count,out_count,time FROM device_data WHERE uuid=%s ORDER BY id DESC LIMIT 1", (uuid,))
-            last = await cur.fetchone()
-            return {
-                "in_total": (totals[0] or 0) if totals else 0,
-                "out_total": (totals[1] or 0) if totals else 0,
-                "last_in": last[0] if last else None,
-                "last_out": last[1] if last else None,
-                "last_time": last[2] if last else None,
-            }
-
-async def stats_top(metric: str, start: str | None, end: str | None, limit: int):
-    field = "in_count" if metric == "in" else "out_count"
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return []
-        sql = f"SELECT uuid, SUM({field}) AS total FROM device_data WHERE 1=1"
-        params = []
-        if start:
-            sql += " AND time>=?"; params.append(start)
-        if end:
-            sql += " AND time<=?"; params.append(end)
-        sql += " GROUP BY uuid ORDER BY total DESC LIMIT ?"; params.append(limit)
-        if _sqlite:
-            cur = await _sqlite.execute(sql, params)
-            rows = await cur.fetchall()
-            return [{"uuid": r[0], "total": r[1]} for r in rows]
-        else:
-            rows = await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
-            return rows
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    sql = f"SELECT uuid, SUM({field}) AS total FROM device_data WHERE 1=1"
-    params = []
-    if start:
-        sql += " AND time>=%s"; params.append(start)
-    if end:
-        sql += " AND time<=%s"; params.append(end)
-    sql += " GROUP BY uuid ORDER BY total DESC LIMIT %s"; params.append(limit)
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [{"uuid": r[0], "total": r[1]} for r in rows]
-
-async def stats_total(start: str | None, end: str | None):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        sql = "SELECT SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE 1=1"
-        params: list = []
-        if start:
-            sd = str(start).replace('-', '').replace(' ', '').replace(':', '')
-            sql += " AND ((instr(time,'-')=0 AND time>=?) OR (instr(time,'-')>0 AND time>=?))"
-            params.extend([sd, start])
-        if end:
-            ed = str(end).replace('-', '').replace(' ', '').replace(':', '')
-            sql += " AND ((instr(time,'-')=0 AND time<=?) OR (instr(time,'-')>0 AND time<=?))"
-            params.extend([ed, end])
-        if _sqlite:
-            cur = await _sqlite.execute(sql, params)
-            row = await cur.fetchone()
-            return {"in_total": (row[0] or 0) if row else 0, "out_total": (row[1] or 0) if row else 0}
-        else:
-            row = await asyncio.to_thread(_sqlite_query_one, sql, tuple(params))
-            v = list(row.values()) if isinstance(row, dict) and row else []
-            return {"in_total": (v[0] if len(v)>0 else 0) or 0, "out_total": (v[1] if len(v)>1 else 0) or 0}
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return {"in_total": 0, "out_total": 0}
-    sql = "SELECT SUM(in_count) AS in_total, SUM(out_count) AS out_total FROM device_data WHERE 1=1"
-    params: list = []
-    if start:
-        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') <= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time>=%s))"
-        params.extend([start, start])
-    if end:
-        sql += " AND ((INSTR(time,'-')=0 AND REPLACE(REPLACE(REPLACE(REPLACE(%s,'-',''),' ',''),':',''),'/','') >= REPLACE(REPLACE(REPLACE(REPLACE(time,'-',''),' ',''),':',''),'/','')) OR (INSTR(time,'-')>0 AND time<=%s))"
-        params.extend([end, end])
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            row = await cur.fetchone()
-            return {"in_total": (row[0] or 0) if row else 0, "out_total": (row[1] or 0) if row else 0}
-
-def _sqlite_exec_sync(sql: str, params: tuple = ()):
-    conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        conn.commit()
-    finally:
-        conn.close()
-
-def _sqlite_query_one(sql: str, params: tuple = ()):
-    conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        row = cur.fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
-
-def _sqlite_query_all(sql: str, params: tuple = ()):
-    conn = sqlite3.connect(config.DB_SQLITE_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    try:
-        cur = conn.cursor()
-        cur.execute(sql, params)
-        rows = cur.fetchall()
-        return [dict(r) for r in rows]
-    finally:
-        conn.close()
-
-# Admin utilities: list with count, CRUD operations
-async def admin_count_records(uuid: str | None, start: str | None, end: str | None, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return 0
-        sql = "SELECT COUNT(1) FROM device_data WHERE 1=1"
-        params = []
-        if uuid:
-            sql += " AND uuid=?"; params.append(uuid)
-        if start:
-            sql += " AND time>=?"; params.append(start)
-        if end:
-            sql += " AND time<=?"; params.append(end)
-        if warn_status is not None:
-            sql += " AND warn_status=?"; params.append(warn_status)
-        if rec_type is not None:
-            sql += " AND rec_type=?"; params.append(rec_type)
-        if batterytx_min is not None:
-            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
-        if batterytx_max is not None:
-            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
-        cur = await _sqlite.execute(sql, params)
-        row = await cur.fetchone()
-        return row[0] if row else 0
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return 0
-    sql = "SELECT COUNT(1) FROM device_data WHERE 1=1"
+async def fetch_history(uuid=None, start=None, end=None, limit=100):
+    where = ["1=1"]
     params = []
     if uuid:
-        sql += " AND uuid=%s"; params.append(uuid)
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
     if start:
-        sql += " AND time>=%s"; params.append(start)
+        where.append("time >= ?" if use_sqlite() else "time >= %s")
+        params.append(start)
     if end:
-        sql += " AND time<=%s"; params.append(end)
-    if warn_status is not None:
-        sql += " AND warn_status=%s"; params.append(warn_status)
-    if rec_type is not None:
-        sql += " AND rec_type=%s"; params.append(rec_type)
-    if batterytx_min is not None:
-        sql += " AND batterytx_level>=%s"; params.append(batterytx_min)
-    if batterytx_max is not None:
-        sql += " AND batterytx_level<=%s"; params.append(batterytx_max)
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            row = await cur.fetchone()
-            return row[0] if row else 0
-
-async def admin_list_records(uuid: str | None, start: str | None, end: str | None, offset: int, limit: int, warn_status: int | None = None, rec_type: int | None = None, batterytx_min: int | None = None, batterytx_max: int | None = None):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return []
-        sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE 1=1"
-        params = []
-        if uuid:
-            sql += " AND uuid=?"; params.append(uuid)
-        if start:
-            sql += " AND time>=?"; params.append(start)
-        if end:
-            sql += " AND time<=?"; params.append(end)
-        if warn_status is not None:
-            sql += " AND warn_status=?"; params.append(warn_status)
-        if rec_type is not None:
-            sql += " AND rec_type=?"; params.append(rec_type)
-        if batterytx_min is not None:
-            sql += " AND batterytx_level>=?"; params.append(batterytx_min)
-        if batterytx_max is not None:
-            sql += " AND batterytx_level<=?"; params.append(batterytx_max)
-        sql += " ORDER BY time DESC, id DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
-        cur = await _sqlite.execute(sql, params)
-        rows = await cur.fetchall()
-        return [dict(r) for r in rows]
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    sql = "SELECT id,uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type FROM device_data WHERE 1=1"
-    params = []
-    if uuid:
-        sql += " AND uuid=%s"; params.append(uuid)
-    if start:
-        sql += " AND time>=%s"; params.append(start)
-    if end:
-        sql += " AND time<=%s"; params.append(end)
-    if warn_status is not None:
-        sql += " AND warn_status=%s"; params.append(warn_status)
-    if rec_type is not None:
-        sql += " AND rec_type=%s"; params.append(rec_type)
-    if batterytx_min is not None:
-        sql += " AND batterytx_level>=%s"; params.append(batterytx_min)
-    if batterytx_max is not None:
-        sql += " AND batterytx_level<=%s"; params.append(batterytx_max)
-    sql += " ORDER BY time DESC LIMIT %s OFFSET %s"; params.extend([limit, offset])
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [
-                {"id": r[0], "uuid": r[1], "in_count": r[2], "out_count": r[3], "time": r[4], "battery_level": r[5], "signal_status": r[6], "warn_status": r[7], "batterytx_level": r[8], "rec_type": r[9]}
-                for r in rows
-            ]
-
-async def admin_update_record(record_id: int, fields: dict):
-    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
-    updates = {k: v for k, v in fields.items() if k in allowed}
-    if not updates:
-        return False
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return False
-        sets = ", ".join([f"{k}=?" for k in updates.keys()])
-        params = list(updates.values()) + [record_id]
-        await _sqlite.execute(f"UPDATE device_data SET {sets} WHERE id=?", params)
-        await _sqlite.commit()
-        return True
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return False
-    sets = ", ".join([f"{k}=%s" for k in updates.keys()])
-    params = list(updates.values()) + [record_id]
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(f"UPDATE device_data SET {sets} WHERE id=%s", params)
-    return True
-
-async def admin_delete_record(record_id: int):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return False
-        await _sqlite.execute("DELETE FROM device_data WHERE id=?", (record_id,))
-        await _sqlite.commit()
-        return True
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return False
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("DELETE FROM device_data WHERE id=%s", (record_id,))
-    return True
-
-async def admin_delete_range(uuid: str, start: str, end: str):
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return 0
-        cur = await _sqlite.execute("DELETE FROM device_data WHERE uuid=? AND time>=? AND time<=?", (uuid, start, end))
-        rc = cur.rowcount if hasattr(cur, "rowcount") else 0
-        await _sqlite.commit()
-        return rc
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return 0
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("DELETE FROM device_data WHERE uuid=%s AND time>=%s AND time<=%s", (uuid, start, end))
-            return getattr(cur, "rowcount", 0)
-
-async def admin_fetch_range(uuid: str, start: str, end: str):
-    sql = "SELECT uuid, in_count, out_count, time, battery_level, signal_status, warn_status, batterytx_level, rec_type FROM device_data WHERE uuid=? AND time>=? AND time<=? ORDER BY time ASC"
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return []
-        cur = await _sqlite.execute(sql, (uuid, start, end))
-        rows = await cur.fetchall()
-        return [dict(r) for r in rows]
+        where.append("time <= ?" if use_sqlite() else "time <= %s")
+        params.append(end)
         
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
+    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY time DESC LIMIT {limit}"
     
-    mysql_sql = sql.replace("?", "%s")
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(mysql_sql, (uuid, start, end))
-            rows = await cur.fetchall()
-            # aiomysql returns tuples, need to map to dict
-            cols = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
-            res = []
-            for r in rows:
-                d = {}
-                for i, v in enumerate(cols):
-                    d[v] = r[i]
-                res.append(d)
-            return res
-
-async def admin_batch_upsert(records: list[dict]):
-    if not records:
-        return 0
-    count = 0
     if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            for r in records:
-                # Check if exists
-                # User rule: "Timestamp match -> keep local". So if (uuid, time) exists, do nothing (or update if id is provided, but here we assume 'new' data).
-                # Actually, the merge logic in frontend decides what to send. If frontend sends it, we upsert or insert.
-                # However, to avoid duplicates if user sends data that already exists (race condition), we can use INSERT OR IGNORE or check first.
-                # But user says "Timestamp match -> keep local". This means if we have it, don't overwrite.
-                # So we check existence first.
-                cur = await _sqlite.execute("SELECT id FROM device_data WHERE uuid=? AND time=?", (r["uuid"], r["time"]))
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, params)
+                return await cur.fetchall()
+
+async def get_device_ip(uuid):
+    sql = "SELECT ip FROM registry WHERE uuid=?" if use_sqlite() else "SELECT ip FROM registry WHERE uuid=%s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        cur = await _sqlite.execute(sql, (uuid,))
+        row = await cur.fetchone()
+        return row[0] if row else None
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (uuid,))
+                row = await cur.fetchone()
+                return row[0] if row else None
+
+async def list_devices():
+    # Get all unique UUIDs from registry or records
+    sql = "SELECT DISTINCT uuid FROM registry UNION SELECT DISTINCT uuid FROM records"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [row[0] for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return [row[0] for row in rows]
+
+async def get_device_mapping():
+    sql = "SELECT uuid, name, category FROM registry"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return {row[0]: {"name": row[1], "category": row[2]} for row in rows}
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return {row[0]: {"name": row[1], "category": row[2]} for row in rows}
+
+# --- Stats ---
+
+async def stats_daily(uuid=None, start=None, end=None):
+    # Group by date
+    # SQLite: strftime('%Y-%m-%d', time)
+    # MySQL: DATE(time)
+    date_func = "strftime('%Y-%m-%d', time)" if use_sqlite() else "DATE(time)"
+    where = ["1=1"]
+    params = []
+    if uuid:
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
+    if start:
+        where.append(f"time >= ?") if use_sqlite() else where.append("time >= %s")
+        params.append(start)
+    if end:
+        where.append(f"time <= ?") if use_sqlite() else where.append("time <= %s")
+        params.append(end)
+        
+    sql = f"SELECT {date_func} as d, SUM(in_count), SUM(out_count) FROM records WHERE {' AND '.join(where)} GROUP BY d ORDER BY d"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [{"date": r[0], "in": r[1], "out": r[2]} for r in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                return [{"date": str(r[0]), "in": r[1], "out": r[2]} for r in rows]
+
+async def stats_hourly(uuid=None, start=None, end=None):
+    # Group by hour
+    # SQLite: strftime('%Y-%m-%d %H:00', time)
+    # MySQL: DATE_FORMAT(time, '%Y-%m-%d %H:00')
+    date_func = "strftime('%Y-%m-%d %H:00', time)" if use_sqlite() else "DATE_FORMAT(time, '%Y-%m-%d %H:00')"
+    where = ["1=1"]
+    params = []
+    if uuid:
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
+    if start:
+        where.append(f"time >= ?") if use_sqlite() else where.append("time >= %s")
+        params.append(start)
+    if end:
+        where.append(f"time <= ?") if use_sqlite() else where.append("time <= %s")
+        params.append(end)
+        
+    sql = f"SELECT {date_func} as h, SUM(in_count), SUM(out_count) FROM records WHERE {' AND '.join(where)} GROUP BY h ORDER BY h"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [{"hour": r[0], "in": r[1], "out": r[2]} for r in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                return [{"hour": str(r[0]), "in": r[1], "out": r[2]} for r in rows]
+
+async def stats_total(uuid=None, start=None, end=None):
+    where = ["1=1"]
+    params = []
+    if uuid:
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
+    if start:
+        where.append(f"time >= ?") if use_sqlite() else where.append("time >= %s")
+        params.append(start)
+    if end:
+        where.append(f"time <= ?") if use_sqlite() else where.append("time <= %s")
+        params.append(end)
+    
+    sql = f"SELECT SUM(in_count), SUM(out_count) FROM records WHERE {' AND '.join(where)}"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            row = await cur.fetchone()
+            return {"in": row[0] or 0, "out": row[1] or 0}
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                row = await cur.fetchone()
+                return {"in": row[0] or 0, "out": row[1] or 0}
+
+async def stats_summary(uuid=None):
+    # Simple summary + last update time
+    total = await stats_total(uuid)
+    
+    where = ["1=1"]
+    params = []
+    if uuid:
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
+        
+    sql = f"SELECT MAX(time) FROM records WHERE {' AND '.join(where)}"
+    last_time = None
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            row = await cur.fetchone()
+            if row and row[0]:
+                last_time = row[0]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                row = await cur.fetchone()
+                if row and row[0]:
+                    last_time = str(row[0])
+                    
+    return {**total, "last_time": last_time}
+
+async def stats_top(limit=10):
+    # Top devices by traffic
+    sql = f"SELECT uuid, SUM(in_count) + SUM(out_count) as total FROM records GROUP BY uuid ORDER BY total DESC LIMIT {limit}"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [{"uuid": r[0], "total": r[1]} for r in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return [{"uuid": r[0], "total": r[1]} for r in rows]
+
+# --- Academies ---
+
+async def get_academies():
+    sql = "SELECT * FROM academies ORDER BY name"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [{"id": r[0], "name": r[1]} for r in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return [{"id": r[0], "name": r[1]} for r in rows]
+
+async def add_academy(name):
+    sql = "INSERT INTO academies (name) VALUES (?)" if use_sqlite() else "INSERT INTO academies (name) VALUES (%s)"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        try:
+            await _sqlite.execute(sql, (name,))
+            await _sqlite.commit()
+            return True
+        except:
+            return False
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    await cur.execute(sql, (name,))
+                    return True
+                except:
+                    return False
+
+async def delete_academy(id):
+    sql = "DELETE FROM academies WHERE id=?" if use_sqlite() else "DELETE FROM academies WHERE id=%s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (id,))
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (id,))
+                return True
+
+# --- Admin ---
+
+async def admin_count_records(uuid=None):
+    sql = "SELECT COUNT(*) FROM records"
+    params = []
+    if uuid:
+        sql += " WHERE uuid=?" if use_sqlite() else " WHERE uuid=%s"
+        params.append(uuid)
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            row = await cur.fetchone()
+            return row[0]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                row = await cur.fetchone()
+                return row[0]
+
+async def admin_list_records(page=1, limit=50, uuid=None):
+    offset = (page - 1) * limit
+    where = ["1=1"]
+    params = []
+    if uuid:
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
+        params.append(uuid)
+    
+    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY time DESC LIMIT {limit} OFFSET {offset}"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, params)
+                return await cur.fetchall()
+
+async def save_device_data(data: dict, ip: str = None):
+    uuid = data.get("uuid")
+    if not uuid: return
+    
+    # Insert record
+    rec = {
+        "uuid": uuid,
+        "time": data.get("time") or time.strftime("%Y-%m-%d %H:%M:%S"),
+        "in_count": int(data.get("in_count") or 0),
+        "out_count": int(data.get("out_count") or 0),
+        "battery": int(data.get("battery_level") or 0),
+        "signal_strength": int(data.get("signal_status") or 0),
+        "btx": 0,
+        "rec_type": 0,
+        "warn_status": 0,
+        "activity_type": "default"
+    }
+    await admin_create_record(rec)
+    
+    # Update registry last_seen and ip
+    sql_check = "SELECT uuid FROM registry WHERE uuid=?" if use_sqlite() else "SELECT uuid FROM registry WHERE uuid=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        cur = await _sqlite.execute(sql_check, (uuid,))
+        row = await cur.fetchone()
+        if row:
+            sql = "UPDATE registry SET last_seen=CURRENT_TIMESTAMP"
+            params = []
+            if ip:
+                sql += ", ip=?"
+                params.append(ip)
+            sql += " WHERE uuid=?"
+            params.append(uuid)
+            await _sqlite.execute(sql, params)
+        else:
+            await _sqlite.execute("INSERT INTO registry (uuid, last_seen, ip) VALUES (?, CURRENT_TIMESTAMP, ?)", (uuid, ip))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_check, (uuid,))
                 row = await cur.fetchone()
                 if row:
-                    # Exists. Skip or update? "keep local" -> Skip.
-                    # BUT, if user explicitly edited it in the preview, maybe they want to overwrite?
-                    # The prompt says "Timestamp match -> keep local" in the context of "Merging fetched data".
-                    # If the user confirms the merge in the UI, the UI should filter out the ones to be kept.
-                    # If the UI sends it, it means it should be written.
-                    # However, if the UI sends a record that conflicts, and we are "keeping local", the UI shouldn't have sent it.
-                    # But if the UI sends it, we should probably trust the UI.
-                    # Let's assume the UI sends *only* the records that need to be added/updated.
-                    # For "New timestamp", it's an INSERT.
-                    # For "Edit", it might be an UPDATE (if we have ID) or INSERT (if we don't).
-                    # If the record has an 'id', it's an existing local record we are updating.
-                    # If it doesn't have an 'id', it's a new record.
-                    if "id" in r and r["id"]:
-                        # Update
-                        await admin_update_record(r["id"], r)
-                        count += 1
-                    else:
-                        # It might exist but we don't have ID (e.g. concurrent insert).
-                        # If we found 'row', we have the ID.
-                        # If the user wants to 'keep local', they wouldn't send this record if it matches.
-                        # If they edited it, they might want to update.
-                        # Let's stick to: If ID provided -> Update. If not -> Insert.
-                        # But if Insert and (uuid, time) exists?
-                        # To be safe, if (uuid, time) exists, we skip insertion to avoid duplicates (unless we want multiple records for same time?).
-                        # The system seems to allow multiple records for same time (no unique constraint on uuid, time in CREATE TABLE, only INDEX).
-                        # So just Insert.
-                        pass
-                
-                if "id" in r and r["id"]:
-                    await admin_update_record(r["id"], r)
-                    count += 1
+                    sql = "UPDATE registry SET last_seen=CURRENT_TIMESTAMP"
+                    params = []
+                    if ip:
+                        sql += ", ip=%s"
+                        params.append(ip)
+                    sql += " WHERE uuid=%s"
+                    params.append(uuid)
+                    await cur.execute(sql, params)
                 else:
-                    # Check if exists to avoid unintentional duplicates if that's a concern, 
-                    # but for now let's trust the frontend or just insert.
-                    # Wait, if we insert a duplicate time, the sorting will be fine, but data might be double.
-                    # Let's check existence to be safe if no ID.
-                    cur = await _sqlite.execute("SELECT id FROM device_data WHERE uuid=? AND time=?", (r.get("uuid"), r.get("time")))
-                    exist = await cur.fetchone()
-                    if not exist:
-                        await admin_create_record(r)
-                        count += 1
-            return count
-        return 0
+                    await cur.execute("INSERT INTO registry (uuid, last_seen, ip) VALUES (%s, CURRENT_TIMESTAMP, %s)", (uuid, ip))
 
+async def admin_create_record(data):
+    # data is dict
+    cols = list(data.keys())
+    vals = list(data.values())
+    placeholders = ["?"] * len(cols) if use_sqlite() else ["%s"] * len(cols)
+    sql = f"INSERT INTO records ({','.join(cols)}) VALUES ({','.join(placeholders)})"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, vals)
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, vals)
+                return True
+
+async def admin_update_record(id, data: dict):
+    cols = []
+    vals = []
+    if "time" in data:
+        cols.append("time=?") if use_sqlite() else cols.append("time=%s")
+        vals.append(data["time"])
+    if "in_count" in data:
+        cols.append("in_count=?") if use_sqlite() else cols.append("in_count=%s")
+        vals.append(data["in_count"])
+    if "out_count" in data:
+        cols.append("out_count=?") if use_sqlite() else cols.append("out_count=%s")
+        vals.append(data["out_count"])
+    if "battery" in data:
+        cols.append("battery=?") if use_sqlite() else cols.append("battery=%s")
+        vals.append(data["battery"])
+    if "btx" in data:
+        cols.append("btx=?") if use_sqlite() else cols.append("btx=%s")
+        vals.append(data["btx"])
+    if "activity_type" in data:
+        cols.append("activity_type=?") if use_sqlite() else cols.append("activity_type=%s")
+        vals.append(data["activity_type"])
+    
+    if not cols:
+        return False
+        
+    vals.append(id)
+    sql = f"UPDATE records SET {','.join(cols)} WHERE id=?" if use_sqlite() else f"UPDATE records SET {','.join(cols)} WHERE id=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, vals)
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, vals)
+                return True
+
+async def admin_batch_update(ids: list, data: dict):
+    # Batch update multiple records
+    if not ids or not data:
+        return False
+        
+    cols = []
+    vals = []
+    if "time" in data:
+        cols.append("time=?") if use_sqlite() else cols.append("time=%s")
+        vals.append(data["time"])
+    if "in_count" in data:
+        cols.append("in_count=?") if use_sqlite() else cols.append("in_count=%s")
+        vals.append(data["in_count"])
+    if "out_count" in data:
+        cols.append("out_count=?") if use_sqlite() else cols.append("out_count=%s")
+        vals.append(data["out_count"])
+    if "battery" in data:
+        cols.append("battery=?") if use_sqlite() else cols.append("battery=%s")
+        vals.append(data["battery"])
+    if "btx" in data:
+        cols.append("btx=?") if use_sqlite() else cols.append("btx=%s")
+        vals.append(data["btx"])
+    if "activity_type" in data:
+        cols.append("activity_type=?") if use_sqlite() else cols.append("activity_type=%s")
+        vals.append(data["activity_type"])
+        
+    if not cols:
+        return False
+        
+    # Construct WHERE id IN (?,?,?)
+    placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(ids))
+    where = f"WHERE id IN ({placeholders})"
+    
+    vals.extend(ids)
+    
+    sql = f"UPDATE records SET {','.join(cols)} {where}"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, vals)
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, vals)
+                return True
+
+async def admin_batch_save_records(creates: list, updates: list):
+    # Batch save records (creates and updates)
+    if not creates and not updates:
+        return True
+        
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        try:
+            # Creates
+            if creates:
+                for c in creates:
+                    cols = list(c.keys())
+                    vals = list(c.values())
+                    sql = f"INSERT INTO records ({','.join(cols)}) VALUES ({','.join(['?']*len(cols))})"
+                    await _sqlite.execute(sql, vals)
+            # Updates
+            if updates:
+                for u in updates:
+                    uid = u.pop("id", None)
+                    if not uid: continue
+                    cols = []
+                    vals = []
+                    for k, v in u.items():
+                        cols.append(f"{k}=?")
+                        vals.append(v)
+                    if cols:
+                        vals.append(uid)
+                        sql = f"UPDATE records SET {','.join(cols)} WHERE id=?"
+                        await _sqlite.execute(sql, vals)
+            await _sqlite.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Batch save failed: {e}")
+            return False
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    # Creates
+                    if creates:
+                        for c in creates:
+                            cols = list(c.keys())
+                            vals = list(c.values())
+                            sql = f"INSERT INTO records ({','.join(cols)}) VALUES ({','.join(['%s']*len(cols))})"
+                            await cur.execute(sql, vals)
+                    # Updates
+                    if updates:
+                        for u in updates:
+                            uid = u.pop("id", None)
+                            if not uid: continue
+                            cols = []
+                            vals = []
+                            for k, v in u.items():
+                                cols.append(f"{k}=%s")
+                                vals.append(v)
+                            if cols:
+                                vals.append(uid)
+                                sql = f"UPDATE records SET {','.join(cols)} WHERE id=%s"
+                                await cur.execute(sql, vals)
+                    return True
+                except Exception as e:
+                    logging.error(f"Batch save failed: {e}")
+                    return False
+
+async def admin_delete_record(id):
+    sql = "DELETE FROM records WHERE id=?" if use_sqlite() else "DELETE FROM records WHERE id=%s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (id,))
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (id,))
+                return True
+
+async def admin_delete_range(start, end):
+    sql = "DELETE FROM records WHERE time >= ? AND time <= ?" if use_sqlite() else "DELETE FROM records WHERE time >= %s AND time <= %s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (start, end))
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (start, end))
+                return True
+
+async def admin_list_registry():
+    sql = "SELECT * FROM registry"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql)
+                return await cur.fetchall()
+
+async def admin_upsert_registry(uuid, name=None, category=None):
+    # Check if exists
+    sql_check = "SELECT uuid FROM registry WHERE uuid=?" if use_sqlite() else "SELECT uuid FROM registry WHERE uuid=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        cursor = await _sqlite.execute(sql_check, (uuid,))
+        row = await cursor.fetchone()
+        if row:
+            # Update
+            updates = []
+            params = []
+            if name is not None:
+                updates.append("name=?")
+                params.append(name)
+            if category is not None:
+                updates.append("category=?")
+                params.append(category)
+            if updates:
+                params.append(uuid)
+                await _sqlite.execute(f"UPDATE registry SET {','.join(updates)} WHERE uuid=?", params)
+        else:
+            # Insert
+            await _sqlite.execute("INSERT INTO registry (uuid, name, category) VALUES (?, ?, ?)", (uuid, name, category))
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_check, (uuid,))
+                row = await cur.fetchone()
+                if row:
+                    updates = []
+                    params = []
+                    if name is not None:
+                        updates.append("name=%s")
+                        params.append(name)
+                    if category is not None:
+                        updates.append("category=%s")
+                        params.append(category)
+                    if updates:
+                        params.append(uuid)
+                        await cur.execute(f"UPDATE registry SET {','.join(updates)} WHERE uuid=%s", params)
+                else:
+                    await cur.execute("INSERT INTO registry (uuid, name, category) VALUES (%s, %s, %s)", (uuid, name, category))
+                return True
+
+async def admin_batch_upsert(items: list):
+    for item in items:
+        await admin_upsert_registry(item.get("uuid"), item.get("name"), item.get("category"))
+    return True
+
+async def admin_write_op(actor, action, target, details):
+    sql = "INSERT INTO audit_logs (actor, action, target, details) VALUES (?, ?, ?, ?)" if use_sqlite() else "INSERT INTO audit_logs (actor, action, target, details) VALUES (%s, %s, %s, %s)"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (actor, action, target, details))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (actor, action, target, details))
+
+async def admin_get_categories():
+    sql = "SELECT DISTINCT category FROM registry"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [r[0] for r in rows if r[0]]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return [r[0] for r in rows if r[0]]
+
+async def admin_get_uuids():
+    return await list_devices()
+
+async def admin_fetch_range(start, end):
+    # Fetch records in range for export
+    return await fetch_history(start=start, end=end, limit=100000)
+
+async def list_alerts(uuid=None, limit=100):
+    sql = "SELECT * FROM alerts"
+    params = []
+    if uuid:
+        sql += " WHERE uuid=?" if use_sqlite() else " WHERE uuid=%s"
+        params.append(uuid)
+    
+    sql += f" ORDER BY time DESC LIMIT {limit}"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, params)
+                return await cur.fetchall()
+
+# --- Activity Events (Preserved) ---
+
+async def activity_bulk_insert(events: list[dict]):
+    if not events:
+        return 0
+    count = 0
+    cols = ["date", "weekday", "start_time", "end_time", "duration_minutes", "academy", "location", "activity_name", "activity_type", "audience_count", "notes"]
+    
+    if use_sqlite():
+        if _sqlite is None:
+            await init_sqlite()
+        if _sqlite:
+            for e in events:
+                cur = await _sqlite.execute("SELECT id FROM activity_events WHERE date=? AND start_time=? AND location=? AND activity_name=?", 
+                                            (e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name")))
+                row = await cur.fetchone()
+                if not row:
+                    vals = [e.get(c) for c in cols]
+                    await _sqlite.execute(
+                        f"INSERT INTO activity_events({','.join(cols)}) VALUES({','.join(['?']*len(cols))})",
+                        vals
+                    )
+                    count += 1
+            await _sqlite.commit()
+            return count
+    
     if _pool is None:
         await init_pool()
-    if _pool is None:
-        return 0
-    
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            for r in records:
-                if "id" in r and r["id"]:
-                     # Update logic needs to be implemented or call single update
-                     # Since we are in a transaction block (if we used one), but admin_update_record uses its own connection.
-                     # Better to implement update SQL here to reuse connection?
-                     # admin_update_record acquires a new connection.
-                     # Let's just call admin_update_record/create_record for simplicity, even if less efficient.
-                     # Wait, admin_update_record is async and uses pool.acquire. Nested acquire is fine.
-                     await admin_update_record(r["id"], r)
-                     count += 1
-                else:
-                    await cur.execute("SELECT id FROM device_data WHERE uuid=%s AND time=%s", (r.get("uuid"), r.get("time")))
-                    exist = await cur.fetchone()
-                    if not exist:
-                        await admin_create_record(r)
+    if _pool:
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                 for e in events:
+                    await cur.execute("SELECT id FROM activity_events WHERE date=%s AND start_time=%s AND location=%s AND activity_name=%s", 
+                                      (e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name")))
+                    row = await cur.fetchone()
+                    if not row:
+                        vals = [e.get(c) for c in cols]
+                        await cur.execute(
+                            f"INSERT INTO activity_events({','.join(cols)}) VALUES({','.join(['%s']*len(cols))})",
+                            vals
+                        )
                         count += 1
     return count
 
-async def admin_create_record(d: dict):
-    allowed = ["uuid", "in_count", "out_count", "time", "battery_level", "signal_status", "warn_status", "batterytx_level", "rec_type"]
-    data = {k: d.get(k) for k in allowed}
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite is None:
-            return None
-        cur = await _sqlite.execute(
-            "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(?,?,?,?,?,?,?,?,?)",
-            (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"], data.get("warn_status"), data.get("batterytx_level"), data.get("rec_type")),
-        )
-        await _sqlite.commit()
-        return cur.lastrowid
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return None
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "INSERT INTO device_data(uuid,in_count,out_count,time,battery_level,signal_status,warn_status,batterytx_level,rec_type) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (data["uuid"], data["in_count"], data["out_count"], data["time"], data["battery_level"], data["signal_status"], data.get("warn_status"), data.get("batterytx_level"), data.get("rec_type")),
-            )
-            return cur.lastrowid if hasattr(cur, "lastrowid") else None
-async def _maybe_alert(d: dict):
-    uuid = d.get("uuid")
-    bat = d.get("battery_level")
-    sig = d.get("signal_status")
-    ws = d.get("warn_status")
-    btx = d.get("batterytx_level")
-    rt = d.get("rec_type")
-    msgs = []
-    if bat is not None and bat < getattr(config, "BAT_LOW", 20):
-        msgs.append(("battery_low", bat, f"battery={bat}%"))
-    if sig is not None and sig == getattr(config, "SIGNAL_OFFLINE_VALUE", 1):
-        msgs.append(("signal_offline", sig, "signal offline"))
-    if ws is not None and ws != 0:
-        msgs.append(("device_warn", ws, f"warn_status={ws}"))
-    if btx is not None and btx < getattr(config, "BTX_LOW", 30):
-        msgs.append(("battery_tx_low", btx, f"batterytx={btx}%"))
-    if rt is not None and rt == getattr(config, "REC_TYPE_BACKLOG", 1):
-        msgs.append(("record_backlog", rt, "rec_type=1"))
-    if not msgs:
-        return
-    if use_sqlite():
-        if _sqlite:
-            for t, lv, info in msgs:
-                await _sqlite.execute("INSERT INTO alerts(uuid,type,level,info) VALUES(?,?,?,?)", (uuid, t, lv, info))
-            await _sqlite.commit()
-        else:
-            for t, lv, info in msgs:
-                await asyncio.to_thread(_sqlite_exec_sync, "INSERT INTO alerts(uuid,type,level,info) VALUES(?,?,?,?)", (uuid, t, lv, info))
-        return
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            for t, lv, info in msgs:
-                await cur.execute("INSERT INTO alerts(uuid,type,level,info,time) VALUES(%s,%s,%s,%s,NOW())", (uuid, t, lv, info))
-
-async def list_alerts(uuid: str | None, limit: int = 100):
-    if use_sqlite():
-        if _sqlite is None:
-            await init_sqlite()
-        sql = "SELECT id,uuid,type,level,info,time FROM alerts"
-        params = []
-        if uuid:
-            sql += " WHERE uuid=?"; params.append(uuid)
-        sql += " ORDER BY id DESC LIMIT ?"; params.append(limit)
-        if _sqlite:
-            cur = await _sqlite.execute(sql, tuple(params))
-            rows = await cur.fetchall()
-            return [dict(r) for r in rows]
-        return await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    sql = "SELECT id,uuid,type,level,info,time FROM alerts"
+async def activity_list(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None, weekdays: list = None, min_start_time: str = None, page: int = 1, page_size: int = 50):
+    offset = (page - 1) * page_size
+    sql = "SELECT * FROM activity_events WHERE 1=1"
     params = []
-    if uuid:
-        sql += " WHERE uuid=%s"; params.append(uuid)
-    sql += " ORDER BY id DESC LIMIT %s"; params.append(limit)
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [
-                {"id": r[0], "uuid": r[1], "type": r[2], "level": r[3], "info": r[4], "time": r[5]}
-                for r in rows
-            ]
-
-async def admin_list_registry(category: str | None, search: str | None, offset: int, limit: int):
-    if use_sqlite():
-        if _sqlite is None:
-            await init_sqlite()
-        sql = "SELECT id,uuid,name,category,create_time FROM device_registry WHERE 1=1"
-        params = []
-        if category:
-            sql += " AND category=?"; params.append(category)
-        if search:
-            sql += " AND (uuid LIKE ? OR name LIKE ?)"; params.extend([f"%{search}%", f"%{search}%"]) 
-        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"; params.extend([limit, offset])
-        if _sqlite:
-            cur = await _sqlite.execute(sql, tuple(params))
-            rows = await cur.fetchall()
-            return [dict(r) for r in rows]
-        return await asyncio.to_thread(_sqlite_query_all, sql, tuple(params))
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            sql = "CREATE TABLE IF NOT EXISTS device_registry (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64) UNIQUE, name VARCHAR(128), category VARCHAR(64), create_time DATETIME DEFAULT CURRENT_TIMESTAMP)"
-            await cur.execute(sql)
-            sql = "SELECT id,uuid,name,category,create_time FROM device_registry WHERE 1=1"
-            params = []
-            if category:
-                sql += " AND category=%s"; params.append(category)
-            if search:
-                sql += " AND (uuid LIKE %s OR name LIKE %s)"; params.extend([f"%{search}%", f"%{search}%"]) 
-            sql += " ORDER BY id DESC LIMIT %s OFFSET %s"; params.extend([limit, offset])
-            await cur.execute(sql, params)
-            rows = await cur.fetchall()
-            return [
-                {"id": r[0], "uuid": r[1], "name": r[2], "category": r[3], "create_time": r[4]}
-                for r in rows
-            ]
-
-async def admin_upsert_registry(uuid: str, name: str | None, category: str | None):
+    if start_date:
+        sql += " AND date >= ?" if use_sqlite() else " AND date >= %s"
+        params.append(start_date)
+    if end_date:
+        sql += " AND date <= ?" if use_sqlite() else " AND date <= %s"
+        params.append(end_date)
+    if locations:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(locations))
+        sql += f" AND location IN ({placeholders})"
+        params.extend(locations)
+    if types:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(types))
+        sql += f" AND activity_type IN ({placeholders})"
+        params.extend(types)
+    if academies:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(academies))
+        sql += f" AND academy IN ({placeholders})"
+        params.extend(academies)
+    if weekdays:
+        # Weekdays can be int or str, ensure they match DB format.
+        # Assuming DB has 'Mon', 'Tue' or '1', '2'.
+        # User request says "1-7". If DB has 'Mon', we need mapping. 
+        # Assuming we pass what's in DB or frontend handles mapping.
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(weekdays))
+        sql += f" AND weekday IN ({placeholders})"
+        params.extend(weekdays)
+    if min_start_time:
+        # Activities happening after selected time (including ongoing).
+        # Logic: end_time > min_start_time
+        sql += " AND end_time > ?" if use_sqlite() else " AND end_time > %s"
+        params.append(min_start_time)
+    
+    sql += " ORDER BY date DESC, start_time DESC"
+    
+    count_sql_opt = sql.replace("SELECT *", "SELECT COUNT(*)", 1)
+    
+    total = 0
+    items = []
+    
     if use_sqlite():
         if _sqlite is None:
             await init_sqlite()
         if _sqlite:
-            cur = await _sqlite.execute("SELECT id FROM device_registry WHERE uuid=?", (uuid,))
+            cur = await _sqlite.execute(count_sql_opt, params)
             row = await cur.fetchone()
-            if row:
-                await _sqlite.execute("UPDATE device_registry SET name=?, category=? WHERE uuid=?", (name, category, uuid))
-            else:
-                await _sqlite.execute("INSERT INTO device_registry(uuid,name,category) VALUES(?,?,?)", (uuid, name, category))
-            await _sqlite.commit()
-            return True
-        await asyncio.to_thread(_sqlite_exec_sync, "INSERT OR REPLACE INTO device_registry(uuid,name,category) VALUES(?,?,?)", (uuid, name, category))
-        return True
+            total = row[0] if row else 0
+            
+            sql += " LIMIT ? OFFSET ?"
+            params.extend([page_size, offset])
+            cur = await _sqlite.execute(sql, params)
+            rows = await cur.fetchall()
+            items = [dict(r) for r in rows]
+            return {"total": total, "items": items}
+            
     if _pool is None:
         await init_pool()
-    if _pool is None:
-        return False
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("CREATE TABLE IF NOT EXISTS device_registry (id BIGINT AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(64) UNIQUE, name VARCHAR(128), category VARCHAR(64), create_time DATETIME DEFAULT CURRENT_TIMESTAMP)")
-            await cur.execute("SELECT id FROM device_registry WHERE uuid=%s", (uuid,))
-            row = await cur.fetchone()
-            if row:
-                await cur.execute("UPDATE device_registry SET name=%s, category=%s WHERE uuid=%s", (name, category, uuid))
-            else:
-                await cur.execute("INSERT INTO device_registry(uuid,name,category) VALUES(%s,%s,%s)", (uuid, name, category))
-            return True
+    if _pool:
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(count_sql_opt, params)
+                row = await cur.fetchone()
+                total = row['COUNT(*)'] if row else 0
+                
+                sql += " LIMIT %s OFFSET %s"
+                params.extend([page_size, offset])
+                await cur.execute(sql, params)
+                rows = await cur.fetchall()
+                items = rows
+    return {"total": total, "items": items}
 
-async def admin_write_op(actor: str | None, action: str, target_uuid: str | None, payload: str | None):
+async def activity_get_options():
     if use_sqlite():
         if _sqlite is None:
             await init_sqlite()
         if _sqlite:
-            await _sqlite.execute("INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(?,?,?,?)", (actor, action, target_uuid, payload))
-            await _sqlite.commit()
-            return
-        await asyncio.to_thread(_sqlite_exec_sync, "INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(?,?,?,?)", (actor, action, target_uuid, payload))
-        return
+            l_cur = await _sqlite.execute("SELECT DISTINCT location FROM activity_events ORDER BY location")
+            locations = [r[0] for r in await l_cur.fetchall() if r[0]]
+            t_cur = await _sqlite.execute("SELECT DISTINCT activity_type FROM activity_events ORDER BY activity_type")
+            types = [r[0] for r in await t_cur.fetchall() if r[0]]
+            a_cur = await _sqlite.execute("SELECT DISTINCT academy FROM activity_events ORDER BY academy")
+            academies = [r[0] for r in await a_cur.fetchall() if r[0]]
+            return {"locations": locations, "types": types, "academies": academies}
+    
     if _pool is None:
         await init_pool()
-    if _pool is None:
-        return
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("CREATE TABLE IF NOT EXISTS ops_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, actor VARCHAR(128), action VARCHAR(64), target_uuid VARCHAR(64), payload TEXT, time DATETIME DEFAULT CURRENT_TIMESTAMP)")
-            await cur.execute("INSERT INTO ops_log(actor,action,target_uuid,payload) VALUES(%s,%s,%s,%s)", (actor, action, target_uuid, payload))
+    if _pool:
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT DISTINCT location FROM activity_events ORDER BY location")
+                locations = [r[0] for r in await cur.fetchall() if r[0]]
+                await cur.execute("SELECT DISTINCT activity_type FROM activity_events ORDER BY activity_type")
+                types = [r[0] for r in await cur.fetchall() if r[0]]
+                await cur.execute("SELECT DISTINCT academy FROM activity_events ORDER BY academy")
+                academies = [r[0] for r in await cur.fetchall() if r[0]]
+                return {"locations": locations, "types": types, "academies": academies}
+    return {"locations": [], "types": [], "academies": []}
 
-async def admin_get_categories():
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            cur = await _sqlite.execute("SELECT DISTINCT category FROM device_registry WHERE category IS NOT NULL AND category != ''")
-            rows = await cur.fetchall()
-            return [r[0] for r in rows]
-        return []
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT DISTINCT category FROM device_registry WHERE category IS NOT NULL AND category != ''")
-            rows = await cur.fetchall()
-            return [r[0] for r in rows]
+async def activity_stats(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None):
+    where = " WHERE 1=1"
+    params = []
+    if start_date:
+        where += " AND date >= ?" if use_sqlite() else " AND date >= %s"
+        params.append(start_date)
+    if end_date:
+        where += " AND date <= ?" if use_sqlite() else " AND date <= %s"
+        params.append(end_date)
+    if locations:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(locations))
+        where += f" AND location IN ({placeholders})"
+        params.extend(locations)
+    if types:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(types))
+        where += f" AND activity_type IN ({placeholders})"
+        params.extend(types)
+    if academies:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(academies))
+        where += f" AND academy IN ({placeholders})"
+        params.extend(academies)
 
-async def admin_get_uuids():
-    if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            cur = await _sqlite.execute("SELECT DISTINCT uuid FROM device_data UNION SELECT uuid FROM device_registry")
-            rows = await cur.fetchall()
-            return sorted([r[0] for r in rows if r[0]])
+    async def run_query(sql, p):
+        if use_sqlite():
+             if _sqlite is None: await init_sqlite()
+             if _sqlite:
+                 cur = await _sqlite.execute(sql, p)
+                 return await cur.fetchall()
+        elif _pool:
+             if not _pool: await init_pool()
+             async with _pool.acquire() as conn:
+                 async with conn.cursor() as cur:
+                     await cur.execute(sql, p)
+                     return await cur.fetchall()
         return []
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return []
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT DISTINCT uuid FROM device_data UNION SELECT uuid FROM device_registry")
-            rows = await cur.fetchall()
-            return sorted([r[0] for r in rows if r[0]])
 
-async def get_device_mapping():
+    kpi_sql = f"SELECT COUNT(*), SUM(audience_count), AVG(audience_count) FROM activity_events {where}"
+    kpi_res = await run_query(kpi_sql, params)
+    kpis = {
+        "total_events": kpi_res[0][0] if kpi_res and kpi_res[0][0] else 0,
+        "total_audience": kpi_res[0][1] if kpi_res and kpi_res[0][1] else 0,
+        "avg_audience": round(kpi_res[0][2], 1) if kpi_res and kpi_res[0][2] else 0
+    }
+
+    wd_sql = f"SELECT weekday, COUNT(*), SUM(audience_count) FROM activity_events {where} GROUP BY weekday ORDER BY weekday"
+    wd_res = await run_query(wd_sql, params)
+    weekday_stats = [{"weekday": r[0], "count": r[1], "audience": r[2]} for r in wd_res]
+
     if use_sqlite():
-        global _sqlite
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            cur = await _sqlite.execute("SELECT uuid, name FROM device_registry WHERE name IS NOT NULL AND name != ''")
-            rows = await cur.fetchall()
-            return {r[0]: r[1] for r in rows}
-        return {}
-    if _pool is None:
-        await init_pool()
-    if _pool is None:
-        return {}
-    async with _pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT uuid, name FROM device_registry WHERE name IS NOT NULL AND name != ''")
-            rows = await cur.fetchall()
-            return {r[0]: r[1] for r in rows}
+        time_sql = f"SELECT substr(start_time, 1, 2) as h, COUNT(*), SUM(audience_count) FROM activity_events {where} GROUP BY h ORDER BY h"
+    else:
+        time_sql = f"SELECT LEFT(start_time, 2) as h, COUNT(*), SUM(audience_count) FROM activity_events {where} GROUP BY h ORDER BY h"
+    
+    time_res = await run_query(time_sql, params)
+    time_stats = [{"hour": r[0], "count": r[1], "audience": r[2]} for r in time_res]
+    
+    loc_sql = f"SELECT location, COUNT(*), SUM(audience_count) FROM activity_events {where} GROUP BY location ORDER BY COUNT(*) DESC LIMIT 20"
+    loc_res = await run_query(loc_sql, params)
+    location_top = [{"location": r[0], "count": r[1], "audience": r[2]} for r in loc_res]
+    
+    type_sql = f"SELECT activity_type, COUNT(*), SUM(audience_count) FROM activity_events {where} GROUP BY activity_type ORDER BY COUNT(*) DESC"
+    type_res = await run_query(type_sql, params)
+    type_stats = [{"type": r[0], "count": r[1], "audience": r[2]} for r in type_res]
+    
+    return {
+        "kpis": kpis,
+        "weekday": weekday_stats,
+        "time_bins": time_stats,
+        "location_top": location_top,
+        "activity_types": type_stats
+    }

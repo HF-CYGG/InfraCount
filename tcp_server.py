@@ -52,7 +52,8 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                             ret = 0
                             try:
                                 from app.db import save_device_data
-                                await save_device_data(d)
+                                ip = peer[0] if peer else None
+                                await save_device_data(d, ip=ip)
                             except Exception as e:
                                 logging.error("save_device_data error: %s", e)
                                 ret = 1

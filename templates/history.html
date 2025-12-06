@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史数据 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="card">
+    <div class="filter-bar" style="margin-bottom:0;border:none;box-shadow:none;padding:0">
+        <div class="flex items-center gap-2">
+            <label>设备</label>
+            <select id="device" class="select" style="width:200px"></select>
+        </div>
+        <div class="flex items-center gap-2">
+            <label>日期范围</label>
+            <input type="date" id="start" class="input" style="width:140px">
+            <span class="text-muted">-</span>
+            <input type="date" id="end" class="input" style="width:140px">
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-primary" id="query">查询</button>
+            <button class="btn" id="reset">重置</button>
+            <button class="btn" id="toggleAdvanced">高级筛选</button>
+        </div>
+        <div class="flex items-center gap-2" style="margin-left:auto">
+            <button class="btn btn-success" id="addRecordBtn" style="background:#0ca678;color:#fff;border-color:#0ca678">添加记录</button>
+            <button class="btn btn-primary" id="batchEditBtn">批量修改</button>
+            <button class="btn btn-secondary" id="dataCompletion">数据补全</button>
+            <button class="btn btn-success" id="mergeDataBtn">数据合并</button>
+            <button class="btn btn-danger" id="batchDelete">批量删除</button>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div id="advancedPopup" class="card" style="display:none;margin-top:16px;margin-bottom:16px;background:#f8f9fa">
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+            <div>
+                <label class="text-sm">告警状态 (0/1)</label>
+                <input id="filterWarn" type="number" class="input">
+            </div>
+            <div>
+                <label class="text-sm">记录类型</label>
+                <input id="filterRecType" type="number" class="input" placeholder="1:实时 2:历史">
+            </div>
+            <div>
+                <label class="text-sm">Tx电量 (Min)</label>
+                <input id="filterBtxMin" type="number" class="input">
+            </div>
+            <div>
+                <label class="text-sm">Tx电量 (Max)</label>
+                <input id="filterBtxMax" type="number" class="input">
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:40px"><input type="checkbox" id="selectAll"></th>
+                    <th>时间</th>
+                    <th>IN</th>
+                    <th>OUT</th>
+                    <th>电量</th>
+                    <th>状态</th>
+                    <th>Tx电量</th>
+                    <th>记录类型</th>
+                    <th>活动类型</th>
+                    <th style="width:140px">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit/Add Modal -->
+<div id="editModal" class="modal-backdrop">
+    <div class="modal">
+        <h3 id="modalTitle">编辑记录</h3>
+        <div class="mb-4"><label>时间</label><input id="m_time" type="datetime-local" class="input"></div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="mb-4"><label>IN</label><input id="m_in" type="number" class="input"></div>
+            <div class="mb-4"><label>OUT</label><input id="m_out" type="number" class="input"></div>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="mb-4"><label>电量</label><input id="m_bat" type="number" class="input"></div>
+            <div class="mb-4"><label>Tx电量</label><input id="m_btx" type="number" class="input"></div>
+        </div>
+        <div class="mb-4"><label>活动类型</label>
+            <select id="m_type" class="select">
+                <option value="">-- 选择活动类型 --</option>
+                <option value="班团活动">班团活动</option>
+                <option value="公益/志愿活动">公益/志愿活动</option>
+                <option value="会议活动">会议活动</option>
+                <option value="培训活动">培训活动</option>
+                <option value="其他活动">其他活动</option>
+                <option value="全生异科导师活动">全生异科导师活动</option>
+                <option value="散客访问">散客访问</option>
+                <option value="社团活动">社团活动</option>
+                <option value="书院活动">书院活动</option>
+                <option value="体育活动">体育活动</option>
+                <option value="项目工坊活动">项目工坊活动</option>
+                <option value="艺术活动">艺术活动</option>
+                <option value="项目工坊">项目工坊</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="btn" id="m_cancel">取消</button>
+            <button class="btn btn-primary" id="m_save">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Edit Modal -->
+<div id="batchEditModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>批量修改</h3>
+        <p class="text-sm text-muted">已选择 <span id="batchCount">0</span> 条记录</p>
+        <div class="mb-4">
+            <label>活动类型</label>
+            <select id="batchTypeVal" class="select">
+                <option value="">-- 选择活动类型 --</option>
+                <option value="班团活动">班团活动</option>
+                <option value="公益/志愿活动">公益/志愿活动</option>
+                <option value="会议活动">会议活动</option>
+                <option value="培训活动">培训活动</option>
+                <option value="其他活动">其他活动</option>
+                <option value="全生异科导师活动">全生异科导师活动</option>
+                <option value="散客访问">散客访问</option>
+                <option value="社团活动">社团活动</option>
+                <option value="书院活动">书院活动</option>
+                <option value="体育活动">体育活动</option>
+                <option value="项目工坊活动">项目工坊活动</option>
+                <option value="艺术活动">艺术活动</option>
+                <option value="项目工坊">项目工坊</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="btn" id="batchEditCancel">取消</button>
+            <button class="btn btn-primary" id="batchEditConfirm">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Range Modal -->
+<div id="deleteRangeModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>批量删除</h3>
+        <p style="color:var(--danger)">警告：此操作将永久删除指定时间段内的数据！</p>
+        <div class="mb-4"><label>起始时间</label><input id="delStart" type="datetime-local" class="input"></div>
+        <div class="mb-4"><label>结束时间</label><input id="delEnd" type="datetime-local" class="input"></div>
+        <div class="actions">
+            <button class="btn" id="delCancel">取消</button>
+            <button class="btn btn-danger" id="delConfirm">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<!-- Merge Config Modal -->
+<div id="mergeConfigModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>数据合并 (同步)</h3>
+        <p class="text-sm text-muted">从设备端或其他节点同步数据</p>
+        <div class="mb-4">
+            <label>设备</label>
+            <select id="mergeTargetDevice" class="select"></select>
+        </div>
+        <div class="mb-4">
+            <label>起始时间</label>
+            <input id="mergeStart" type="datetime-local" class="input">
+        </div>
+        <div class="mb-4">
+            <label>结束时间</label>
+            <input id="mergeEnd" type="datetime-local" class="input">
+        </div>
+        <div class="actions">
+            <button class="btn" id="mergeConfigCancel">取消</button>
+            <button class="btn btn-primary" id="mergeFetchBtn">获取数据</button>
+        </div>
+    </div>
+</div>
+
+<!-- Merge Conflict Modal -->
+<div id="mergeConflictModal" class="modal-backdrop" style="z-index:1100">
+    <div class="modal" style="width:800px;max-width:90vw">
+        <h3>合并预览</h3>
+        <div class="mb-4">
+            <span class="badge badge-success">新增: <span id="mergeNewCount">0</span></span>
+            <span class="badge badge-warning">冲突: <span id="mergeConflictCount">0</span></span>
+        </div>
+        
+        <div class="table-wrap scroll-y" style="max-height:400px;margin-bottom:16px">
+            <table style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="width:40px">选</th>
+                        <th>时间</th>
+                        <th>字段</th>
+                        <th>本地值</th>
+                        <th>远程值</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="mergeTableBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="actions">
+            <button class="btn" id="mergeConflictCancel">取消</button>
+            <button class="btn btn-primary" id="mergeConfirmBtn">确认合并</button>
+        </div>
+    </div>
+</div>
+
+<div id="histToast" class="toast"></div>
+
+<script src="/static/layout.js"></script>
+<script>
+    initLayout('历史数据');
+
+    const els = {
+        device: document.getElementById('device'),
+        start: document.getElementById('start'),
+        end: document.getElementById('end'),
+        tbl: document.getElementById('tbl'),
+        adv: document.getElementById('advancedPopup'),
+        toggleAdv: document.getElementById('toggleAdvanced'),
+        selectAll: document.getElementById('selectAll'),
+        // Filters
+        fWarn: document.getElementById('filterWarn'),
+        fRec: document.getElementById('filterRecType'),
+        fMin: document.getElementById('filterBtxMin'),
+        fMax: document.getElementById('filterBtxMax'),
+        // Edit/Add
+        editModal: document.getElementById('editModal'),
+        modalTitle: document.getElementById('modalTitle'),
+        m_time: document.getElementById('m_time'),
+        m_in: document.getElementById('m_in'),
+        m_out: document.getElementById('m_out'),
+        m_bat: document.getElementById('m_bat'),
+        m_btx: document.getElementById('m_btx'),
+        m_type: document.getElementById('m_type'),
+        m_cancel: document.getElementById('m_cancel'),
+        m_save: document.getElementById('m_save'),
+        addBtn: document.getElementById('addRecordBtn'),
+        // Batch Delete
+        batchDelete: document.getElementById('batchDelete'),
+        delRangeModal: document.getElementById('deleteRangeModal'),
+        delStart: document.getElementById('delStart'),
+        delEnd: document.getElementById('delEnd'),
+        delCancel: document.getElementById('delCancel'),
+        delConfirm: document.getElementById('delConfirm'),
+        // Batch Edit
+        batchEditBtn: document.getElementById('batchEditBtn'),
+        batchEditModal: document.getElementById('batchEditModal'),
+        batchCount: document.getElementById('batchCount'),
+        batchTypeVal: document.getElementById('batchTypeVal'),
+        batchEditCancel: document.getElementById('batchEditCancel'),
+        batchEditConfirm: document.getElementById('batchEditConfirm'),
+        // Merge
+        mergeDataBtn: document.getElementById('mergeDataBtn'),
+        mergeConfigModal: document.getElementById('mergeConfigModal'),
+        mergeTargetDevice: document.getElementById('mergeTargetDevice'),
+        mergeStart: document.getElementById('mergeStart'),
+        mergeEnd: document.getElementById('mergeEnd'),
+        mergeConfigCancel: document.getElementById('mergeConfigCancel'),
+        mergeFetchBtn: document.getElementById('mergeFetchBtn'),
+        
+        mergeConflictModal: document.getElementById('mergeConflictModal'),
+        mergeNewCount: document.getElementById('mergeNewCount'),
+        mergeConflictCount: document.getElementById('mergeConflictCount'),
+        mergeTableBody: document.getElementById('mergeTableBody'),
+        mergeConflictCancel: document.getElementById('mergeConflictCancel'),
+        mergeConfirmBtn: document.getElementById('mergeConfirmBtn')
+    };
+
+    let deviceMap = {};
+    let currentEditId = null;
+    let mergePlan = { creates: [], updates: [] }; // Stores pending actions
+
+    async function loadDevices() {
+        const mapRes = await fetch('/api/v1/device/mapping');
+        if(mapRes.ok) deviceMap = (await mapRes.json()).mapping || {};
+
+        const res = await fetch('/api/v1/devices');
+        const list = await res.json();
+        
+        els.device.innerHTML = list.map(d => {
+            const name = deviceMap[d.uuid] || d.uuid;
+            const display = name === d.uuid ? d.uuid : `${name} (${d.uuid})`;
+            return `<option value="${d.uuid}">${display}</option>`;
+        }).join('');
+    }
+
+    function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
+    function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}
+    function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
+
+    async function loadHistory() {
+        const uuid = els.device.value;
+        if(!uuid) return;
+        
+        const q = new URLSearchParams({uuid});
+        if(els.start.value) q.append('start', els.start.value + ' 00:00:00');
+        if(els.end.value) q.append('end', els.end.value + ' 23:59:59');
+        if(els.fWarn.value) q.append('warn_status', els.fWarn.value);
+        if(els.fRec.value) q.append('rec_type', els.fRec.value);
+        if(els.fMin.value) q.append('batterytx_min', els.fMin.value);
+        if(els.fMax.value) q.append('batterytx_max', els.fMax.value);
+        
+        const res = await fetch('/api/v1/data/history?' + q.toString());
+        const rows = await res.json();
+        
+        els.tbl.innerHTML = rows.map(r => `
+            <tr>
+                <td><input type="checkbox" class="row-check" value="${r.id}"></td>
+                <td>${fmtTime(r.time)}</td>
+                <td>${r.in_count??r.in??''}</td>
+                <td>${r.out_count??r.out??''}</td>
+                <td>${r.battery_level??''}</td>
+                <td>${fmtTxOnline(r.warn_status)}</td>
+                <td>${r.batterytx_level??''}</td>
+                <td>${fmtRecType(r.rec_type)}</td>
+                <td>${r.activity_type || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="onEdit('${r.id}', this)">编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="onDel('${r.id}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Reset select all
+        els.selectAll.checked = false;
+    }
+
+    document.getElementById('query').addEventListener('click', loadHistory);
+    document.getElementById('reset').addEventListener('click', () => {
+        els.device.selectedIndex = 0;
+        els.start.value = ''; els.end.value = '';
+        els.fWarn.value = ''; els.fRec.value = '';
+        els.fMin.value = ''; els.fMax.value = '';
+        loadHistory();
+    });
+    els.toggleAdv.addEventListener('click', () => {
+        els.adv.style.display = els.adv.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // Select All
+    els.selectAll.addEventListener('change', (e) => {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked);
+    });
+
+    // --- Edit ---
+    window.onEdit = (id, btn) => {
+        currentEditId = id;
+        els.modalTitle.textContent = '编辑记录';
+        const tds = btn.closest('tr').querySelectorAll('td');
+        // tds[0] is checkbox
+        const t = tds[1].innerText.replace(' ', 'T');
+        els.m_time.value = t;
+        els.m_in.value = tds[2].innerText;
+        els.m_out.value = tds[3].innerText;
+        els.m_bat.value = tds[4].innerText;
+        els.m_btx.value = tds[6].innerText;
+        els.m_type.value = tds[8].innerText;
+        els.editModal.classList.add('show');
+    };
+
+    // --- Add ---
+    els.addBtn.addEventListener('click', () => {
+        currentEditId = null;
+        els.modalTitle.textContent = '添加记录';
+        // Default time to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        els.m_time.value = now.toISOString().slice(0,16);
+        els.m_in.value = 0;
+        els.m_out.value = 0;
+        els.m_bat.value = 100;
+        els.m_btx.value = 100;
+        els.m_type.value = '';
+        els.editModal.classList.add('show');
+    });
+
+    els.m_cancel.addEventListener('click', () => els.editModal.classList.remove('show'));
+    
+    els.m_save.addEventListener('click', async () => {
+        const timeVal = els.m_time.value.replace('T', ' ').replace(/-/g, '').replace(/:/g, '') + '00';
+        const payload = {
+            time: timeVal,
+            in_count: parseInt(els.m_in.value),
+            out_count: parseInt(els.m_out.value),
+            battery_level: parseInt(els.m_bat.value),
+            batterytx_level: parseInt(els.m_btx.value),
+            activity_type: els.m_type.value
+        };
+
+        let url = '/api/v1/admin/record/update';
+        if (currentEditId) {
+            payload.id = currentEditId;
+        } else {
+            url = '/api/v1/admin/record/create';
+            const uuid = els.device.value;
+            if(!uuid) return showAlert('请先选择设备');
+            payload.uuid = uuid;
+            // Default fields for create
+            payload.rec_type = 2; // History
+            payload.signal_strength = 0;
+            payload.warn_status = 0;
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if(res.ok) {
+            els.editModal.classList.remove('show');
+            loadHistory();
+        } else {
+            const msg = await res.text();
+            await showAlert('保存失败: ' + msg);
+        }
+    });
+
+    // --- Delete ---
+    window.onDel = async (id) => {
+        if(!await showConfirm('确认删除?')) return;
+        const res = await fetch('/api/v1/admin/record/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id})
+        });
+        if(res.ok) loadHistory();
+        else await showAlert('删除失败');
+    };
+
+    // --- Batch Delete ---
+    els.batchDelete.addEventListener('click', () => els.delRangeModal.classList.add('show'));
+    els.delCancel.addEventListener('click', () => els.delRangeModal.classList.remove('show'));
+    els.delConfirm.addEventListener('click', async () => {
+        if(!await showConfirm('确定要删除该时间段的数据吗？不可恢复！')) return;
+        // Format: YYYYMMDDHHMMSS
+        const s = els.delStart.value.replace(/[-T:]/g, '') + '00';
+        const e = els.delEnd.value.replace(/[-T:]/g, '') + '00';
+        
+        const res = await fetch('/api/v1/admin/record/delete-range', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({start: s, end: e})
+        });
+        if(res.ok) {
+            els.delRangeModal.classList.remove('show');
+            loadHistory();
+        } else {
+            await showAlert('删除失败');
+        }
+    });
+
+    // --- Batch Edit ---
+    els.batchEditBtn.addEventListener('click', () => {
+        const checked = document.querySelectorAll('.row-check:checked');
+        if(checked.length === 0) return showAlert('请先选择记录');
+        els.batchCount.textContent = checked.length;
+        els.batchTypeVal.value = '';
+        els.batchEditModal.classList.add('show');
+    });
+    els.batchEditCancel.addEventListener('click', () => els.batchEditModal.classList.remove('show'));
+    els.batchEditConfirm.addEventListener('click', async () => {
+        const checked = document.querySelectorAll('.row-check:checked');
+        const ids = Array.from(checked).map(c => c.value);
+        const typeVal = els.batchTypeVal.value.trim();
+        
+        if(!typeVal) return showAlert('请输入活动类型');
+        
+        const res = await fetch('/api/v1/admin/record/batch-update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ids: ids,
+                updates: {
+                    activity_type: typeVal
+                }
+            })
+        });
+        
+        if(res.ok) {
+            els.batchEditModal.classList.remove('show');
+            loadHistory();
+        } else {
+            await showAlert('批量修改失败');
+        }
+    });
+
+    // --- Merge Data ---
+    els.mergeDataBtn.addEventListener('click', () => {
+        // Populate device select
+        els.mergeTargetDevice.innerHTML = els.device.innerHTML;
+        els.mergeTargetDevice.value = els.device.value;
+        
+        // Default range: last 7 days
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 7);
+        
+        els.mergeStart.value = start.toISOString().slice(0,16);
+        els.mergeEnd.value = end.toISOString().slice(0,16);
+        
+        els.mergeConfigModal.classList.add('show');
+    });
+    els.mergeConfigCancel.addEventListener('click', () => els.mergeConfigModal.classList.remove('show'));
+    
+    els.mergeFetchBtn.addEventListener('click', async () => {
+        const uuid = els.mergeTargetDevice.value;
+        
+        if(!uuid) return showAlert('请选择设备');
+        
+        const s = els.mergeStart.value.replace('T', ' ') + ':00';
+        const e = els.mergeEnd.value.replace('T', ' ') + ':00';
+        
+        // 1. Fetch Remote Data (From Device via Backend)
+        let remoteData = [];
+        try {
+            const res = await fetch('/api/v1/admin/sync/fetch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    uuid: uuid,
+                    start: s,
+                    end: e
+                })
+            });
+            if(!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            remoteData = Array.isArray(data) ? data : (data.data || []); 
+        } catch(err) {
+            return showAlert('获取设备数据失败: ' + err.message);
+        }
+        
+        if(remoteData.length === 0) return showAlert('该时间段无源数据');
+        
+        // 2. Fetch Local for comparison
+        const localQ = new URLSearchParams({uuid, start: s, end: e, limit: 10000});
+        const localRes = await fetch('/api/v1/data/history?' + localQ);
+        const localData = await localRes.json();
+        
+        // 3. Compare
+        // Map local by time
+        const localMap = {};
+        localData.forEach(r => {
+            // Ensure format matches. Remote usually returns 'YYYY-MM-DD HH:MM:SS'.
+            // Local DB might return same.
+            localMap[r.time] = r;
+        });
+        
+        const conflicts = [];
+        const newItems = [];
+        
+        remoteData.forEach(r => {
+            const l = localMap[r.time];
+            if(!l) {
+                // New
+                newItems.push(r);
+            } else {
+                // Check conflict
+                // Compare in_count, out_count, battery, etc.
+                // Assuming battery_level in remote maps to battery_level in local (or battery)
+                // Remote keys based on doc: in_count, out_count, time, battery_level, signal_status
+                // Local keys: in_count, out_count, time, battery_level, signal_strength
+                
+                // Normalize remote
+                const r_bat = r.battery_level ?? r.battery;
+                const l_bat = l.battery_level ?? l.battery;
+                
+                if (r.in_count != l.in_count || r.out_count != l.out_count || r_bat != l_bat) {
+                    conflicts.push({remote: r, local: l});
+                }
+            }
+        });
+        
+        if(newItems.length === 0 && conflicts.length === 0) {
+            return showAlert('数据完全一致，无需合并');
+        }
+        
+        // 4. Show Conflict UI
+        els.mergeConfigModal.classList.remove('show');
+        
+        els.mergeNewCount.textContent = newItems.length;
+        els.mergeConflictCount.textContent = conflicts.length;
+        
+        let html = '';
+        
+        // New items preview (limit 10)
+        if(newItems.length > 0) {
+            html += `<tr style="background:#f6ffed"><td colspan="6" style="font-weight:bold;text-align:center">新增数据 (${newItems.length} 条) - 默认导入</td></tr>`;
+            newItems.slice(0, 5).forEach(r => {
+                html += `<tr style="opacity:0.7">
+                    <td><input type="checkbox" checked disabled></td>
+                    <td>${r.time}</td>
+                    <td colspan="4">IN:${r.in_count}, OUT:${r.out_count}</td>
+                </tr>`;
+            });
+            if(newItems.length > 5) html += `<tr><td colspan="6" style="text-align:center;color:#999">...还有 ${newItems.length - 5} 条...</td></tr>`;
+        }
+        
+        // Conflicts
+        if(conflicts.length > 0) {
+            html += `<tr style="background:#fff7e6"><td colspan="6" style="font-weight:bold;text-align:center">冲突数据 (${conflicts.length} 条) - 请选择处理方式</td></tr>`;
+            conflicts.forEach((c, idx) => {
+                const r = c.remote;
+                const l = c.local;
+                html += `
+                <tr>
+                    <td><input type="checkbox" class="merge-check" data-idx="${idx}"></td>
+                    <td>${r.time}</td>
+                    <td>
+                        <div>IN</div><div>OUT</div><div>电量</div>
+                    </td>
+                    <td style="color:#666">
+                        <div>${l.in_count}</div><div>${l.out_count}</div><div>${l.battery_level??l.battery}</div>
+                    </td>
+                    <td style="color:#1890ff;font-weight:bold">
+                        <div>${r.in_count}</div><div>${r.out_count}</div><div>${r.battery_level??r.battery}</div>
+                    </td>
+                    <td>
+                        <span style="font-size:12px;color:#999">勾选覆盖</span>
+                    </td>
+                </tr>`;
+            });
+        }
+        
+        els.mergeTableBody.innerHTML = html;
+        
+        // Store plan context
+        mergePlan = { creates: newItems, conflicts: conflicts };
+        
+        els.mergeConflictModal.classList.add('show');
+    });
+    
+    els.mergeConflictCancel.addEventListener('click', () => els.mergeConflictModal.classList.remove('show'));
+    
+    els.mergeConfirmBtn.addEventListener('click', async () => {
+        // Build updates from conflicts
+        const updates = [];
+        document.querySelectorAll('.merge-check:checked').forEach(el => {
+            const idx = parseInt(el.dataset.idx);
+            const c = mergePlan.conflicts[idx];
+            // Prepare update payload using remote values
+            // Need ID from local to update
+            const up = {
+                id: c.local.id,
+                time: c.remote.time,
+                in_count: c.remote.in_count,
+                out_count: c.remote.out_count,
+                battery_level: c.remote.battery_level ?? c.remote.battery,
+                // remote might not have signal/btx, keep local or update if present
+                // signal_status -> signal_strength
+                signal_strength: c.remote.signal_status ?? c.remote.signal_strength
+            };
+            updates.push(up);
+        });
+        
+        const payload = {
+            creates: mergePlan.creates.map(r => ({
+                uuid: els.mergeTargetDevice.value,
+                time: r.time,
+                in_count: r.in_count,
+                out_count: r.out_count,
+                battery_level: r.battery_level ?? r.battery,
+                signal_strength: r.signal_status ?? r.signal_strength,
+                rec_type: 2 // History
+            })),
+            updates: updates
+        };
+        
+        const res = await fetch('/api/v1/admin/record/batch-save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if(res.ok) {
+            els.mergeConflictModal.classList.remove('show');
+            await showAlert('合并成功');
+            loadHistory();
+        } else {
+            await showAlert('合并失败');
+        }
+    });
+
+    (async () => {
+        await loadDevices();
+        loadHistory();
+    })();
+
+</script>
+</body>
+</html>

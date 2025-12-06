@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书院空间使用数据看板</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        /* Dashboard layout overrides */
+        :root {
+            --sidebar-width: 260px;
+            --header-height: 60px;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .dash-sidebar {
+            width: var(--sidebar-width);
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            overflow-y: auto;
+            transition: width 0.3s;
+        }
+        .dash-sidebar.collapsed {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+            border: none;
+        }
+        .dash-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--bg);
+            gap: 20px;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        .kpi-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+        .kpi-val {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 8px 0;
+        }
+        .kpi-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .chart-card {
+            background: var(--card);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-container {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .filter-group {
+            margin-bottom: 16px;
+        }
+        .filter-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+        .filter-input, .filter-select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg);
+            color: var(--text);
+        }
+        .header-bar {
+            height: var(--header-height);
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+        /* Checkbox list */
+        .checkbox-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .checkbox-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .checkbox-tag.checked {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+        .modal-backdrop {
+            position: fixed; top:0; left:0; right:0; bottom:0;
+            background: rgba(0,0,0,0.5); z-index: 999;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .modal-backdrop.show { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: var(--card); width: 500px; max-width: 90%;
+            padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">
+    <div style="display:flex;align-items:center;gap:16px">
+        <button class="btn" id="toggleSidebar">☰</button>
+        <h2 style="margin:0;font-size:18px">书院空间使用数据看板</h2>
+    </div>
+    <div style="display:flex;gap:12px">
+        <button class="btn" onclick="location.href='/dashboard'">返回旧版</button>
+        <button class="btn btn-primary" id="uploadBtn">📤 上传数据</button>
+        <input type="text" id="adminToken" placeholder="Admin Token" class="input" style="width:120px">
+    </div>
+</div>
+
+<div class="app-container">
+    <div class="dash-sidebar" id="sidebar">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h4 style="margin:0">筛选</h4>
+            <button class="btn btn-sm" id="resetFilters">重置</button>
+        </div>
+        
+        <div class="filter-group">
+            <label>日期范围</label>
+            <div style="display:flex;gap:8px">
+                <input type="date" id="startDate" class="filter-input">
+                <input type="date" id="endDate" class="filter-input">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label>书院</label>
+            <select id="academyFilter" class="filter-select" multiple style="height:80px"></select>
+        </div>
+
+        <div class="filter-group">
+            <label>场地</label>
+            <select id="locationFilter" class="filter-select" multiple style="height:100px"></select>
+        </div>
+
+        <div class="filter-group">
+            <label>活动类型</label>
+            <div id="typeFilter" class="checkbox-list"></div>
+        </div>
+        
+        <button class="btn btn-primary" id="applyFilters" style="margin-top:auto">应用筛选</button>
+    </div>
+
+    <div class="dash-main">
+        <!-- KPI Cards -->
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">总活动数</div>
+                <div class="kpi-val" id="kpi_events">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">总受众人数</div>
+                <div class="kpi-val" id="kpi_audience">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">平均受众/活动</div>
+                <div class="kpi-val" id="kpi_avg">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">热门场地 (Top 1)</div>
+                <div class="kpi-val" id="kpi_top_loc" style="font-size:18px">-</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3>周活动分布</h3>
+                <div id="chartWeekday" class="chart-container"></div>
+            </div>
+            <div class="chart-card">
+                <h3>时段热力分布 (Start Time)</h3>
+                <div id="chartTime" class="chart-container"></div>
+            </div>
+            <div class="chart-card full-width">
+                <h3>场地排行 (Top 20)</h3>
+                <div id="chartLocation" class="chart-container"></div>
+            </div>
+            <div class="chart-card">
+                <h3>活动类型占比</h3>
+                <div id="chartType" class="chart-container"></div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card full-width">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3>活动明细</h3>
+                <div style="display:flex;gap:8px">
+                    <button class="btn" id="prevPage">上一页</button>
+                    <span id="pageInfo" style="display:flex;align-items:center">1 / 1</span>
+                    <button class="btn" id="nextPage">下一页</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>日期</th><th>星期</th><th>时间</th><th>书院</th><th>场地</th><th>活动名称</th><th>类型</th><th>人数</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>上传活动数据</h3>
+        <p style="color:var(--text-secondary)">请上传 CSV 文件，包含字段：日期,起始时间,结束时间,书院,具体地点,活动名称,活动类型,受众学生数</p>
+        <input type="file" id="fileInput" accept=".csv" style="margin:16px 0;display:block;width:100%">
+        <div class="actions">
+            <button class="btn" id="closeUpload">取消</button>
+            <button class="btn btn-primary" id="doUpload">确认上传</button>
+        </div>
+    </div>
+</div>
+
+<div id="appAlertModal" class="modal-backdrop" style="z-index:9999">
+    <div class="modal" style="width:400px">
+        <h3 id="appAlertTitle">提示</h3>
+        <p id="appAlertMsg"></p>
+        <div class="actions">
+            <button class="btn btn-primary" id="appAlertOk">确定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Popup Logic
+const alertModal = document.getElementById('appAlertModal');
+const alertTitle = document.getElementById('appAlertTitle');
+const alertMsg = document.getElementById('appAlertMsg');
+const alertOk = document.getElementById('appAlertOk');
+let alertResolve = null;
+
+window.showAlert = (msg, title='提示') => {
+    return new Promise(resolve => {
+        alertTitle.textContent = title;
+        alertMsg.textContent = msg;
+        alertModal.classList.add('show');
+        alertResolve = resolve;
+    });
+};
+
+alertOk.addEventListener('click', () => {
+    alertModal.classList.remove('show');
+    if(alertResolve) alertResolve();
+});
+
+// State
+let state = {
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    filters: {
+        start: '', end: '', locations: [], types: [], academies: []
+    },
+    charts: {}
+};
+
+// DOM Elements
+const els = {
+    sidebar: document.getElementById('sidebar'),
+    toggleSidebar: document.getElementById('toggleSidebar'),
+    uploadBtn: document.getElementById('uploadBtn'),
+    uploadModal: document.getElementById('uploadModal'),
+    closeUpload: document.getElementById('closeUpload'),
+    doUpload: document.getElementById('doUpload'),
+    fileInput: document.getElementById('fileInput'),
+    adminToken: document.getElementById('adminToken'),
+    
+    // Filters
+    startDate: document.getElementById('startDate'),
+    endDate: document.getElementById('endDate'),
+    academyFilter: document.getElementById('academyFilter'),
+    locationFilter: document.getElementById('locationFilter'),
+    typeFilter: document.getElementById('typeFilter'),
+    applyFilters: document.getElementById('applyFilters'),
+    resetFilters: document.getElementById('resetFilters'),
+    
+    // KPIs
+    kpi_events: document.getElementById('kpi_events'),
+    kpi_audience: document.getElementById('kpi_audience'),
+    kpi_avg: document.getElementById('kpi_avg'),
+    kpi_top_loc: document.getElementById('kpi_top_loc'),
+    
+    // Table
+    tableBody: document.getElementById('dataTableBody'),
+    prevPage: document.getElementById('prevPage'),
+    nextPage: document.getElementById('nextPage'),
+    pageInfo: document.getElementById('pageInfo')
+};
+
+// Init Charts
+function initCharts() {
+    state.charts.weekday = echarts.init(document.getElementById('chartWeekday'));
+    state.charts.time = echarts.init(document.getElementById('chartTime'));
+    state.charts.location = echarts.init(document.getElementById('chartLocation'));
+    state.charts.type = echarts.init(document.getElementById('chartType'));
+    
+    window.addEventListener('resize', () => {
+        Object.values(state.charts).forEach(c => c.resize());
+    });
+}
+
+// Fetch Options
+async function loadOptions() {
+    const res = await fetch('/api/v1/activity/options');
+    const data = await res.json();
+    
+    // Render Locations
+    els.locationFilter.innerHTML = data.locations.map(l => `<option value="${l}">${l}</option>`).join('');
+    // Render Academies
+    els.academyFilter.innerHTML = data.academies.map(a => `<option value="${a}">${a}</option>`).join('');
+    // Render Types (Checkbox)
+    els.typeFilter.innerHTML = data.types.map(t => 
+        `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${t}">${t}</div>`
+    ).join('');
+}
+
+// Build Query
+function buildQuery(forAgg = false) {
+    const p = new URLSearchParams();
+    if(state.filters.start) p.append('start_date', state.filters.start);
+    if(state.filters.end) p.append('end_date', state.filters.end);
+    if(state.filters.locations.length) p.append('locations', state.filters.locations.join(','));
+    if(state.filters.academies.length) p.append('academies', state.filters.academies.join(','));
+    if(state.filters.types.length) p.append('types', state.filters.types.join(','));
+    
+    if(!forAgg) {
+        p.append('page', state.page);
+        p.append('page_size', state.pageSize);
+    }
+    return p;
+}
+
+// Load Data
+async function loadData() {
+    // Load Aggregations
+    const qAgg = buildQuery(true);
+    const resAgg = await fetch(`/api/v1/activity/aggregations?${qAgg}`);
+    const agg = await resAgg.json();
+    updateDashboard(agg);
+    
+    // Load Table
+    const qTab = buildQuery(false);
+    const resTab = await fetch(`/api/v1/activity/events?${qTab}`);
+    const tab = await resTab.json();
+    updateTable(tab);
+}
+
+// Update UI
+function updateDashboard(data) {
+    // KPIs
+    els.kpi_events.textContent = data.kpis.total_events.toLocaleString();
+    els.kpi_audience.textContent = data.kpis.total_audience.toLocaleString();
+    els.kpi_avg.textContent = data.kpis.avg_audience;
+    const top = data.location_top[0];
+    els.kpi_top_loc.textContent = top ? `${top.location} (${top.count})` : '-';
+    
+    // Weekday Chart
+    const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const wdData = Array(7).fill(0);
+    data.weekday.forEach(d => { if(d.weekday>=1 && d.weekday<=7) wdData[d.weekday-1] = d.count; });
+    
+    state.charts.weekday.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: ['周一','周二','周三','周四','周五','周六','周日'] },
+        yAxis: { type: 'value' },
+        series: [{ type: 'bar', data: wdData, itemStyle: { color: '#339af0' } }]
+    });
+    
+    // Time Chart (Bar for now, Heatmap needs more prep)
+    const hours = Array.from({length:24}, (_,i)=>String(i).padStart(2,'0'));
+    const hData = Array(24).fill(0);
+    data.time_bins.forEach(d => {
+        const h = parseInt(d.hour);
+        if(!isNaN(h) && h>=0 && h<24) hData[h] = d.count;
+    });
+    
+    state.charts.time.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: hours.map(h=>h+':00') },
+        yAxis: { type: 'value' },
+        series: [{ type: 'line', smooth: true, areaStyle: {}, data: hData, itemStyle: { color: '#51cf66' } }]
+    });
+    
+    // Location Chart (Top 20)
+    // Sort asc for bar chart y-axis
+    const locs = [...data.location_top].reverse();
+    state.charts.location.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+        xAxis: { type: 'value' },
+        yAxis: { type: 'category', data: locs.map(d=>d.location) },
+        series: [
+            { name: '活动数', type: 'bar', data: locs.map(d=>d.count), itemStyle: { color: '#fcc419' } },
+            //{ name: '受众', type: 'bar', data: locs.map(d=>d.audience) }
+        ]
+    });
+    
+    // Type Chart
+    state.charts.type.setOption({
+        tooltip: { trigger: 'item' },
+        series: [{
+            type: 'pie',
+            radius: ['40%', '70%'],
+            data: data.activity_types.map(d=>({value: d.count, name: d.type}))
+        }]
+    });
+}
+
+function updateTable(data) {
+    state.total = data.total;
+    const maxPage = Math.ceil(state.total / state.pageSize) || 1;
+    els.pageInfo.textContent = `${state.page} / ${maxPage} (共 ${state.total} 条)`;
+    els.prevPage.disabled = state.page <= 1;
+    els.nextPage.disabled = state.page >= maxPage;
+    
+    const wdMap = ['','周一','周二','周三','周四','周五','周六','周日'];
+    
+    els.tableBody.innerHTML = data.items.map(r => `
+        <tr>
+            <td>${r.date}</td>
+            <td>${wdMap[r.weekday]||r.weekday}</td>
+            <td>${r.start_time}-${r.end_time}</td>
+            <td>${r.academy}</td>
+            <td>${r.location}</td>
+            <td>${r.activity_name}</td>
+            <td><span class="checkbox-tag">${r.activity_type}</span></td>
+            <td>${r.audience_count}</td>
+        </tr>
+    `).join('');
+}
+
+// Event Listeners
+els.toggleSidebar.addEventListener('click', () => {
+    els.sidebar.classList.toggle('collapsed');
+    setTimeout(() => Object.values(state.charts).forEach(c => c.resize()), 300);
+});
+
+els.uploadBtn.addEventListener('click', () => els.uploadModal.classList.add('show'));
+els.closeUpload.addEventListener('click', () => els.uploadModal.classList.remove('show'));
+
+els.doUpload.addEventListener('click', async () => {
+    const file = els.fileInput.files[0];
+    if(!file) return showAlert('请选择文件');
+    
+    const token = els.adminToken.value;
+    if(!token) return showAlert('请输入 Admin Token');
+    
+    const fd = new FormData();
+    fd.append('file', file);
+    
+    els.doUpload.disabled = true;
+    els.doUpload.textContent = '上传中...';
+    
+    try {
+        const res = await fetch('/api/v1/activity/upload', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': token },
+            body: fd
+        });
+        const json = await res.json();
+        if(res.ok) {
+            await showAlert(`导入成功: ${json.imported} 条`);
+            els.uploadModal.classList.remove('show');
+            loadOptions();
+            loadData();
+        } else {
+            await showAlert('导入失败: ' + (await res.text()));
+        }
+    } catch(e) {
+        await showAlert('Error: ' + e.message);
+    } finally {
+        els.doUpload.disabled = false;
+        els.doUpload.textContent = '确认上传';
+    }
+});
+
+els.applyFilters.addEventListener('click', () => {
+    state.filters.start = els.startDate.value;
+    state.filters.end = els.endDate.value;
+    state.filters.academies = Array.from(els.academyFilter.selectedOptions).map(o => o.value);
+    state.filters.locations = Array.from(els.locationFilter.selectedOptions).map(o => o.value);
+    state.filters.types = Array.from(document.querySelectorAll('#typeFilter .checkbox-tag.checked')).map(el => el.dataset.val);
+    state.page = 1;
+    loadData();
+});
+
+els.resetFilters.addEventListener('click', () => {
+    els.startDate.value = '';
+    els.endDate.value = '';
+    els.academyFilter.value = '';
+    els.locationFilter.value = '';
+    document.querySelectorAll('#typeFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
+    els.applyFilters.click();
+});
+
+els.prevPage.addEventListener('click', () => { if(state.page > 1) { state.page--; loadData(); } });
+els.nextPage.addEventListener('click', () => { state.page++; loadData(); });
+
+// Init
+(async () => {
+    initCharts();
+    await loadOptions();
+    await loadData();
+})();
+
+</script>
+</body>
+</html>

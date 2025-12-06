@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>告警中心 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .kpi-card {
+            text-align: center;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+            line-height: 1.2;
+        }
+        .kpi-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:24px; margin-bottom:24px">
+    <div class="card kpi-card">
+        <div class="kpi-label">总告警</div>
+        <div class="kpi-value text-primary" id="kpi_total">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">严重 (Critical)</div>
+        <div class="kpi-value text-danger" id="kpi_critical">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">警告 (Warning)</div>
+        <div class="kpi-value text-warning" id="kpi_warning">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">一般 (Info)</div>
+        <div class="kpi-value text-text" id="kpi_info">-</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="filter-bar" style="border:none; padding:0; margin-bottom: 16px;">
+        <div class="flex items-center gap-4 flex-wrap">
+             <div class="flex items-center gap-2">
+                <label>设备</label>
+                <select id="filterUuid" class="select" style="width:200px">
+                    <option value="">所有设备</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label>记录条数</label>
+                <select id="filterLimit" class="select" style="width:100px">
+                    <option value="100">100</option>
+                    <option value="500">500</option>
+                    <option value="1000">1000</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="queryBtn">查询</button>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>设备名称 (UUID)</th>
+                    <th>类型</th>
+                    <th>等级</th>
+                    <th>信息</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody id="alertTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/static/layout.js"></script>
+<script>
+    initLayout('告警中心');
+
+    const els = {
+        uuid: document.getElementById('filterUuid'),
+        limit: document.getElementById('filterLimit'),
+        query: document.getElementById('queryBtn'),
+        table: document.getElementById('alertTable'),
+        k_total: document.getElementById('kpi_total'),
+        k_crit: document.getElementById('kpi_critical'),
+        k_warn: document.getElementById('kpi_warning'),
+        k_info: document.getElementById('kpi_info')
+    };
+
+    let deviceMap = {};
+
+    async function init() {
+        // Load device mapping
+        const mapRes = await fetch('/api/v1/device/mapping');
+        if(mapRes.ok) {
+            const j = await mapRes.json();
+            deviceMap = j.mapping || {};
+        }
+
+        // Load UUID options
+        const devRes = await fetch('/api/v1/devices');
+        if(devRes.ok) {
+            const list = await devRes.json();
+            list.forEach(d => {
+                const name = deviceMap[d.uuid] || d.uuid;
+                const opt = document.createElement('option');
+                opt.value = d.uuid;
+                opt.textContent = name === d.uuid ? d.uuid : `${name}`;
+                els.uuid.appendChild(opt);
+            });
+        }
+
+        loadAlerts();
+    }
+
+    async function loadAlerts() {
+        const uuid = els.uuid.value;
+        const limit = els.limit.value;
+        const q = new URLSearchParams({limit});
+        if(uuid) q.append('uuid', uuid);
+        
+        const res = await fetch('/api/v1/alerts?' + q.toString());
+        const data = await res.json();
+        
+        // Calc Stats
+        let crit = 0, warn = 0, info = 0;
+        data.forEach(r => {
+            if(r.level >= 2) crit++;
+            else if(r.level === 1) warn++;
+            else info++;
+        });
+        
+        els.k_total.textContent = data.length;
+        els.k_crit.textContent = crit;
+        els.k_warn.textContent = warn;
+        els.k_info.textContent = info;
+        
+        els.table.innerHTML = data.map(r => {
+            const name = deviceMap[r.uuid] || r.uuid;
+            const display = name === r.uuid ? r.uuid : `${name} <span class="text-muted" style="font-size:12px">(${r.uuid.substring(0,8)}...)</span>`;
+            return `
+            <tr>
+                <td>${r.id}</td>
+                <td>${display}</td>
+                <td>${r.type}</td>
+                <td>${fmtLevel(r.level)}</td>
+                <td>${r.info}</td>
+                <td>${r.time}</td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function fmtLevel(l) {
+        if(l >= 2) return `<span class="badge badge-danger">严重</span>`;
+        if(l === 1) return `<span class="badge badge-warning">警告</span>`;
+        return `<span class="badge badge-gray">一般</span>`;
+    }
+
+    els.query.addEventListener('click', loadAlerts);
+    init();
+
+</script>
+</body>
+</html>

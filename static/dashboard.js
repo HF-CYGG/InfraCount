@@ -1,5 +1,12 @@
 // Theme initialization
 document.body.setAttribute('data-theme', (localStorage.getItem('theme') || 'light'));
+
+// Helper for alerts
+const safeAlert = (msg) => {
+    if (window.showAlert) return window.showAlert(msg);
+    alert(msg);
+};
+
 document.querySelectorAll('.sidebar a').forEach(a => {
     if (a.getAttribute('href') === location.pathname) {
         a.classList.add('active');
@@ -329,7 +336,7 @@ document.addEventListener('click', () => {
 // Exports
 document.getElementById('exportDaily').addEventListener('click', () => {
     const uuid = deviceSel.value;
-    if (!uuid) return alert("请选择设备");
+    if (!uuid) return safeAlert("请选择设备");
     const start = startEl.value ? startEl.value + ' 00:00:00' : '';
     const end = endEl.value ? endEl.value + ' 23:59:59' : '';
     const q = new URLSearchParams({ uuid });
@@ -340,14 +347,14 @@ document.getElementById('exportDaily').addEventListener('click', () => {
 
 document.getElementById('exportHourly').addEventListener('click', () => {
     const uuid = deviceSel.value;
-    if (!uuid) return alert("请选择设备");
+    if (!uuid) return safeAlert("请选择设备");
     const date = endEl.value || new Date().toISOString().slice(0, 10);
     window.open('/api/v1/export/hourly?' + new URLSearchParams({ uuid, date }).toString(), '_blank');
 });
 
 document.getElementById('exportHistory').addEventListener('click', () => {
     const uuid = deviceSel.value;
-    if (!uuid) return alert("请选择设备");
+    if (!uuid) return safeAlert("请选择设备");
     const start = startEl.value ? startEl.value + ' 00:00:00' : '';
     const end = endEl.value ? endEl.value + ' 23:59:59' : '';
     const q = new URLSearchParams({ uuid });

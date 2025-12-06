@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备管理 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="card">
+    <div class="flex justify-between items-center mb-4">
+        <h3>设备列表</h3>
+        <div class="flex gap-2">
+            <button class="btn" id="refreshBtn">刷新</button>
+            <button class="btn btn-primary" id="addAcademyBtn">管理书院分类</button>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>UUID</th>
+                    <th>显示名称</th>
+                    <th>书院/分类</th>
+                    <th>注册时间</th>
+                    <th style="width:120px">操作</th>
+                </tr>
+            </thead>
+            <tbody id="deviceTable"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>编辑设备信息</h3>
+        <div class="mb-4">
+            <label style="display:block;margin-bottom:4px">UUID</label>
+            <input id="editUuid" class="input" disabled style="background:#f1f3f5">
+        </div>
+        <div class="mb-4">
+            <label style="display:block;margin-bottom:4px">显示名称</label>
+            <input id="editName" class="input" placeholder="例如：正心楼101">
+        </div>
+        <div class="mb-4">
+            <label style="display:block;margin-bottom:4px">所属书院</label>
+            <select id="editCategory" class="select"></select>
+        </div>
+        <div class="actions">
+            <button class="btn" id="closeEdit">取消</button>
+            <button class="btn btn-primary" id="saveEdit">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Academy Manager Modal -->
+<div id="academyModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>书院分类管理</h3>
+        <div class="flex gap-2 mb-4">
+            <input id="newAcademy" class="input" placeholder="新书院名称">
+            <button class="btn btn-primary" id="addAcademy">添加</button>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:4px;max-height:300px;overflow-y:auto">
+            <table style="margin:0">
+                <tbody id="academyList"></tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button class="btn" id="closeAcademy">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/layout.js"></script>
+<script>
+    initLayout('设备管理');
+
+    const els = {
+        table: document.getElementById('deviceTable'),
+        refresh: document.getElementById('refreshBtn'),
+        editModal: document.getElementById('editModal'),
+        editUuid: document.getElementById('editUuid'),
+        editName: document.getElementById('editName'),
+        editCategory: document.getElementById('editCategory'),
+        saveEdit: document.getElementById('saveEdit'),
+        closeEdit: document.getElementById('closeEdit'),
+        
+        academyBtn: document.getElementById('addAcademyBtn'),
+        academyModal: document.getElementById('academyModal'),
+        academyList: document.getElementById('academyList'),
+        newAcademy: document.getElementById('newAcademy'),
+        addAcademy: document.getElementById('addAcademy'),
+        closeAcademy: document.getElementById('closeAcademy')
+    };
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 2000);
+    }
+
+    async function loadAcademies() {
+        // Fetch academies. If separate API exists use it, otherwise extract from existing.
+        // We need to implement /api/v1/academies
+        const res = await fetch('/api/v1/academies');
+        let list = [];
+        if(res.ok) {
+            list = await res.json();
+        }
+        
+        // Render in Select
+        els.editCategory.innerHTML = '<option value="">-- 未分类 --</option>' + 
+            list.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+            
+        // Render in Manager
+        els.academyList.innerHTML = list.map(a => `
+            <tr>
+                <td>${a.name}</td>
+                <td style="width:60px;text-align:right">
+                    <button class="btn btn-sm btn-danger" onclick="delAcademy('${a.id}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadDevices() {
+        // We need a rich list. /api/v1/devices might be too simple.
+        // Let's assume /api/v1/devices returns registry info or we merge it.
+        // Currently /api/v1/devices returns list of stats? No, it returns list_devices() which queries DB stats.
+        // admin/device/registry is better.
+        const res = await fetch('/api/v1/admin/device/registry?page_size=1000'); 
+        // Note: Registry endpoint might need auth. If user is just viewer, they can't see?
+        // Let's try public mapping endpoint for list if registry fails?
+        // Or assume user has token.
+        
+        if(res.status === 403) {
+             // Try simple list and merge mapping
+             // For now let's just use the registry endpoint and expect token or return partial.
+             // If 403, show empty or prompt.
+        }
+        
+        let items = [];
+        if(res.ok) {
+            const data = await res.json();
+            items = data.items || [];
+        } else {
+            // Fallback: Get stats list and mapping
+            const [devRes, mapRes] = await Promise.all([
+                fetch('/api/v1/devices'),
+                fetch('/api/v1/device/mapping')
+            ]);
+            const devs = await devRes.json();
+            const mapping = (await mapRes.json()).mapping || {};
+            // Merge
+            items = devs.map(d => ({
+                uuid: d.uuid,
+                name: mapping[d.uuid] || '',
+                category: '', // Can't get category easily without registry access
+                create_time: '-'
+            }));
+        }
+
+        els.table.innerHTML = items.map(d => `
+            <tr>
+                <td>${d.uuid}</td>
+                <td>${d.name || '<span class="text-muted">-</span>'}</td>
+                <td><span class="badge badge-gray">${d.category || '未分类'}</span></td>
+                <td>${d.create_time || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="openEdit('${d.uuid}', '${d.name||''}', '${d.category||''}')">编辑</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    window.openEdit = (uuid, name, cat) => {
+        els.editUuid.value = uuid;
+        els.editName.value = name;
+        els.editCategory.value = cat;
+        els.editModal.classList.add('show');
+    };
+    
+    els.closeEdit.addEventListener('click', () => els.editModal.classList.remove('show'));
+    
+    els.saveEdit.addEventListener('click', async () => {
+        const uuid = els.editUuid.value;
+        const name = els.editName.value;
+        const category = els.editCategory.value;
+        
+        // Assuming /api/v1/admin/device/registry handles this
+        const res = await fetch('/api/v1/admin/device/registry', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({uuid, name, category})
+        });
+        
+        if(res.ok) {
+            showToast('保存成功');
+            els.editModal.classList.remove('show');
+            loadDevices();
+        } else {
+            showToast('保存失败');
+        }
+    });
+
+    // Academy Management
+    els.academyBtn.addEventListener('click', () => {
+        loadAcademies();
+        els.academyModal.classList.add('show');
+    });
+    els.closeAcademy.addEventListener('click', () => els.academyModal.classList.remove('show'));
+    
+    els.addAcademy.addEventListener('click', async () => {
+        const name = els.newAcademy.value.trim();
+        if(!name) return;
+        
+        const res = await fetch('/api/v1/academies', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name})
+        });
+        
+        if(res.ok) {
+            els.newAcademy.value = '';
+            loadAcademies();
+        }
+    });
+    
+    window.delAcademy = async (id) => {
+        if(!await showConfirm('确定删除?')) return;
+        await fetch(`/api/v1/academies/${id}`, {
+             method: 'DELETE'
+        });
+        loadAcademies();
+    };
+
+    // Init
+    loadAcademies();
+    loadDevices();
+    els.refresh.addEventListener('click', loadDevices);
+
+</script>
+</body>
+</html>

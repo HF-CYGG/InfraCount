@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/chart.umd.min.js"></script>
+    <style>
+        .relative { position: relative; }
+        .popup-card {
+            position: absolute;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: var(--radius);
+            padding: 16px;
+            z-index: 100;
+            display: none;
+            min-width: 250px;
+        }
+        .popup-card.show { display: block; }
+        .w-full { width: 100%; }
+        .text-left { text-align: left; }
+        .mb-2 { margin-bottom: 8px; }
+        
+        /* Dashboard specific styles */
+        .kpi-card {
+            text-align: center;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+            line-height: 1.2;
+        }
+        .kpi-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            height: 400px;
+            position: relative;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="filter-bar" style="border:none; padding:0; justify-content: space-between;">
+        <div class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+                <label>设备</label>
+                <select id="device" class="select" style="min-width:200px"></select>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-gray-100 p-1 rounded">
+                <input type="date" id="start" class="input">
+                <span class="text-muted">至</span>
+                <input type="date" id="end" class="input">
+            </div>
+
+            <div class="flex gap-2">
+                <button class="btn btn-primary" id="load">查询</button>
+                <button class="btn" id="today">今天</button>
+                <button class="btn" id="last7">近7天</button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <div class="relative">
+                <button class="btn" id="toggleAdvanced">
+                    <span style="margin-right:4px">⚙️</span> 高级筛选
+                </button>
+                <div id="advancedPopup" class="popup-card" style="right:0;top:120%;">
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">告警状态 (0/1)</label>
+                        <input id="filterWarn" type="number" class="input w-full" placeholder="全部">
+                    </div>
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">记录类型 ID</label>
+                        <input id="filterRecType" type="number" class="input w-full" placeholder="全部">
+                    </div>
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">Tx电量范围 (%)</label>
+                        <div class="flex gap-2">
+                            <input id="filterBtxMin" placeholder="Min" class="input w-full">
+                            <input id="filterBtxMax" placeholder="Max" class="input w-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="relative">
+                <button class="btn" id="toggleActions">
+                    <span style="margin-right:4px">📥</span> 导出
+                </button>
+                <div id="actionsPopup" class="popup-card" style="right:0;top:120%;width:200px">
+                    <button class="btn w-full mb-2 text-left" id="exportDaily">导出日统计 (Excel)</button>
+                    <button class="btn w-full mb-2 text-left" id="exportHourly">导出小时统计 (Excel)</button>
+                    <button class="btn w-full text-left" id="exportHistory">导出历史记录 (Excel)</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 ml-2">
+                <input type="checkbox" id="auto" style="cursor:pointer">
+                <label for="auto" style="cursor:pointer;font-size:14px">自动刷新</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:24px; margin-bottom:24px">
+    <div class="card kpi-card">
+        <div class="kpi-label">IN 总计</div>
+        <div class="kpi-value text-primary" id="sum_in">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">OUT 总计</div>
+        <div class="kpi-value text-warning" id="sum_out">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">净流量</div>
+        <div class="kpi-value text-success" id="sum_net">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">最近上报时间</div>
+        <div class="kpi-value text-text" style="font-size:20px;margin-top:12px" id="sum_last">-</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap:24px; margin-bottom:24px">
+    <div class="card">
+        <div class="section-header">
+            <h3 class="section-title">每日流量趋势</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="section-header">
+            <h3 class="section-title">每小时流量分布 (截止日期)</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="hourChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h3 class="section-title">最近记录</h3>
+        <a href="/history" class="btn btn-sm">查看全部</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>IN</th>
+                    <th>OUT</th>
+                    <th>电量</th>
+                    <th>Tx电量</th>
+                    <th>类型</th>
+                </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/static/layout.js"></script>
+<script>
+    initLayout('数据看板');
+    
+    const els = {
+        device: document.getElementById('device'),
+        start: document.getElementById('start'),
+        end: document.getElementById('end'),
+        load: document.getElementById('load'),
+        auto: document.getElementById('auto'),
+        // KPIs
+        s_in: document.getElementById('sum_in'),
+        s_out: document.getElementById('sum_out'),
+        s_net: document.getElementById('sum_net'),
+        s_last: document.getElementById('sum_last'),
+        tbl: document.getElementById('tbl'),
+        // Filters
+        warn: document.getElementById('filterWarn'),
+        recType: document.getElementById('filterRecType'),
+        btxMin: document.getElementById('filterBtxMin'),
+        btxMax: document.getElementById('filterBtxMax')
+    };
+    
+    let charts = {};
+    let timer = null;
+
+    async function init() {
+        // Load Device Map
+        const mapRes = await fetch('/api/v1/device/mapping');
+        const deviceMap = mapRes.ok ? (await mapRes.json()).mapping : {};
+        
+        // Load Devices
+        const devRes = await fetch('/api/v1/devices');
+        const list = await devRes.json();
+        
+        els.device.innerHTML = list.map(d => {
+            const name = deviceMap[d.uuid] || d.uuid;
+            const display = name === d.uuid ? d.uuid : `${name} (${d.uuid})`;
+            return `<option value="${d.uuid}">${display}</option>`;
+        }).join('');
+        
+        // Default Date (Auto-detect from data)
+        try {
+            const sumRes = await fetch('/api/v1/stats/summary');
+            if (sumRes.ok) {
+                const summary = await sumRes.json();
+                if (summary.last_time) {
+                    const lastDate = summary.last_time.split(' ')[0];
+                    els.start.value = lastDate;
+                    els.end.value = lastDate;
+                } else {
+                    throw new Error('No data');
+                }
+            } else {
+                throw new Error('API Error');
+            }
+        } catch(e) {
+            const now = new Date();
+            const ymd = now.toISOString().split('T')[0];
+            els.start.value = ymd;
+            els.end.value = ymd;
+        }
+        
+        loadData();
+    }
+    
+    async function loadData() {
+        const uuid = els.device.value;
+        if(!uuid) return;
+        
+        const start = els.start.value;
+        const end = els.end.value;
+        
+        // Query Params
+        const q = new URLSearchParams({ uuid });
+        if(start) q.append('start', start);
+        if(end) q.append('end', end);
+        
+        // Fetch Data
+        try {
+            const [daily, hourly, summary, history] = await Promise.all([
+                fetch(`/api/v1/stats/daily?${q}`).then(r=>r.json()),
+                fetch(`/api/v1/stats/hourly?uuid=${uuid}&date=${end}`).then(r=>r.json()),
+                fetch(`/api/v1/stats/summary?uuid=${uuid}`).then(r=>r.json()),
+                fetch(`/api/v1/data/history?uuid=${uuid}&limit=10`).then(r=>r.json())
+            ]);
+            
+            // Update KPIs
+            els.s_in.textContent = (summary.in || 0).toLocaleString();
+            els.s_out.textContent = (summary.out || 0).toLocaleString();
+            els.s_net.textContent = ((summary.in||0) - (summary.out||0)).toLocaleString();
+            els.s_last.textContent = summary.last_time || '-';
+            
+            // Render Charts
+            renderDaily(daily);
+            renderHourly(hourly);
+            
+            // Render Table
+            els.tbl.innerHTML = history.map(r => `
+                <tr>
+                    <td>${r.time}</td>
+                    <td>${r.in_count}</td>
+                    <td>${r.out_count}</td>
+                    <td>${r.battery != null ? r.battery + '%' : '-'}</td>
+                    <td>${r.btx != null ? r.btx + '%' : '-'}</td>
+                    <td>${r.rec_type != null ? r.rec_type : '-'}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error("Failed to load data", e);
+        }
+    }
+    
+    function renderDaily(data) {
+        const ctx = document.getElementById('dailyChart');
+        if(charts.daily) charts.daily.destroy();
+        
+        charts.daily = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.date),
+                datasets: [
+                    { label: 'IN', data: data.map(d=>d.in), backgroundColor: '#228be6', borderRadius: 4 },
+                    { label: 'OUT', data: data.map(d=>d.out), backgroundColor: '#fab005', borderRadius: 4 }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } }
+                }
+            }
+        });
+    }
+    
+    function renderHourly(data) {
+        const ctx = document.getElementById('hourChart');
+        if(charts.hourly) charts.hourly.destroy();
+        
+        charts.hourly = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.hour.substring(11, 16)),
+                datasets: [
+                    { 
+                        label: 'IN', 
+                        data: data.map(d=>d.in), 
+                        borderColor: '#228be6', 
+                        backgroundColor: 'rgba(34, 139, 230, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    { 
+                        label: 'OUT', 
+                        data: data.map(d=>d.out), 
+                        borderColor: '#fab005', 
+                        backgroundColor: 'rgba(250, 176, 5, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+    
+    // Listeners
+    els.load.addEventListener('click', loadData);
+    
+    document.getElementById('today').addEventListener('click', () => {
+        const ymd = new Date().toISOString().split('T')[0];
+        els.start.value = ymd; els.end.value = ymd;
+        loadData();
+    });
+    
+    document.getElementById('last7').addEventListener('click', () => {
+        const now = new Date();
+        const end = now.toISOString().split('T')[0];
+        const start = new Date(now.getTime() - 6*86400000).toISOString().split('T')[0];
+        els.start.value = start; els.end.value = end;
+        loadData();
+    });
+    
+    // Auto Refresh
+    els.auto.addEventListener('change', () => {
+        if(els.auto.checked) {
+            timer = setInterval(loadData, 10000);
+        } else {
+            clearInterval(timer);
+        }
+    });
+
+    // Popups
+    function setupPopup(btnId, popupId) {
+        const btn = document.getElementById(btnId);
+        const popup = document.getElementById(popupId);
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popup.classList.toggle('show');
+        });
+        popup.addEventListener('click', e => e.stopPropagation());
+    }
+    setupPopup('toggleAdvanced', 'advancedPopup');
+    setupPopup('toggleActions', 'actionsPopup');
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.popup-card').forEach(p => p.classList.remove('show'));
+    });
+    
+    // Exports
+    function getExportQuery() {
+        const q = new URLSearchParams({
+            uuid: els.device.value,
+            start: els.start.value,
+            end: els.end.value
+        });
+        return q.toString();
+    }
+    
+    document.getElementById('exportDaily').addEventListener('click', () => {
+        window.open(`/api/v1/export/daily?${getExportQuery()}`, '_blank');
+    });
+    document.getElementById('exportHourly').addEventListener('click', () => {
+        const q = new URLSearchParams({
+            uuid: els.device.value,
+            date: els.end.value
+        });
+        window.open(`/api/v1/export/hourly?${q}`, '_blank');
+    });
+    document.getElementById('exportHistory').addEventListener('click', () => {
+        window.open(`/api/v1/export/history?${getExportQuery()}`, '_blank');
+    });
+    
+    init();
+
+</script>
+</body>
+</html>

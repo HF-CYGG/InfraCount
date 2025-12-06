@@ -215,3 +215,1234 @@ INFO:     127.0.0.1:13461 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1
 INFO:     127.0.0.1:13461 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-05+00%3A00%3A00&end=2025-12-04+23%3A59%3A59 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:13461 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-04 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:13461 - "GET /api/v1/stats/total HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10752 - "GET /static/chart.umd.min.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8352 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8352 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8352 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1860 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1860 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13817 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13817 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13817 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13817 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13817 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:14313 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11435 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:14313 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11435 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14313 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14313 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14313 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:11295 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:11295 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:11295 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:11295 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:10159 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:11295 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10159 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:11295 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11295 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5069 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5069 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5069 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7081 - "GET /static/chart.umd.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9329 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7081 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9329 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:7081 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7081 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9329 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5069 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10857 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5260 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5260 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5260 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5007 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13875 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5604 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14030 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:14030 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14030 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14030 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3904 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3904 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3904 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3904 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10499 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4235 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3215 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:3215 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3215 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3215 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8819 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5372 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12544 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7305 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7305 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:7305 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5849 - "GET /static/chart.umd.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13790 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5849 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13790 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5849 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5849 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13790 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7305 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2122 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:9018 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5275 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5275 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12477 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1754 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12477 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5275 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /static/chart.umd.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12477 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12477 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:9018 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9018 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-12-06&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12477 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5275 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1754 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5945 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5945 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5945 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5945 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5945 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3604 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11885 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5141 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5661 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11340 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12572 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6666 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6666 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12572 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5661 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11340 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11340 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5661 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6666 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12572 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12188 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12188 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12188 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12188 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4797 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4797 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4797 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4797 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:1734 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7105 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4830 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6818 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6818 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4830 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1734 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7105 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6028 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6028 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6028 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13648 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13648 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:13648 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13648 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13648 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3406 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10571 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12275 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12275 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10571 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10611 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3406 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13230 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12782 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1496 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1184 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1184 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1496 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13230 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12782 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12782 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13230 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1184 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1496 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1496 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1184 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12782 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13230 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13230 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-30&end=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12782 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-12-06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1496 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1184 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5150 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5150 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5150 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5150 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5150 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5150 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14303 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14303 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14303 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14303 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14303 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11849 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9877 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10570 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9525 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14063 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11288 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8482 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14315 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14315 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:9542 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:9542 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9542 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9542 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9542 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14315 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11056 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2901 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1596 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3915 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9742 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9742 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3915 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1596 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1596 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:1596 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:1596 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14145 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1596 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11836 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2927 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5376 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5376 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:5376 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:10050 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5376 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:10050 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5376 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:10050 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5376 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:5376 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5376 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10050 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4346 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4346 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7160 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4346 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4346 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4346 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7160 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4507 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9812 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3158 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3158 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3158 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3863 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3863 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11754 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12972 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12972 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8399 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8399 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12972 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8399 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8399 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8399 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12972 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8381 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9538 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2039 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:2039 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2039 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3010 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3010 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3010 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1357 - "POST /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1357 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "POST /api/v1/admin/device/registry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2470 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5204 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2470 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4224 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4224 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4224 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2470 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2470 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5204 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:8468 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4224 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8468 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4224 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4224 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10936 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10936 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10936 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10936 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10936 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2580 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10936 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10936 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6801 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5185 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6801 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5185 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6801 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5185 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5185 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6801 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2270 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12732 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12732 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2270 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12732 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12732 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2521 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:2521 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7377 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7377 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7377 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2521 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7377 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7377 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7377 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2521 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7377 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7377 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9873 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:9873 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9873 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10622 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10622 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14172 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14029 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:14172 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:14172 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14029 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14172 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14172 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14172 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14029 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2823 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2823 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9135 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2823 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9135 - "GET /api/v1/activity/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9135 - "GET /api/v1/activity/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9272 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9272 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:4789 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:4789 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9272 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4789 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4789 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4789 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9272 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5073 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5888 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8465 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8465 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1300 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8465 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9012 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&weekdays=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9012 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&weekdays=1%2C2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9012 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&weekdays=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9012 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9735 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7682 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7682 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7682 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9735 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2570 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11458 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12367 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12367 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:11103 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11103 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12367 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11103 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11103 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11103 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12367 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13140 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6920 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6920 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6920 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6920 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6920 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5502 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8128 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8128 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6749 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8128 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6749 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8128 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6749 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13877 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:13877 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13877 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13080 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1778 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13080 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1778 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13080 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1778 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13080 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1778 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13080 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13080 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1778 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11653 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2003 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2003 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11653 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2003 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2003 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11653 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2003 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1588 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1588 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1588 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1588 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1588 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10842 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1615 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13287 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13287 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13287 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1615 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13287 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12436 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-07 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12436 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-08&end=2025-12-14 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12436 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4940 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:4940 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:4940 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8035 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8035 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2354 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:2354 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5482 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5482 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1938 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1938 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5399 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1938 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1938 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1938 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1938 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5399 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5399 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14005 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:14005 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11366 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14005 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11366 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11366 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14005 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11366 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:3971 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2771 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3971 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2771 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3971 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:3971 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2771 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2771 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2771 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3971 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2771 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5616 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5616 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5616 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5616 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5616 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12961 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7065 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2546 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5656 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2546 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5656 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2546 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2760 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2760 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2619 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2760 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2760 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11363 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11363 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11363 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11363 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11363 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11176 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3748 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1236 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12797 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12797 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14310 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12797 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12797 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12797 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14310 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9506 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1820 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3014 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5535 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3014 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3014 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3014 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5535 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7142 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11278 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9471 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9471 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6295 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9471 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9471 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9471 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6295 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6515 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14972 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6562 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6562 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9322 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&academies=%E4%B9%9D%E6%B2%B3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14831 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6562 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6562 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13477 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13477 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:4653 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4653 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13477 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4653 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4653 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5880 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5880 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11612 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11612 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5880 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11612 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11612 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4041 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4041 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13645 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13645 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4041 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13645 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4041 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13039 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14834 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13039 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13039 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14834 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13039 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13039 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13039 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4536 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4536 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4303 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4536 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4536 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4303 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4536 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4536 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4303 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6843 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6843 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7136 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12799 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12799 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7136 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12799 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12799 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12686 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12686 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:10495 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12686 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10495 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12686 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9247 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11723 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9247 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9247 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9247 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11723 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8946 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4920 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8946 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4920 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8946 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4920 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4920 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8946 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4920 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4920 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4920 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8946 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9247 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11723 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7652 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4403 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1472 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5607 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12538 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-01&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4858 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2905 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14976 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6064 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7854 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2972 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7647 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5394 - "GET /api/v1/stats/daily?uuid=1902506070359&start=2025-11-19&end=2025-11-19 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3776 - "GET /api/v1/data/history?uuid=1902506070359&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3857 - "GET /api/v1/stats/hourly?uuid=1902506070359&date=2025-11-19 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10813 - "GET /api/v1/stats/summary?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:12825 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12825 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2286 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12825 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2286 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2286 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14071 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14071 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9698 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14071 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14071 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7003 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7003 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11963 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7003 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7003 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7003 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11963 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3662 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8301 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3662 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8301 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3662 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8301 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8301 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8301 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3662 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8301 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8301 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8222 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8222 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8222 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8222 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8222 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8222 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3408 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7760 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12104 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10816 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10816 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11726 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10816 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10816 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11726 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10816 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11726 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10816 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3601 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3601 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5392 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:5392 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3601 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5392 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5392 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5392 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5392 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3601 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5392 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3601 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5392 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5392 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7588 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7588 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7588 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7588 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7588 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7871 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13500 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7871 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13500 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7871 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13500 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6065 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6065 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5687 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6065 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6065 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5687 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6065 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5687 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6065 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7951 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-11-01&end=2025-11-30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7951 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6799 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6799 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1892 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6799 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6799 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5255 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6058 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:6058 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9202 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6058 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6058 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6058 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9202 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1898 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10929 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1898 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10929 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1898 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10929 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3204 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1355 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3204 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3204 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3204 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:3204 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3204 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1355 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1355 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5576 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5576 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5579 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5576 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5576 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5576 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5579 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:5576 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5576 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5576 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5579 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7367 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3573 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3573 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7367 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3573 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3573 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2209 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2209 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:10211 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10211 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2209 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10211 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10211 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10211 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2209 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9294 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9294 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9294 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9294 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7146 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:14052 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12309 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12309 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12309 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14052 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14052 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8470 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13896 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8470 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8470 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13896 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8470 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13896 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13896 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8470 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3527 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8148 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3527 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8148 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3527 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8148 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2006 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2006 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:2006 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10400 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2006 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2006 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2329 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:2329 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2329 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2329 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6749 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8492 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1743 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8492 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1743 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8492 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1743 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:1183 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1183 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1266 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1183 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1266 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1266 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1183 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9811 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9945 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9945 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9945 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9811 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9945 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9945 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10345 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4780 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:4780 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10345 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10345 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10345 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10345 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4780 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4780 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10345 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8137 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14706 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8137 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14706 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14706 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14706 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3744 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3744 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /static/layout.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3744 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4436 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:3744 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:11579 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10489 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10489 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:10489 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4776 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:4776 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4776 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10489 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&weekdays=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&weekdays=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&academies=%E4%B9%9D%E6%B2%B3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12194 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6110 - "GET /dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6110 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4226 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:6110 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6110 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6110 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4226 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11673 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12457 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12457 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11673 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:12457 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12457 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13014 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9438 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13014 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9438 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:13014 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&academies=%E4%B9%9D%E6%B2%B3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:7796 - "GET /api/v1/stats/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7796 - "GET /api/v1/stats/daily?uuid=1902506070336&start=2025-11-25&end=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8285 - "GET /api/v1/stats/hourly?uuid=1902506070336&date=2025-11-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /api/v1/data/history?uuid=1902506070336&limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2435 - "GET /api/v1/stats/summary?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2435 - "GET /devices HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:2435 - "GET /classification HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2435 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /api/v1/admin/device/registry?page_size=1000 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14279 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2505 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14279 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2505 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:14460 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14460 - "GET /static/layout.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:14460 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14460 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14460 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9178 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9178 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14460 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9178 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14460 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9178 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8090 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6011 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8090 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6011 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:8090 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1464 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31&types=%E6%95%A3%E5%AE%A2%E8%AE%BF%E9%97%AE HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1464 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1464 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1464 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10081 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:1464 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1464 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10884 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4715 - "POST /api/v1/admin/record/batch-update HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4715 - "GET /api/v1/data/history?uuid=1902506070359 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9011 - "GET /api/v1/alerts?limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /api/v1/device/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9011 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /api/v1/data/history?uuid=1902506070336 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9011 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8327 - "GET /favicon.ico HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:9011 - "GET /api/v1/activity/list?page=1&page_size=50&start=2025-12-01&end=2025-12-31 HTTP/1.1" 200 OK
