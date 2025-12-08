@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书院数据 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .page-header {
+            background: #fff;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2b2d42;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .table-wrap {
+            overflow-x: auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #edf2f4;
+            text-align: left;
+            white-space: nowrap;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #8d99ae;
+        }
+        tr:hover td {
+            background: #f8f9fa;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .badge-academy { background: #e3f2fd; color: #1976d2; }
+        .badge-type { background: #fff3e0; color: #f57c00; }
+        
+        /* Modal Styles */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-backdrop.show { display: flex; }
+        .modal {
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1 class="page-title">
+        <span>📚</span> 书院数据管理
+    </h1>
+    <div style="display:flex; gap:10px">
+        <button class="btn btn-primary" id="btnImport">📥 导入表格</button>
+        <button class="btn" id="btnSync" style="background:#4cc9f0; color:#fff; border:none">🔄 同步散客数据</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="filter-bar" style="margin-bottom:0;border:none;box-shadow:none;padding:0">
+        <div class="flex items-center gap-2">
+            <label>日期范围</label>
+            <input type="date" id="start" class="input" style="width:140px">
+            <span class="text-muted">-</span>
+            <input type="date" id="end" class="input" style="width:140px">
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-primary" id="query">查询</button>
+        </div>
+        <div style="margin-left:auto; color:#888; font-size:13px">
+            共 <span id="totalCount">0</span> 条记录
+        </div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px">
+        <table>
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>年/月/日</th>
+                    <th>周几</th>
+                    <th>起始时间</th>
+                    <th>结束时间</th>
+                    <th>时长</th>
+                    <th>书院</th>
+                    <th>具体地点</th>
+                    <th>活动名称</th>
+                    <th>活动类型</th>
+                    <th>受众学生数</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+        </table>
+    </div>
+    
+    <div style="text-align:center; padding:20px">
+        <button class="btn" id="prevPage">上一页</button>
+        <span id="pageInfo" style="margin:0 10px; font-size:14px">1</span>
+        <button class="btn" id="nextPage">下一页</button>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>导入数据</h3>
+        <p style="color:#666; font-size:14px; margin-bottom:16px">
+            请上传 Excel 文件 (.xlsx, .xls)。<br>
+            表格应包含：日期、周几、起始时间、结束时间、书院、具体地点、活动名称、活动类型、人数、备注。<br>
+            <span style="color:#f72585; font-size:12px">注意：导入将尝试合并数据。</span>
+        </p>
+        <input type="file" id="fileInput" accept=".xlsx, .xls" style="margin-bottom:20px">
+        <div class="actions" style="display:flex; justify-content:flex-end; gap:10px">
+            <button class="btn" id="importCancel">取消</button>
+            <button class="btn btn-primary" id="importConfirm">开始导入</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sync Modal -->
+<div id="syncModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>同步散客数据</h3>
+        <p style="color:#666; font-size:14px; margin-bottom:16px">
+            将从设备原始记录中生成“散客访问”数据。<br>
+            规则：每30分钟聚合一次，活动名称为“散客”，类型为“散客访问”。
+        </p>
+        <div style="margin-bottom:16px">
+            <label>选择日期</label>
+            <input type="date" id="syncDate" class="input" style="width:100%">
+        </div>
+        <div class="actions" style="display:flex; justify-content:flex-end; gap:10px">
+            <button class="btn" id="syncCancel">取消</button>
+            <button class="btn btn-primary" id="syncConfirm">开始同步</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/layout.js"></script>
+<script>
+    initLayout('书院数据');
+    
+    const state = {
+        page: 1,
+        pageSize: 50
+    };
+    
+    const els = {
+        start: document.getElementById('start'),
+        end: document.getElementById('end'),
+        tbl: document.getElementById('tbl'),
+        total: document.getElementById('totalCount'),
+        pageInfo: document.getElementById('pageInfo'),
+        fileInput: document.getElementById('fileInput'),
+        syncDate: document.getElementById('syncDate')
+    };
+    
+    // Init Date
+    const now = new Date();
+    const ymd = now.toISOString().split('T')[0];
+    els.start.value = ymd.slice(0, 8) + '01'; // First day
+    els.end.value = ymd;
+    els.syncDate.value = ymd;
+
+    async function loadData() {
+        const q = new URLSearchParams({
+            start: els.start.value,
+            end: els.end.value,
+            page: state.page,
+            page_size: state.pageSize
+        });
+        
+        try {
+            const res = await fetch('/api/v1/activity/list?' + q);
+            const data = await res.json();
+            
+            renderTable(data.items);
+            els.total.textContent = data.total;
+            els.pageInfo.textContent = `${state.page} / ${Math.ceil(data.total / state.pageSize) || 1}`;
+        } catch(e) {
+            console.error(e);
+            showAlert('加载失败');
+        }
+    }
+    
+    function renderTable(items) {
+        if(!items || items.length === 0) {
+            els.tbl.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#999">暂无数据</td></tr>';
+            return;
+        }
+        
+        els.tbl.innerHTML = items.map((item, idx) => {
+            // Duration Calc
+            let durStr = '-';
+            if (item.duration_minutes) {
+                const h = Math.floor(item.duration_minutes / 60);
+                const m = item.duration_minutes % 60;
+                durStr = (h > 0 ? h + '时' : '') + m + '分';
+            }
+            
+            return `
+            <tr>
+                <td>${(state.page-1)*state.pageSize + idx + 1}</td>
+                <td>${item.date}</td>
+                <td>${item.weekday}</td>
+                <td>${item.start_time}</td>
+                <td>${item.end_time || '-'}</td>
+                <td>${durStr}</td>
+                <td><span class="badge badge-academy">${item.academy || '-'}</span></td>
+                <td>${item.location || '-'}</td>
+                <td>${item.activity_name || '-'}</td>
+                <td><span class="badge badge-type">${item.activity_type || '-'}</span></td>
+                <td>${item.audience_count}</td>
+                <td>${item.notes || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">删除</button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+    
+    // Pagination
+    document.getElementById('prevPage').addEventListener('click', () => {
+        if(state.page > 1) { state.page--; loadData(); }
+    });
+    document.getElementById('nextPage').addEventListener('click', () => {
+        state.page++; loadData();
+    });
+    document.getElementById('query').addEventListener('click', () => {
+        state.page = 1; loadData();
+    });
+    
+    // Import Logic
+    const importModal = document.getElementById('importModal');
+    document.getElementById('btnImport').addEventListener('click', () => importModal.classList.add('show'));
+    document.getElementById('importCancel').addEventListener('click', () => importModal.classList.remove('show'));
+    
+    document.getElementById('importConfirm').addEventListener('click', async () => {
+        const file = els.fileInput.files[0];
+        if(!file) return showAlert('请选择文件');
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const res = await fetch('/api/v1/activity/import-excel', {
+                method: 'POST',
+                body: formData
+            });
+            const json = await res.json();
+            if(res.ok) {
+                showAlert(`导入成功，新增 ${json.count} 条记录`);
+                importModal.classList.remove('show');
+                loadData();
+            } else {
+                showAlert('导入失败: ' + json.detail);
+            }
+        } catch(e) {
+            showAlert('上传错误');
+        }
+    });
+    
+    // Sync Logic
+    const syncModal = document.getElementById('syncModal');
+    document.getElementById('btnSync').addEventListener('click', () => syncModal.classList.add('show'));
+    document.getElementById('syncCancel').addEventListener('click', () => syncModal.classList.remove('show'));
+    
+    document.getElementById('syncConfirm').addEventListener('click', async () => {
+        const date = els.syncDate.value;
+        if(!date) return showAlert('请选择日期');
+        
+        try {
+            const res = await fetch('/api/v1/activity/sync-visitors', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({date: date})
+            });
+            const json = await res.json();
+            if(res.ok) {
+                showAlert(`同步成功，生成 ${json.count} 条记录`);
+                syncModal.classList.remove('show');
+                loadData();
+            } else {
+                showAlert('同步失败: ' + json.detail);
+            }
+        } catch(e) {
+            showAlert('请求错误');
+        }
+    });
+    
+    window.deleteItem = async (id) => {
+        if(await showConfirm('确定删除该记录吗？')) {
+            await fetch(`/api/v1/activity/${id}`, { method: 'DELETE' });
+            loadData();
+        }
+    };
+    
+    loadData();
+</script>
+</body>
+</html>

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据看板 - InfraCount</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="/static/chart.umd.min.js"></script>
     <style>
         .relative { position: relative; }
         .popup-card {
@@ -193,6 +192,7 @@
     </div>
 </div>
 
+<script src="/static/chart.umd.min.js"></script>
 <script src="/static/layout.js"></script>
 <script>
     initLayout('数据看板');
@@ -220,18 +220,26 @@
     let timer = null;
 
     async function init() {
-        // Load Device Map
-        const mapRes = await fetch('/api/v1/device/mapping');
-        const deviceMap = mapRes.ok ? (await mapRes.json()).mapping : {};
+        // Fetch Mapping
+        let deviceMap = {};
+        try {
+            const mapRes = await fetch('/api/v1/devices/mapping');
+            if(mapRes.ok) {
+                const mapData = await mapRes.json();
+                deviceMap = mapData.mapping || {};
+            }
+        } catch(e) { console.error("Load Mapping Error", e); }
         
         // Load Devices
         const devRes = await fetch('/api/v1/devices');
         const list = await devRes.json();
         
         els.device.innerHTML = list.map(d => {
-            const name = deviceMap[d.uuid] || d.uuid;
-            const display = name === d.uuid ? d.uuid : `${name} (${d.uuid})`;
-            return `<option value="${d.uuid}">${display}</option>`;
+            const uuid = typeof d === 'string' ? d : d.uuid;
+            const entry = deviceMap[uuid];
+            const name = entry ? (entry.name || uuid) : uuid;
+            const display = name === uuid ? uuid : `${name} (${uuid})`;
+            return `<option value="${uuid}">${display}</option>`;
         }).join('');
         
         // Default Date (Auto-detect from data)
@@ -277,7 +285,7 @@
                 fetch(`/api/v1/stats/daily?${q}`).then(r=>r.json()),
                 fetch(`/api/v1/stats/hourly?uuid=${uuid}&date=${end}`).then(r=>r.json()),
                 fetch(`/api/v1/stats/summary?uuid=${uuid}`).then(r=>r.json()),
-                fetch(`/api/v1/data/history?uuid=${uuid}&limit=10`).then(r=>r.json())
+                fetch(`/api/v1/records/history?uuid=${uuid}&limit=10`).then(r=>r.json())
             ]);
             
             // Update KPIs

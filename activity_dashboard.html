@@ -5,13 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>书院空间使用数据看板</title>
     <link rel="stylesheet" href="/static/style.css">
-    <!-- 引入 ECharts -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         /* Dashboard layout overrides */
         :root {
             --sidebar-width: 260px;
             --header-height: 60px;
+        }
+        /* App Content Override for full layout */
+        .app-content {
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+        /* Ensure layout fills screen */
+        .app-layout {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
         }
         body {
             display: flex;
@@ -30,8 +49,8 @@
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            padding: 16px;
-            overflow-y: auto;
+            padding: 0; /* Changed from 16px */
+            overflow: hidden; /* Changed from overflow-y: auto */
             transition: width 0.3s;
         }
         .dash-sidebar.collapsed {
@@ -39,6 +58,17 @@
             padding: 0;
             overflow: hidden;
             border: none;
+        }
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            background: var(--card);
+            flex-shrink: 0;
         }
         .dash-main {
             flex: 1;
@@ -154,6 +184,30 @@
             background: var(--card); width: 500px; max-width: 90%;
             padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        .week-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .week-item {
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .week-item:hover {
+            border-color: var(--primary);
+        }
+        .week-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -161,46 +215,59 @@
 <div class="header-bar">
     <div style="display:flex;align-items:center;gap:16px">
         <button class="btn" id="toggleSidebar">☰</button>
-        <h2 style="margin:0;font-size:18px">书院空间使用数据看板</h2>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:16px">
+            <label style="font-size:14px;color:var(--text-secondary)">统计月份</label>
+            <input type="month" id="statsMonth" class="input" style="height:32px;padding:0 8px">
+        </div>
     </div>
     <div style="display:flex;gap:12px">
-        <button class="btn" onclick="location.href='/dashboard'">返回旧版</button>
+        <button class="btn btn-secondary" id="syncWalkinBtn">🔄 同步散客数据</button>
         <button class="btn btn-primary" id="uploadBtn">📤 上传数据</button>
-        <input type="text" id="adminToken" placeholder="Admin Token" class="input" style="width:120px">
     </div>
 </div>
 
 <div class="app-container">
     <div class="dash-sidebar" id="sidebar">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border)">
             <h4 style="margin:0">筛选</h4>
             <button class="btn btn-sm" id="resetFilters">重置</button>
         </div>
         
-        <div class="filter-group">
-            <label>日期范围</label>
-            <div style="display:flex;gap:8px">
-                <input type="date" id="startDate" class="filter-input">
-                <input type="date" id="endDate" class="filter-input">
+        <div class="sidebar-content">
+            <div class="filter-group">
+                <label>周次 / 日期范围</label>
+                <div id="weekList" class="week-list"></div>
+            </div>
+
+            <div class="filter-group">
+                <label>书院</label>
+                <div id="academyFilter" class="checkbox-list"></div>
+            </div>
+
+            <div class="filter-group">
+                <label>周几</label>
+                <div id="weekdayFilter" class="checkbox-list"></div>
+            </div>
+
+            <div class="filter-group">
+                <label>场地</label>
+                <div id="locationFilter" class="checkbox-list" style="max-height: 200px; overflow-y: auto;"></div>
+            </div>
+
+            <div class="filter-group">
+                <label>活动类型</label>
+                <div id="typeFilter" class="checkbox-list"></div>
+            </div>
+
+            <div class="filter-group">
+                <label>起始时间</label>
+                <div id="startTimeFilter" class="checkbox-list" style="max-height: 200px; overflow-y: auto;"></div>
             </div>
         </div>
-
-        <div class="filter-group">
-            <label>书院</label>
-            <select id="academyFilter" class="filter-select" multiple style="height:80px"></select>
-        </div>
-
-        <div class="filter-group">
-            <label>场地</label>
-            <select id="locationFilter" class="filter-select" multiple style="height:100px"></select>
-        </div>
-
-        <div class="filter-group">
-            <label>活动类型</label>
-            <div id="typeFilter" class="checkbox-list"></div>
-        </div>
         
-        <button class="btn btn-primary" id="applyFilters" style="margin-top:auto">应用筛选</button>
+        <div class="sidebar-footer">
+            <button class="btn btn-primary" id="applyFilters" style="width:100%">应用筛选</button>
+        </div>
     </div>
 
     <div class="dash-main">
@@ -291,6 +358,238 @@
     </div>
 </div>
 
+<!-- Walk-in Sync Modal -->
+<div id="walkinModal" class="modal-backdrop">
+    <div class="modal" style="width:600px">
+        <h3>同步散客数据</h3>
+        <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">
+            将从设备原始记录中生成“散客访问”数据。规则: 每30分钟聚合一次，活动名称为“散客”，类型为“散客访问”。
+        </p>
+        
+        <div class="form-group mb-4">
+            <label>选择设备 (可多选)</label>
+            <div id="walkinDeviceList" class="checkbox-list" style="max-height:150px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:4px"></div>
+        </div>
+        
+        <div class="form-group mb-4">
+            <label>选择时间段</label>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+                <button class="btn btn-sm active" id="tabDay" onclick="switchWalkinTab('day')">按天</button>
+                <button class="btn btn-sm" id="tabWeek" onclick="switchWalkinTab('week')">按周</button>
+                <button class="btn btn-sm" id="tabRange" onclick="switchWalkinTab('range')">自定义段</button>
+            </div>
+            
+            <div id="walkinTabDay">
+                <input type="date" id="walkinDate" class="input w-full">
+            </div>
+            <div id="walkinTabWeek" style="display:none">
+                <input type="week" id="walkinWeek" class="input w-full">
+            </div>
+            <div id="walkinTabRange" style="display:none">
+                <div style="display:flex;gap:8px">
+                    <input type="datetime-local" id="walkinStart" class="input w-full">
+                    <input type="datetime-local" id="walkinEnd" class="input w-full">
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="closeWalkin">取消</button>
+            <button class="btn btn-primary" id="previewWalkin">预览数据</button>
+        </div>
+    </div>
+</div>
+
+<!-- Walk-in Preview Modal -->
+<div id="walkinPreviewModal" class="modal-backdrop" style="z-index:1100">
+    <div class="modal" style="width:800px;max-width:90vw">
+        <h3>确认同步数据</h3>
+        <div style="max-height:400px;overflow-y:auto;margin:16px 0">
+            <table style="width:100%">
+                <thead>
+                    <tr>
+                        <th>日期</th><th>时间</th><th>设备</th><th>预估人数</th>
+                    </tr>
+                </thead>
+                <tbody id="walkinPreviewBody"></tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button class="btn" id="closeWalkinPreview">返回</button>
+            <button class="btn btn-primary" id="confirmWalkin">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Walk-in Sync Logic
+const elsWalkin = {
+    btn: document.getElementById('syncWalkinBtn'),
+    modal: document.getElementById('walkinModal'),
+    close: document.getElementById('closeWalkin'),
+    deviceList: document.getElementById('walkinDeviceList'),
+    previewBtn: document.getElementById('previewWalkin'),
+    
+    // Tabs
+    tabDay: document.getElementById('tabDay'),
+    tabWeek: document.getElementById('tabWeek'),
+    tabRange: document.getElementById('tabRange'),
+    areaDay: document.getElementById('walkinTabDay'),
+    areaWeek: document.getElementById('walkinTabWeek'),
+    areaRange: document.getElementById('walkinTabRange'),
+    
+    // Inputs
+    date: document.getElementById('walkinDate'),
+    week: document.getElementById('walkinWeek'),
+    start: document.getElementById('walkinStart'),
+    end: document.getElementById('walkinEnd'),
+    
+    // Preview
+    previewModal: document.getElementById('walkinPreviewModal'),
+    previewBody: document.getElementById('walkinPreviewBody'),
+    previewClose: document.getElementById('closeWalkinPreview'),
+    confirm: document.getElementById('confirmWalkin')
+};
+
+let walkinState = {
+    mode: 'day',
+    previewData: []
+};
+
+elsWalkin.btn.addEventListener('click', async () => {
+    elsWalkin.modal.classList.add('show');
+    if(elsWalkin.deviceList.children.length === 0) {
+        // Load devices
+        const res = await fetch('/api/v1/devices');
+        const list = await res.json();
+        const mapRes = await fetch('/api/v1/devices/mapping');
+        const map = (await mapRes.json()).mapping || {};
+        
+        elsWalkin.deviceList.innerHTML = list.map(d => {
+             const uuid = typeof d === 'string' ? d : d.uuid;
+             const entry = map[uuid];
+             const name = entry ? (entry.name || uuid) : uuid;
+             const display = name === uuid ? uuid : `${name} (${uuid})`;
+             return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${uuid}">${display}</div>`;
+        }).join('');
+    }
+    // Default date
+    if(!elsWalkin.date.value) elsWalkin.date.value = new Date().toISOString().split('T')[0];
+});
+
+elsWalkin.close.addEventListener('click', () => elsWalkin.modal.classList.remove('show'));
+
+window.switchWalkinTab = (mode) => {
+    walkinState.mode = mode;
+    ['day','week','range'].forEach(m => {
+        const btn = document.getElementById('tab'+m.charAt(0).toUpperCase()+m.slice(1));
+        const area = document.getElementById('walkinTab'+m.charAt(0).toUpperCase()+m.slice(1));
+        if(m === mode) {
+            btn.classList.add('active');
+            area.style.display = 'block';
+        } else {
+            btn.classList.remove('active');
+            area.style.display = 'none';
+        }
+    });
+};
+
+elsWalkin.previewBtn.addEventListener('click', async () => {
+    // Collect Devices
+    const devices = Array.from(elsWalkin.deviceList.querySelectorAll('.checked')).map(e => e.dataset.val);
+    if(devices.length === 0) return showAlert('请至少选择一个设备');
+    
+    // Collect Time
+    let start, end;
+    if(walkinState.mode === 'day') {
+        if(!elsWalkin.date.value) return showAlert('请选择日期');
+        start = elsWalkin.date.value + ' 00:00:00';
+        end = elsWalkin.date.value + ' 23:59:59';
+    } else if(walkinState.mode === 'week') {
+        if(!elsWalkin.week.value) return showAlert('请选择周次');
+        // Calculate week start/end
+        const [y, w] = elsWalkin.week.value.split('-W');
+        const d = new Date(y, 0, 1 + (w - 1) * 7);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day == 0 ? -6:1); // adjust when day is sunday
+        const s = new Date(d.setDate(diff));
+        const e = new Date(d.setDate(diff + 6));
+        start = s.toISOString().split('T')[0] + ' 00:00:00';
+        end = e.toISOString().split('T')[0] + ' 23:59:59';
+    } else {
+        if(!elsWalkin.start.value || !elsWalkin.end.value) return showAlert('请选择时间段');
+        start = elsWalkin.start.value.replace('T', ' ');
+        end = elsWalkin.end.value.replace('T', ' ');
+    }
+    
+    elsWalkin.previewBtn.textContent = '计算中...';
+    try {
+        const res = await fetch('/api/v1/activity/walkin/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ devices, start, end })
+        });
+        if(!res.ok) throw new Error(await res.text());
+        
+        const data = await res.json();
+        walkinState.previewData = data.items;
+        
+        // Show Preview
+        elsWalkin.previewBody.innerHTML = data.items.map(r => `
+            <tr>
+                <td>${r.date}</td>
+                <td>${r.start_time}-${r.end_time}</td>
+                <td>${r.location}</td>
+                <td>${r.audience_count}</td>
+            </tr>
+        `).join('');
+        
+        if(data.items.length === 0) {
+            elsWalkin.previewBody.innerHTML = '<tr><td colspan="4" style="text-align:center">无数据或该时段无记录</td></tr>';
+        }
+        
+        elsWalkin.previewModal.classList.add('show');
+    } catch(e) {
+        showAlert('Error: ' + e.message);
+    } finally {
+        elsWalkin.previewBtn.textContent = '预览数据';
+    }
+});
+
+elsWalkin.previewClose.addEventListener('click', () => elsWalkin.previewModal.classList.remove('show'));
+
+elsWalkin.confirm.addEventListener('click', async () => {
+    if(walkinState.previewData.length === 0) return;
+    
+    elsWalkin.confirm.disabled = true;
+    elsWalkin.confirm.textContent = '同步中...';
+    
+    try {
+        const res = await fetch('/api/v1/activity/walkin/sync', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ items: walkinState.previewData })
+        });
+        if(!res.ok) throw new Error(await res.text());
+        
+        const json = await res.json();
+        await showAlert(`同步成功: ${json.count} 条记录`);
+        elsWalkin.previewModal.classList.remove('show');
+        elsWalkin.modal.classList.remove('show');
+        loadData(); // Refresh dashboard
+    } catch(e) {
+        showAlert('Error: ' + e.message);
+    } finally {
+        elsWalkin.confirm.disabled = false;
+        elsWalkin.confirm.textContent = '确认添加';
+    }
+});
+</script>
+
+<script src="/static/layout.js"></script>
+<!-- 引入 ECharts -->
+<script src="/static/lib/echarts.min.js"></script>
+
 <script>
 // Popup Logic
 const alertModal = document.getElementById('appAlertModal');
@@ -318,8 +617,9 @@ let state = {
     page: 1,
     pageSize: 50,
     total: 0,
+    month: new Date().toISOString().substring(0, 7),
     filters: {
-        start: '', end: '', locations: [], types: [], academies: []
+        start: '', end: '', locations: [], types: [], academies: [], start_times: [], weekdays: []
     },
     charts: {}
 };
@@ -336,11 +636,13 @@ const els = {
     adminToken: document.getElementById('adminToken'),
     
     // Filters
-    startDate: document.getElementById('startDate'),
-    endDate: document.getElementById('endDate'),
+    statsMonth: document.getElementById('statsMonth'),
+    weekList: document.getElementById('weekList'),
     academyFilter: document.getElementById('academyFilter'),
+    weekdayFilter: document.getElementById('weekdayFilter'),
     locationFilter: document.getElementById('locationFilter'),
     typeFilter: document.getElementById('typeFilter'),
+    startTimeFilter: document.getElementById('startTimeFilter'),
     applyFilters: document.getElementById('applyFilters'),
     resetFilters: document.getElementById('resetFilters'),
     
@@ -359,27 +661,94 @@ const els = {
 
 // Init Charts
 function initCharts() {
+    if (typeof echarts === 'undefined') {
+        console.error('ECharts is not loaded');
+        return;
+    }
     state.charts.weekday = echarts.init(document.getElementById('chartWeekday'));
     state.charts.time = echarts.init(document.getElementById('chartTime'));
     state.charts.location = echarts.init(document.getElementById('chartLocation'));
     state.charts.type = echarts.init(document.getElementById('chartType'));
     
-    window.addEventListener('resize', () => {
+    // Resize Handler (with cleanup to prevent leaks)
+    if (window.onActivityDashboardResize) {
+        window.removeEventListener('resize', window.onActivityDashboardResize);
+    }
+    window.onActivityDashboardResize = () => {
         Object.values(state.charts).forEach(c => c.resize());
-    });
+    };
+    window.addEventListener('resize', window.onActivityDashboardResize);
 }
 
 // Fetch Options
 async function loadOptions() {
-    const res = await fetch('/api/v1/activity/options');
+    // 1. Fetch options and academies in parallel
+    const [res, acaRes] = await Promise.all([
+        fetch('/api/v1/activity/options'),
+        fetch('/api/v1/academies')
+    ]);
     const data = await res.json();
+    const acaList = await acaRes.json();
     
-    // Render Locations
-    els.locationFilter.innerHTML = data.locations.map(l => `<option value="${l}">${l}</option>`).join('');
-    // Render Academies
-    els.academyFilter.innerHTML = data.academies.map(a => `<option value="${a}">${a}</option>`).join('');
-    // Render Types (Checkbox)
-    els.typeFilter.innerHTML = data.types.map(t => 
+    // 2. Fetch Device Mapping for Locations
+    let deviceMap = {};
+    try {
+        const mapRes = await fetch('/api/v1/devices/mapping');
+        if(mapRes.ok) {
+            const mapData = await mapRes.json();
+            deviceMap = mapData.mapping || {};
+        }
+    } catch(e) { console.error("Load Mapping Error", e); }
+    
+    // Render Locations with Custom Names if available
+    els.locationFilter.innerHTML = data.locations.map(l => {
+        // Try to match location 'l' with device map
+        // 'l' might be a UUID or a name. If it's a UUID, we show custom name.
+        // If 'l' is a custom name already (from CSV), we just show it.
+        const entry = deviceMap[l];
+        const name = entry ? (entry.name || l) : l;
+        const display = name === l ? l : `${name} (${l})`;
+        return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${l}">${display}</div>`;
+    }).join('');
+
+    // Render Academies (Use Registry + Existing Data)
+    // Combine fetched academies and those from data options, dedup
+    const academyNames = new Set(acaList.map(a => a.name));
+    if(data.academies) data.academies.forEach(a => academyNames.add(a));
+    
+    els.academyFilter.innerHTML = Array.from(academyNames).sort().map(a => 
+        `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${a}">${a}</div>`
+    ).join('');
+    
+    // Render Weekdays (Fixed Mon-Sun)
+    const weekMap = {1:'周一', 2:'周二', 3:'周三', 4:'周四', 5:'周五', 6:'周六', 7:'周日'};
+    const weekdays = [1,2,3,4,5,6,7];
+    els.weekdayFilter.innerHTML = weekdays.map(w =>
+        `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${w}">${weekMap[w]}</div>`
+    ).join('');
+
+    // Render Types (Fixed + Existing)
+    const fixedTypes = [
+        "班团活动", "公益/志愿活动", "会议活动", "培训活动", "其他活动", 
+        "全生异科导师活动", "散客访问", "社团活动", "书院活动", 
+        "体育活动", "项目工坊活动", "艺术活动", "项目工坊"
+    ];
+    const typeSet = new Set(fixedTypes);
+    if(data.types) data.types.forEach(t => typeSet.add(t));
+    
+    els.typeFilter.innerHTML = Array.from(typeSet).sort().map(t => 
+        `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${t}">${t}</div>`
+    ).join('');
+    
+    // Render Start Times
+    const fixedTimes = [
+        "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+        "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00",
+        "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30",
+        "22:00"
+    ];
+
+    els.startTimeFilter.innerHTML = fixedTimes.map(t => 
         `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${t}">${t}</div>`
     ).join('');
 }
@@ -391,7 +760,9 @@ function buildQuery(forAgg = false) {
     if(state.filters.end) p.append('end_date', state.filters.end);
     if(state.filters.locations.length) p.append('locations', state.filters.locations.join(','));
     if(state.filters.academies.length) p.append('academies', state.filters.academies.join(','));
+    if(state.filters.weekdays.length) p.append('weekdays', state.filters.weekdays.join(','));
     if(state.filters.types.length) p.append('types', state.filters.types.join(','));
+    if(state.filters.start_times.length) p.append('start_times', state.filters.start_times.join(','));
     
     if(!forAgg) {
         p.append('page', state.page);
@@ -418,12 +789,18 @@ async function loadData() {
 // Update UI
 function updateDashboard(data) {
     // KPIs
-    els.kpi_events.textContent = data.kpis.total_events.toLocaleString();
-    els.kpi_audience.textContent = data.kpis.total_audience.toLocaleString();
-    els.kpi_avg.textContent = data.kpis.avg_audience;
-    const top = data.location_top[0];
-    els.kpi_top_loc.textContent = top ? `${top.location} (${top.count})` : '-';
+    if(els.kpi_events) els.kpi_events.textContent = (data.kpis.total_events || 0).toLocaleString();
+    if(els.kpi_audience) els.kpi_audience.textContent = (data.kpis.total_audience || 0).toLocaleString();
+    if(els.kpi_avg) els.kpi_avg.textContent = data.kpis.avg_audience || 0;
+    const top = data.location_top && data.location_top[0];
+    if(els.kpi_top_loc) els.kpi_top_loc.textContent = top ? `${top.location} (${top.count})` : '-';
     
+    // Check if charts are initialized
+    if (!state.charts.weekday) {
+        initCharts();
+        if (!state.charts.weekday) return; // Still failed
+    }
+
     // Weekday Chart
     const weekdays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     const wdData = Array(7).fill(0);
@@ -499,7 +876,67 @@ function updateTable(data) {
     `).join('');
 }
 
+// Week Generator
+function renderWeeks() {
+    const [y, m] = state.month.split('-').map(Number);
+    const startMonth = new Date(y, m-1, 1);
+    const endMonth = new Date(y, m, 0);
+    
+    let ranges = [];
+    let curr = new Date(startMonth);
+    
+    while(curr <= endMonth) {
+        let start = new Date(curr);
+        let end = new Date(curr);
+        end.setDate(end.getDate() + 6); // 7 days interval
+        
+        // Cap at end of month? User said "only allow selection of time periods within the current month"
+        // But usually "7 days interval" implies fixed 7 days.
+        // If the interval crosses month boundary, do we clip it?
+        // "只允许选择当月内的时间段" -> Only select time periods within the month.
+        // If I strictly follow "7 days", the last week might cross.
+        // Let's clip it to end of month if it crosses.
+        if (end > endMonth) end = new Date(endMonth);
+        
+        ranges.push({
+            start: fmtDate(start),
+            end: fmtDate(end)
+        });
+        
+        // Next 7 days
+        curr.setDate(curr.getDate() + 7);
+    }
+    
+    els.weekList.innerHTML = ranges.map(r => {
+        const active = (state.filters.start === r.start && state.filters.end === r.end) ? 'active' : '';
+        return `
+        <div class="week-item ${active}" onclick="selectWeek('${r.start}', '${r.end}')">
+            <span>${r.start} - ${r.end}</span>
+            <span style="opacity:0.3">→</span>
+        </div>
+        `;
+    }).join('');
+}
+
+function fmtDate(d) {
+    return d.toISOString().split('T')[0];
+}
+
+window.selectWeek = (s, e) => {
+    state.filters.start = s;
+    state.filters.end = e;
+    renderWeeks(); // Re-render to update active state
+};
+
 // Event Listeners
+els.statsMonth.addEventListener('change', () => {
+    state.month = els.statsMonth.value;
+    state.filters.start = '';
+    state.filters.end = '';
+    renderWeeks();
+    els.applyFilters.click();
+});
+
 els.toggleSidebar.addEventListener('click', () => {
     els.sidebar.classList.toggle('collapsed');
     setTimeout(() => Object.values(state.charts).forEach(c => c.resize()), 300);
@@ -512,8 +949,8 @@ els.doUpload.addEventListener('click', async () => {
     const file = els.fileInput.files[0];
     if(!file) return showAlert('请选择文件');
     
-    const token = els.adminToken.value;
-    if(!token) return showAlert('请输入 Admin Token');
+    // const token = els.adminToken.value;
+    // if(!token) return showAlert('请输入 Admin Token');
     
     const fd = new FormData();
     fd.append('file', file);
@@ -524,7 +961,7 @@ els.doUpload.addEventListener('click', async () => {
     try {
         const res = await fetch('/api/v1/activity/upload', {
             method: 'POST',
-            headers: { 'X-Admin-Token': token },
+            // headers: { 'X-Admin-Token': token },
             body: fd
         });
         const json = await res.json();
@@ -545,21 +982,30 @@ els.doUpload.addEventListener('click', async () => {
 });
 
 els.applyFilters.addEventListener('click', () => {
-    state.filters.start = els.startDate.value;
-    state.filters.end = els.endDate.value;
-    state.filters.academies = Array.from(els.academyFilter.selectedOptions).map(o => o.value);
-    state.filters.locations = Array.from(els.locationFilter.selectedOptions).map(o => o.value);
+    // start/end already set by week selection
+    // state.filters.start = els.startDate.value; 
+    // state.filters.end = els.endDate.value;
+    state.filters.academies = Array.from(document.querySelectorAll('#academyFilter .checkbox-tag.checked')).map(el => el.dataset.val);
+    state.filters.weekdays = Array.from(document.querySelectorAll('#weekdayFilter .checkbox-tag.checked')).map(el => el.dataset.val);
+    state.filters.locations = Array.from(document.querySelectorAll('#locationFilter .checkbox-tag.checked')).map(el => el.dataset.val);
     state.filters.types = Array.from(document.querySelectorAll('#typeFilter .checkbox-tag.checked')).map(el => el.dataset.val);
+    state.filters.start_times = Array.from(document.querySelectorAll('#startTimeFilter .checkbox-tag.checked')).map(el => el.dataset.val);
     state.page = 1;
     loadData();
 });
 
 els.resetFilters.addEventListener('click', () => {
-    els.startDate.value = '';
-    els.endDate.value = '';
-    els.academyFilter.value = '';
-    els.locationFilter.value = '';
+    // Reset date?
+    state.filters.start = '';
+    state.filters.end = '';
+    renderWeeks();
+    
+    // Reset others
+    document.querySelectorAll('#academyFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
+    document.querySelectorAll('#locationFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
+    document.querySelectorAll('#weekdayFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
     document.querySelectorAll('#typeFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
+    document.querySelectorAll('#startTimeFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
     els.applyFilters.click();
 });
 
@@ -567,11 +1013,55 @@ els.prevPage.addEventListener('click', () => { if(state.page > 1) { state.page--
 els.nextPage.addEventListener('click', () => { state.page++; loadData(); });
 
 // Init
-(async () => {
+async function init() {
+    initLayout('书院空间使用数据看板');
+    
+    // Move Stats Month to App Header
+    const headerRight = document.querySelector('.app-header .flex.items-center.gap-4');
+    if (headerRight && els.statsMonth) {
+        // Create container for month selector
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.marginRight = '16px';
+        container.innerHTML = `<span style="font-size:12px;margin-right:8px;color:var(--text-secondary)">统计月份</span>`;
+        
+        // We clone the input to avoid event listener issues if we just move it?
+        // No, moving preserves listeners usually.
+        container.appendChild(els.statsMonth);
+        
+        // Insert before the time display (first child of headerRight)
+        headerRight.insertBefore(container, headerRight.firstChild);
+        
+        // Hide the original label in .header-bar
+        const oldLabel = document.querySelector('.header-bar label');
+        if(oldLabel) oldLabel.style.display = 'none';
+    } else {
+        // Fallback: If header not found, maybe initLayout failed?
+        console.warn('App Header not found, ensuring layout...');
+        initLayout('书院空间使用数据看板');
+        // Try again
+        const retryHeader = document.querySelector('.app-header .flex.items-center.gap-4');
+        if(retryHeader && els.statsMonth) {
+             const container = document.createElement('div');
+             container.style.display = 'flex';
+             container.style.alignItems = 'center';
+             container.style.marginRight = '16px';
+             container.innerHTML = `<span style="font-size:12px;margin-right:8px;color:var(--text-secondary)">统计月份</span>`;
+             container.appendChild(els.statsMonth);
+             retryHeader.insertBefore(container, retryHeader.firstChild);
+             const oldLabel = document.querySelector('.header-bar label');
+             if(oldLabel) oldLabel.style.display = 'none';
+        }
+    }
+
     initCharts();
+    els.statsMonth.value = state.month;
+    renderWeeks();
     await loadOptions();
     await loadData();
-})();
+}
+init();
 
 </script>
 </body>

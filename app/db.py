@@ -316,14 +316,14 @@ async def list_devices():
         if not _sqlite: await init_sqlite()
         async with _sqlite.execute(sql) as cur:
             rows = await cur.fetchall()
-            return [row[0] for row in rows]
+            return [{"uuid": row[0]} for row in rows]
     else:
         if not _pool: await init_pool()
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql)
                 rows = await cur.fetchall()
-                return [row[0] for row in rows]
+                return [{"uuid": row[0]} for row in rows]
 
 async def get_device_mapping():
     sql = "SELECT uuid, name, category FROM registry"
@@ -331,14 +331,14 @@ async def get_device_mapping():
         if not _sqlite: await init_sqlite()
         async with _sqlite.execute(sql) as cur:
             rows = await cur.fetchall()
-            return {row[0]: {"name": row[1], "category": row[2]} for row in rows}
+            return {"mapping": {row[0]: {"name": row[1], "category": row[2]} for row in rows}}
     else:
         if not _pool: await init_pool()
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(sql)
                 rows = await cur.fetchall()
-                return {row[0]: {"name": row[1], "category": row[2]} for row in rows}
+                return {"mapping": {row[0]: {"name": row[1], "category": row[2]} for row in rows}}
 
 # --- Stats ---
 
@@ -559,12 +559,32 @@ async def delete_academy(id):
 
 # --- Admin ---
 
-async def admin_count_records(uuid=None):
-    sql = "SELECT COUNT(*) FROM records"
+async def admin_count_records(uuid=None, start=None, end=None, warn=None, rec_type=None, btx_min=None, btx_max=None):
+    where = ["1=1"]
     params = []
     if uuid:
-        sql += " WHERE uuid=?" if use_sqlite() else " WHERE uuid=%s"
+        where.append("uuid = ?" if use_sqlite() else "uuid = %s")
         params.append(uuid)
+    if start:
+        where.append("time >= ?" if use_sqlite() else "time >= %s")
+        params.append(start)
+    if end:
+        where.append("time <= ?" if use_sqlite() else "time <= %s")
+        params.append(end)
+    if warn is not None:
+        where.append("warn_status = ?" if use_sqlite() else "warn_status = %s")
+        params.append(warn)
+    if rec_type is not None:
+        where.append("rec_type = ?" if use_sqlite() else "rec_type = %s")
+        params.append(rec_type)
+    if btx_min is not None:
+        where.append("btx >= ?" if use_sqlite() else "btx >= %s")
+        params.append(btx_min)
+    if btx_max is not None:
+        where.append("btx <= ?" if use_sqlite() else "btx <= %s")
+        params.append(btx_max)
+
+    sql = f"SELECT COUNT(*) FROM records WHERE {' AND '.join(where)}"
     
     if use_sqlite():
         if not _sqlite: await init_sqlite()
@@ -579,13 +599,31 @@ async def admin_count_records(uuid=None):
                 row = await cur.fetchone()
                 return row[0]
 
-async def admin_list_records(page=1, limit=50, uuid=None):
+async def admin_list_records(page=1, limit=50, uuid=None, start=None, end=None, warn=None, rec_type=None, btx_min=None, btx_max=None):
     offset = (page - 1) * limit
     where = ["1=1"]
     params = []
     if uuid:
         where.append("uuid = ?" if use_sqlite() else "uuid = %s")
         params.append(uuid)
+    if start:
+        where.append("time >= ?" if use_sqlite() else "time >= %s")
+        params.append(start)
+    if end:
+        where.append("time <= ?" if use_sqlite() else "time <= %s")
+        params.append(end)
+    if warn is not None:
+        where.append("warn_status = ?" if use_sqlite() else "warn_status = %s")
+        params.append(warn)
+    if rec_type is not None:
+        where.append("rec_type = ?" if use_sqlite() else "rec_type = %s")
+        params.append(rec_type)
+    if btx_min is not None:
+        where.append("btx >= ?" if use_sqlite() else "btx >= %s")
+        params.append(btx_min)
+    if btx_max is not None:
+        where.append("btx <= ?" if use_sqlite() else "btx <= %s")
+        params.append(btx_max)
     
     sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY time DESC LIMIT {limit} OFFSET {offset}"
     
@@ -1024,7 +1062,7 @@ async def activity_bulk_insert(events: list[dict]):
                         count += 1
     return count
 
-async def activity_list(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None, weekdays: list = None, min_start_time: str = None, page: int = 1, page_size: int = 50):
+async def activity_list(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None, weekdays: list = None, start_times: list = None, page: int = 1, page_size: int = 50):
     offset = (page - 1) * page_size
     sql = "SELECT * FROM activity_events WHERE 1=1"
     params = []
@@ -1047,18 +1085,13 @@ async def activity_list(start_date: str = None, end_date: str = None, locations:
         sql += f" AND academy IN ({placeholders})"
         params.extend(academies)
     if weekdays:
-        # Weekdays can be int or str, ensure they match DB format.
-        # Assuming DB has 'Mon', 'Tue' or '1', '2'.
-        # User request says "1-7". If DB has 'Mon', we need mapping. 
-        # Assuming we pass what's in DB or frontend handles mapping.
         placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(weekdays))
         sql += f" AND weekday IN ({placeholders})"
         params.extend(weekdays)
-    if min_start_time:
-        # Activities happening after selected time (including ongoing).
-        # Logic: end_time > min_start_time
-        sql += " AND end_time > ?" if use_sqlite() else " AND end_time > %s"
-        params.append(min_start_time)
+    if start_times:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(start_times))
+        sql += f" AND start_time IN ({placeholders})"
+        params.extend(start_times)
     
     sql += " ORDER BY date DESC, start_time DESC"
     
@@ -1109,7 +1142,11 @@ async def activity_get_options():
             types = [r[0] for r in await t_cur.fetchall() if r[0]]
             a_cur = await _sqlite.execute("SELECT DISTINCT academy FROM activity_events ORDER BY academy")
             academies = [r[0] for r in await a_cur.fetchall() if r[0]]
-            return {"locations": locations, "types": types, "academies": academies}
+            w_cur = await _sqlite.execute("SELECT DISTINCT weekday FROM activity_events ORDER BY weekday")
+            weekdays = [r[0] for r in await w_cur.fetchall() if r[0]]
+            s_cur = await _sqlite.execute("SELECT DISTINCT start_time FROM activity_events ORDER BY start_time")
+            times = [r[0] for r in await s_cur.fetchall() if r[0]]
+            return {"locations": locations, "types": types, "academies": academies, "weekdays": weekdays, "times": times}
     
     if _pool is None:
         await init_pool()
@@ -1122,10 +1159,14 @@ async def activity_get_options():
                 types = [r[0] for r in await cur.fetchall() if r[0]]
                 await cur.execute("SELECT DISTINCT academy FROM activity_events ORDER BY academy")
                 academies = [r[0] for r in await cur.fetchall() if r[0]]
-                return {"locations": locations, "types": types, "academies": academies}
-    return {"locations": [], "types": [], "academies": []}
+                await cur.execute("SELECT DISTINCT weekday FROM activity_events ORDER BY weekday")
+                weekdays = [r[0] for r in await cur.fetchall() if r[0]]
+                await cur.execute("SELECT DISTINCT start_time FROM activity_events ORDER BY start_time")
+                times = [r[0] for r in await cur.fetchall() if r[0]]
+                return {"locations": locations, "types": types, "academies": academies, "weekdays": weekdays, "times": times}
+    return {"locations": [], "types": [], "academies": [], "weekdays": [], "times": []}
 
-async def activity_stats(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None):
+async def activity_stats(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None, weekdays: list = None, start_times: list = None):
     where = " WHERE 1=1"
     params = []
     if start_date:
@@ -1146,6 +1187,14 @@ async def activity_stats(start_date: str = None, end_date: str = None, locations
         placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(academies))
         where += f" AND academy IN ({placeholders})"
         params.extend(academies)
+    if weekdays:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(weekdays))
+        where += f" AND weekday IN ({placeholders})"
+        params.extend(weekdays)
+    if start_times:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(start_times))
+        where += f" AND start_time IN ({placeholders})"
+        params.extend(start_times)
 
     async def run_query(sql, p):
         if use_sqlite():
@@ -1196,3 +1245,153 @@ async def activity_stats(start_date: str = None, end_date: str = None, locations
         "location_top": location_top,
         "activity_types": type_stats
     }
+
+async def admin_get_record_ids(uuid=None, start=None, end=None):
+    where = " WHERE 1=1"
+    params = []
+    if uuid:
+        where += " AND uuid = ?" if use_sqlite() else " AND uuid = %s"
+        params.append(uuid)
+    if start:
+        where += " AND time >= ?" if use_sqlite() else " AND time >= %s"
+        params.append(start)
+    if end:
+        where += " AND time <= ?" if use_sqlite() else " AND time <= %s"
+        params.append(end)
+        
+    sql = f"SELECT id FROM records {where}"
+    rows = await run_query(sql, params)
+    return [r[0] for r in rows]
+
+async def admin_batch_delete(ids):
+    if not ids: return
+    placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(ids))
+    sql = f"DELETE FROM records WHERE id IN ({placeholders})"
+    
+    if use_sqlite():
+        if _sqlite is None: await init_sqlite()
+        if _sqlite:
+            await _sqlite.execute(sql, ids)
+            await _sqlite.commit()
+    elif not _pool: await init_pool()
+    if _pool:
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, ids)
+
+async def run_query(sql: str, params: list):
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            return await cur.fetchall()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, params)
+                return await cur.fetchall()
+
+async def walkin_preview(devices: list, start: str, end: str):
+    # Query records
+    where = " WHERE 1=1"
+    params = []
+    
+    if devices:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(devices))
+        where += f" AND uuid IN ({placeholders})"
+        params.extend(devices)
+        
+    if start:
+        where += " AND time >= ?" if use_sqlite() else " AND time >= %s"
+        params.append(start)
+    if end:
+        where += " AND time <= ?" if use_sqlite() else " AND time <= %s"
+        params.append(end)
+        
+    sql = f"SELECT uuid, time, in_count FROM records {where} ORDER BY uuid, time"
+    
+    rows = await run_query(sql, params)
+    if not rows: return []
+    
+    # Process
+    import datetime
+    data_map = {} # (uuid, date, interval_idx) -> {min_in, max_in}
+    
+    # 30 min intervals
+    def get_interval(dt):
+        idx = dt.hour * 2 + (1 if dt.minute >= 30 else 0)
+        return idx
+        
+    for r in rows:
+        uuid = r[0]
+        t_str = str(r[1])
+        in_c = r[2]
+        if not t_str or in_c is None: continue
+        
+        try:
+            # Handle standard format
+            dt = datetime.datetime.strptime(t_str, "%Y-%m-%d %H:%M:%S")
+        except:
+            try:
+                 dt = datetime.datetime.strptime(t_str, "%Y-%m-%d %H:%M")
+            except:
+                 continue
+            
+        date = dt.strftime("%Y-%m-%d")
+        idx = get_interval(dt)
+        
+        key = (uuid, date, idx)
+        if key not in data_map:
+            data_map[key] = {"min": in_c, "max": in_c}
+        else:
+            data_map[key]["min"] = min(data_map[key]["min"], in_c)
+            data_map[key]["max"] = max(data_map[key]["max"], in_c)
+            
+    # Generate Events
+    events = []
+    # Need device mapping for name
+    mapping = await get_device_mapping()
+    mapping = mapping.get("mapping", {})
+    
+    wd_map = {1:"周一", 2:"周二", 3:"周三", 4:"周四", 5:"周五", 6:"周六", 7:"周日"}
+    
+    for (uuid, date, idx), val in data_map.items():
+        count = val["max"] - val["min"]
+        if count <= 0: continue
+        
+        # Start Time
+        h = idx // 2
+        m = (idx % 2) * 30
+        s_time = f"{h:02d}:{m:02d}"
+        
+        # End Time
+        end_idx = idx + 1
+        eh = end_idx // 2
+        em = (end_idx % 2) * 30
+        if eh >= 24: 
+             e_time = "23:59"
+        else:
+             e_time = f"{eh:02d}:{em:02d}"
+             
+        dt = datetime.datetime.strptime(date, "%Y-%m-%d")
+        weekday = wd_map.get(dt.isoweekday(), "")
+        
+        loc_name = mapping.get(uuid, uuid)
+        
+        events.append({
+            "date": date,
+            "weekday": weekday,
+            "start_time": s_time,
+            "end_time": e_time,
+            "duration_minutes": 30,
+            "academy": "公共", 
+            "location": loc_name, 
+            "activity_name": "散客",
+            "activity_type": "散客访问",
+            "audience_count": count,
+            "notes": f"from device {uuid}"
+        })
+    
+    # Sort by date, time
+    events.sort(key=lambda x: (x['date'], x['start_time']))
+    return events

@@ -3,213 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>泰山科技学院书院运行使用状态数据看板</title>
+    <title>书院运行状态看板</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #f4f6f8;
-            --card-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            --primary-soft: rgba(34, 139, 230, 0.1);
-        }
-        
-        body {
-            background-color: var(--bg-color);
-            color: var(--text);
+            --primary: #4361ee;
+            --primary-hover: #3a56d4;
+            --primary-light: #eef2ff;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --text-main: #2b2d42;
+            --text-secondary: #8d99ae;
+            --bg-body: #f8f9fa;
+            --bg-card: #ffffff;
+            --border-color: #edf2f4;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+            --radius-md: 12px;
+            --radius-sm: 8px;
         }
 
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Header */
         .page-header {
-            background: var(--card-bg);
-            padding: 20px 24px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: var(--card-shadow);
+            background: var(--bg-card);
+            padding: 24px 32px;
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            border: 1px solid var(--border-color);
         }
-        
+
         .page-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 700;
-            color: var(--text);
+            color: var(--text-main);
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
+        }
+        
+        .page-title span {
+            font-size: 28px;
         }
 
-        .filter-container {
+        /* Layout */
+        .dashboard-grid {
             display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 20px;
-            margin-bottom: 20px;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            align-items: start;
         }
-        
-        .filter-main {
+
+        .filter-section {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 24px;
         }
-        
-        .filter-card {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: var(--card-shadow);
-            border: 1px solid rgba(0,0,0,0.02);
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
-        .filter-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
         }
-        
-        .filter-header {
+
+        .card-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
-            margin-bottom: 16px;
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text);
         }
-        
-        .filter-header::before {
+
+        .card-header::before {
             content: '';
             display: block;
             width: 4px;
-            height: 16px;
+            height: 18px;
             background: var(--primary);
-            border-radius: 2px;
-            margin-right: 10px;
+            border-radius: 4px;
+            margin-right: 12px;
         }
 
         /* Academy Pills */
         .academy-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
         }
+
         .academy-pill {
-            padding: 6px 16px;
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 20px;
+            padding: 8px 20px;
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: 50px;
             cursor: pointer;
-            font-size: 13px;
-            color: #495057;
-            transition: all 0.2s;
+            font-size: 14px;
             font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
         }
+
         .academy-pill:hover {
             border-color: var(--primary);
             color: var(--primary);
-            background: var(--primary-soft);
+            background: #fff;
+            transform: translateY(-1px);
         }
+
         .academy-pill.active {
             background: var(--primary);
             color: #fff;
             border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(34, 139, 230, 0.3);
-        }
-        
-        /* Tags (Activity Types) */
-        .tag-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .tag {
-            padding: 6px 14px;
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            color: #495057;
-            transition: all 0.2s;
-        }
-        .tag:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .tag.active {
-            background: var(--primary-soft);
-            color: var(--primary);
-            border-color: var(--primary);
-            font-weight: 600;
-        }
-        
-        /* Time Grid */
-        .time-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 8px;
-        }
-        .time-item {
-            text-align: center;
-            padding: 8px 4px;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-            background: #fff;
-            color: #495057;
-            transition: all 0.2s;
-        }
-        .time-item:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .time-item.active {
-            background: var(--primary);
-            color: #fff;
-            border-color: var(--primary);
-            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
         }
 
-        /* Week List */
+        /* Sub Grid for Week/Time */
+        .sub-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 24px;
+        }
+
+        /* Week Items */
         .week-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
+
         .week-item {
-            padding: 10px 14px;
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
+            padding: 12px 16px;
+            background: var(--bg-body);
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 13px;
-            color: #495057;
+            font-size: 14px;
+            color: var(--text-main);
             transition: all 0.2s;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
+
         .week-item:hover {
+            background: #fff;
             border-color: var(--primary);
             color: var(--primary);
-            background: var(--primary-soft);
         }
+
         .week-item.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Time Grid */
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 10px;
+        }
+
+        .time-item {
+            text-align: center;
+            padding: 10px 4px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            background: var(--bg-body);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .time-item:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #fff;
+        }
+
+        .time-item.active {
             background: var(--primary);
             color: #fff;
             border-color: var(--primary);
-            box-shadow: 0 2px 4px rgba(34, 139, 230, 0.3);
         }
 
-        /* Location Grid */
-        .location-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        /* Tags/Types */
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
             gap: 10px;
         }
-        .location-item {
-            padding: 8px 12px;
+
+        .tag {
+            padding: 8px 16px;
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            border-color: var(--primary);
+            color: var(--primary);
             background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            color: #495057;
+        }
+
+        .tag.active {
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Locations */
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .location-item {
+            padding: 10px;
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-main);
             text-align: center;
             cursor: pointer;
             font-size: 13px;
@@ -218,69 +264,146 @@
             text-overflow: ellipsis;
             transition: all 0.2s;
         }
+
         .location-item:hover {
             border-color: var(--primary);
             color: var(--primary);
+            background: #fff;
         }
+
         .location-item.active {
-            background: var(--primary-soft);
+            background: var(--primary-light);
             color: var(--primary);
             border-color: var(--primary);
             font-weight: 600;
         }
-        
-        /* Results Section */
+
+        /* Results Table */
         .results-section {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: var(--card-shadow);
-            border: 1px solid rgba(0,0,0,0.02);
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 0;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            margin-top: 24px;
+            overflow: hidden;
         }
-        
+
+        .results-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+
+        .results-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .badge-count {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
         .activity-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+            border-collapse: collapse;
         }
+
         .activity-table th {
             background: #f8f9fa;
-            color: #495057;
+            color: var(--text-secondary);
             font-weight: 600;
-            padding: 14px 16px;
+            padding: 16px 24px;
             text-align: left;
-            border-bottom: 2px solid #e9ecef;
             font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
         }
+
         .activity-table td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f1f3f5;
-            color: #343a40;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
             font-size: 14px;
         }
+
         .activity-table tr:last-child td {
             border-bottom: none;
         }
+
         .activity-table tr:hover td {
             background: #f8f9fa;
         }
-        
-        /* Badges */
-        .badge-custom {
-            padding: 4px 10px;
-            border-radius: 12px;
+
+        /* Status Badges in Table */
+        .badge-table {
+            padding: 6px 12px;
+            border-radius: 6px;
             font-size: 12px;
             font-weight: 500;
+            display: inline-block;
         }
+
         .badge-academy {
-            background: #e7f5ff;
-            color: #1c7ed6;
+            background: #e3f2fd;
+            color: #1976d2;
         }
+
         .badge-type {
-            background: #fff9db;
-            color: #f08c00;
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        /* Inputs */
+        .input-control {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-control:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-load {
+            display: inline-block;
+            padding: 10px 30px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin: 24px 0;
+        }
+
+        .btn-load:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
     </style>
 </head>
@@ -288,42 +411,44 @@
 
 <div class="page-header">
     <h1 class="page-title">
-        <span>🏛️</span> 书院运行状态看板
+        书院运行状态看板
     </h1>
-    <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:16px">
         <label style="font-weight:600; font-size:14px; color:var(--text-secondary)">统计月份</label>
-        <input type="month" id="monthPicker" class="input" style="width:180px; font-size:14px; border-radius:6px; border-color:#e9ecef">
+        <input type="month" id="monthPicker" class="input-control" style="width:160px;">
     </div>
 </div>
 
-<div class="filter-container">
-    <div class="filter-main">
+<div class="dashboard-grid">
+    <!-- Left Column: Filters -->
+    <div class="filter-section">
         <!-- Academies -->
-        <div class="filter-card">
-            <div class="filter-header">书院分类</div>
+        <div class="card">
+            <div class="card-header">书院分类</div>
             <div class="academy-grid" id="academyList">
                 <!-- JS Populated -->
             </div>
         </div>
         
-        <div class="grid" style="display:grid;grid-template-columns: 200px 1fr; gap:20px">
+        <!-- Weekdays & Time (Sub Grid) -->
+        <div class="sub-grid">
             <!-- Weekdays -->
-            <div class="filter-card">
-                <div class="filter-header">周几</div>
-                <div class="week-list" id="weekdayList" style="flex-direction: column; gap: 6px;">
-                    <div class="week-item" data-val="1"><span>周一</span> <span>→</span></div>
-                    <div class="week-item" data-val="2"><span>周二</span> <span>→</span></div>
-                    <div class="week-item" data-val="3"><span>周三</span> <span>→</span></div>
-                    <div class="week-item" data-val="4"><span>周四</span> <span>→</span></div>
-                    <div class="week-item" data-val="5"><span>周五</span> <span>→</span></div>
-                    <div class="week-item" data-val="6"><span>周六</span> <span>→</span></div>
-                    <div class="week-item" data-val="7"><span>周日</span> <span>→</span></div>
+            <div class="card">
+                <div class="card-header">星期</div>
+                <div class="week-list" id="weekdayList">
+                    <div class="week-item" data-val="1"><span>周一</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="2"><span>周二</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="3"><span>周三</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="4"><span>周四</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="5"><span>周五</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="6"><span>周六</span> <span style="opacity:0.3">→</span></div>
+                    <div class="week-item" data-val="7"><span>周日</span> <span style="opacity:0.3">→</span></div>
                 </div>
             </div>
             
             <!-- Start Time -->
-            <div class="filter-card">
-                <div class="filter-header">起始时间</div>
+            <div class="card">
+                <div class="card-header">起始时间</div>
                 <div class="time-grid" id="timeList">
                     <!-- JS Populated -->
                 </div>
@@ -331,16 +456,16 @@
         </div>
 
         <!-- Activity Types -->
-        <div class="filter-card">
-            <div class="filter-header">活动类型</div>
+        <div class="card">
+            <div class="card-header">活动类型</div>
             <div class="tag-list" id="typeList">
                 <!-- JS Populated -->
             </div>
         </div>
         
         <!-- Locations -->
-        <div class="filter-card">
-            <div class="filter-header">具体地点</div>
+        <div class="card">
+            <div class="card-header">具体地点</div>
             <div class="location-grid" id="locationList">
                 <!-- JS Populated -->
             </div>
@@ -348,9 +473,9 @@
     </div>
     
     <!-- Right Column: Date Ranges -->
-    <div class="filter-main">
-        <div class="filter-card" style="position:sticky; top:20px">
-            <div class="filter-header">周次 / 日期范围</div>
+    <div class="filter-section">
+        <div class="card" style="position:sticky; top:20px">
+            <div class="card-header">周次 / 日期范围</div>
             <div class="week-list" id="dateRangeList">
                 <!-- JS Populated -->
             </div>
@@ -358,11 +483,12 @@
     </div>
 </div>
 
+<!-- Results Section -->
 <div class="results-section">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-        <h3 style="margin:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:10px">
+    <div class="results-header">
+        <h3 class="results-title">
             活动列表 
-            <span class="badge-custom" style="background:#e9ecef; color:#495057" id="resultCount">0</span>
+            <span class="badge-count" id="resultCount">0</span>
         </h3>
     </div>
     <div class="table-wrap">
@@ -381,8 +507,8 @@
             <tbody id="resultTable"></tbody>
         </table>
     </div>
-    <div style="text-align:center;margin-top:16px">
-        <button class="btn" id="loadMore" style="display:none">加载更多</button>
+    <div style="text-align:center;">
+        <button class="btn-load" id="loadMore" style="display:none">加载更多数据</button>
     </div>
 </div>
 
@@ -396,7 +522,7 @@
         filters: {
             academies: new Set(),
             weekdays: new Set(),
-            minTime: null,
+            start_times: new Set(), // Changed from minTime
             dateRange: null, // {start, end}
             types: new Set(),
             locations: new Set()
@@ -423,49 +549,68 @@
         // Init Date
         els.monthPicker.value = state.month;
         
-        // Load Options
-        const [optRes, acaRes] = await Promise.all([
-            fetch('/api/v1/activity/options'),
-            fetch('/api/v1/academies')
-        ]);
-        const opts = await optRes.json();
-        const acaList = await acaRes.json();
+        // Load Options & Mapping
+        let opts = { locations:[], types:[], academies:[], weekdays:[], times:[] };
+        let acaList = [];
+        let deviceMap = {};
+
+        try {
+            const [optRes, acaRes, mapRes] = await Promise.all([
+                fetch('/api/v1/activity/options'),
+                fetch('/api/v1/academies'),
+                fetch('/api/v1/devices/mapping')
+            ]);
+            
+            if(optRes.ok) opts = await optRes.json();
+            if(acaRes.ok) acaList = await acaRes.json();
+            if(mapRes.ok) {
+                const mapData = await mapRes.json();
+                deviceMap = mapData.mapping || {};
+            }
+        } catch(e) {
+            console.error("Load options failed", e);
+        }
         
-        // Use academies from registry
-        const academyNames = acaList.map(a => a.name);
+        // Academies: Merge Registry + Existing
+        const academyNames = new Set(acaList.map(a => a.name));
+        if(opts.academies) opts.academies.forEach(a => academyNames.add(a));
         
-        // Fixed Activity Types
+        // Activity Types: Merge Fixed + Existing
         const fixedTypes = [
             "班团活动", "公益/志愿活动", "会议活动", "培训活动", "其他活动", 
             "全生异科导师活动", "散客访问", "社团活动", "书院活动", 
             "体育活动", "项目工坊活动", "艺术活动", "项目工坊"
         ];
+        const typeSet = new Set(fixedTypes);
+        if(opts.types) opts.types.forEach(t => typeSet.add(t));
         
-        renderOptions(els.academyList, academyNames, 'academies', 'academy-pill');
-        renderOptions(els.typeList, fixedTypes, 'types', 'tag');
-        renderOptions(els.locationList, opts.locations, 'locations', 'location-item');
+        renderOptions(els.academyList, Array.from(academyNames).sort(), 'academies', 'academy-pill');
+        renderOptions(els.typeList, Array.from(typeSet).sort(), 'types', 'tag');
         
-        renderTimes();
+        // Locations with Mapping
+        const locations = (opts.locations || []).map(l => {
+            const entry = deviceMap[l];
+            const name = entry ? (entry.name || l) : l;
+            return { val: l, display: name === l ? l : name }; 
+        });
+        renderLocations(els.locationList, locations, 'locations', 'location-item');
+        
+        renderTimes(opts.times || []);
+        
+        // Weekdays (Fixed set to ensure order, but using values that match DB likely "周一")
+        const weekVars = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+        renderWeekdays(els.weekdayList, weekVars);
+
         renderDateRanges();
         
         // Event Listeners
         els.monthPicker.addEventListener('change', (e) => {
             if(e.target.value) {
                 state.month = e.target.value;
-                state.filters.dateRange = null; // Reset date range when month changes
+                state.filters.dateRange = null; 
                 renderDateRanges();
                 reload();
             }
-        });
-
-        // Weekday Listeners
-        document.querySelectorAll('#weekdayList .week-item').forEach(el => {
-            el.addEventListener('click', () => {
-                const val = el.dataset.val;
-                toggleFilter('weekdays', val);
-                el.classList.toggle('active');
-                reload();
-            });
         });
         
         els.loadMore.addEventListener('click', () => {
@@ -478,6 +623,10 @@
     }
 
     function renderOptions(container, items, filterKey, className) {
+        if(!items || items.length === 0) {
+            container.innerHTML = '<div style="color:#ccc;font-size:12px;padding:10px">暂无数据</div>';
+            return;
+        }
         container.innerHTML = items.map(item => `
             <div class="${className}" data-val="${item}">${item}</div>
         `).join('');
@@ -491,36 +640,58 @@
             });
         });
     }
-
-    function renderTimes() {
-        const times = [];
-        let h = 5, m = 30;
-        while(h < 22 || (h===22 && m===0)) {
-            const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-            times.push(timeStr);
-            m += 30;
-            if(m === 60) { h++; m = 0; }
-        }
+    
+    function renderWeekdays(container, items) {
+        container.innerHTML = items.map(w => `
+            <div class="week-item" data-val="${w}"><span>${w}</span> <span style="opacity:0.3">→</span></div>
+        `).join('');
         
-        els.timeList.innerHTML = times.map(t => `
+        container.querySelectorAll('.week-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const val = el.dataset.val;
+                toggleFilter('weekdays', val);
+                el.classList.toggle('active');
+                reload();
+            });
+        });
+    }
+
+    function renderLocations(container, items, filterKey, className) {
+        if(!items || items.length === 0) {
+            container.innerHTML = '<div style="color:#ccc;font-size:12px;padding:10px">暂无数据</div>';
+            return;
+        }
+        container.innerHTML = items.map(item => `
+            <div class="${className}" data-val="${item.val}">${item.display}</div>
+        `).join('');
+        
+        container.querySelectorAll('.' + className.split(' ')[0]).forEach(el => {
+            el.addEventListener('click', () => {
+                const val = el.dataset.val;
+                toggleFilter(filterKey, val);
+                el.classList.toggle('active');
+                reload();
+            });
+        });
+    }
+
+    function renderTimes(times) {
+        const fixedTimes = [
+            "05:30", "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+            "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00",
+            "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30",
+            "22:00"
+        ];
+        
+        els.timeList.innerHTML = fixedTimes.map(t => `
             <div class="time-item" data-val="${t}">${t}</div>
         `).join('');
         
         els.timeList.querySelectorAll('.time-item').forEach(el => {
             el.addEventListener('click', () => {
-                // Single select logic for time? "Activities after selected time"
-                // If clicked again, deselect?
                 const val = el.dataset.val;
-                
-                // Clear others
-                els.timeList.querySelectorAll('.time-item').forEach(i => i.classList.remove('active'));
-                
-                if(state.filters.minTime === val) {
-                    state.filters.minTime = null; // Toggle off
-                } else {
-                    state.filters.minTime = val;
-                    el.classList.add('active');
-                }
+                toggleFilter('start_times', val); 
+                el.classList.toggle('active');
                 reload();
             });
         });
@@ -538,12 +709,6 @@
         while(curr <= endMonth) {
             // Start of "week" (or segment)
             let start = new Date(curr);
-            
-            // Find end of week (Sunday) or End of Month
-            // Day 0 is Sunday, 1 is Mon... 
-            // We want chunks. Let's say we split by 7 days or standard weeks?
-            // User: "每一周为一个选择时间段，不足一周的也要列出（注意不要超出本月日期）"
-            // Usually standard weeks start on Monday.
             
             let day = curr.getDay(); // 0(Sun) - 6(Sat)
             // Adjust to Monday start: Mon(0) ... Sun(6)
@@ -568,7 +733,7 @@
         els.dateRangeList.innerHTML = ranges.map(r => `
             <div class="week-item" data-start="${r.start}" data-end="${r.end}">
                 <span>${r.start} - ${r.end}</span>
-                <span>→</span>
+                <span style="opacity:0.3">→</span>
             </div>
         `).join('');
         
@@ -621,21 +786,21 @@
         // Date Logic
         // Base range is the whole month unless dateRange is selected
         if(state.filters.dateRange) {
-            q.append('start', state.filters.dateRange.start.replace(/\//g, '-'));
-            q.append('end', state.filters.dateRange.end.replace(/\//g, '-'));
+            q.append('start_date', state.filters.dateRange.start.replace(/\//g, '-'));
+            q.append('end_date', state.filters.dateRange.end.replace(/\//g, '-'));
         } else {
             // Whole month
             const [y, m] = state.month.split('-');
             const lastDay = new Date(y, m, 0).getDate();
-            q.append('start', `${state.month}-01`);
-            q.append('end', `${state.month}-${lastDay}`);
+            q.append('start_date', `${state.month}-01`);
+            q.append('end_date', `${state.month}-${lastDay}`);
         }
         
         if(state.filters.academies.size > 0) q.append('academies', Array.from(state.filters.academies).join(','));
         if(state.filters.types.size > 0) q.append('types', Array.from(state.filters.types).join(','));
         if(state.filters.locations.size > 0) q.append('locations', Array.from(state.filters.locations).join(','));
         if(state.filters.weekdays.size > 0) q.append('weekdays', Array.from(state.filters.weekdays).join(','));
-        if(state.filters.minTime) q.append('min_time', state.filters.minTime);
+        if(state.filters.start_times.size > 0) q.append('start_times', Array.from(state.filters.start_times).join(','));
 
         const res = await fetch('/api/v1/activity/list?' + q.toString());
         const data = await res.json();
@@ -645,7 +810,7 @@
         if(data.items.length === 0) {
             state.hasMore = false;
             els.loadMore.style.display = 'none';
-            if(!append) els.resultTable.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999">暂无数据</td></tr>';
+            if(!append) els.resultTable.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;padding:40px 0;">暂无数据</td></tr>';
             return;
         }
         
@@ -653,11 +818,11 @@
             <tr>
                 <td>${i.date} (周${mapWeekday(i.weekday)})</td>
                 <td>${i.start_time}-${i.end_time}</td>
-                <td><span class="badge-custom badge-academy">${i.academy || '-'}</span></td>
-                <td><strong>${i.activity_name}</strong></td>
-                <td><span class="badge-custom badge-type">${i.activity_type}</span></td>
+                <td><span class="badge-table badge-academy">${i.academy || '-'}</span></td>
+                <td><strong style="font-weight:600">${i.activity_name}</strong></td>
+                <td><span class="badge-table badge-type">${i.activity_type}</span></td>
                 <td>${i.location}</td>
-                <td style="font-weight:bold;color:var(--primary)">${i.audience_count}</td>
+                <td style="font-weight:700;color:var(--primary)">${i.audience_count}</td>
             </tr>
         `).join('');
         
@@ -671,14 +836,16 @@
     }
 
     function mapWeekday(wd) {
-        // DB might return 'Mon', 'Tue' or '1', '2'. 
-        // Or Chinese '星期一'.
-        // Let's assume standard names or numbers.
+        if(!wd) return '';
+        const s = String(wd);
+        if(s.startsWith('周')) return s.replace('周', '');
+        if(s.startsWith('星期')) return s.replace('星期', '');
+
         const map = {
             'Mon': '一', 'Tue': '二', 'Wed': '三', 'Thu': '四', 'Fri': '五', 'Sat': '六', 'Sun': '日',
             '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '日'
         };
-        return map[wd] || wd;
+        return map[s] || s;
     }
 
     init();

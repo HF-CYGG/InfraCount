@@ -117,31 +117,80 @@
 
 <!-- Batch Edit Modal -->
 <div id="batchEditModal" class="modal-backdrop">
-    <div class="modal">
+    <div class="modal" style="width:600px">
         <h3>批量修改</h3>
-        <p class="text-sm text-muted">已选择 <span id="batchCount">0</span> 条记录</p>
+        
+        <div style="background:#f8f9fa;padding:16px;border-radius:4px;margin-bottom:16px">
+            <h4 style="margin-top:0;font-size:14px">1. 选择修改范围</h4>
+            <div class="mb-2">
+                <label style="display:inline-flex;align-items:center;margin-right:16px">
+                    <input type="radio" name="batchScope" value="selection" checked> 
+                    当前勾选 (<span id="batchCount">0</span> 条)
+                </label>
+                <label style="display:inline-flex;align-items:center">
+                    <input type="radio" name="batchScope" value="filter"> 
+                    按条件筛选
+                </label>
+            </div>
+            
+            <div id="batchFilterOptions" style="display:none;padding-left:20px;border-left:2px solid #dee2e6">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px">
+                    <div>
+                        <label style="font-size:12px">开始时间</label>
+                        <input type="datetime-local" id="batchStart" class="input w-full">
+                    </div>
+                    <div>
+                        <label style="font-size:12px">结束时间</label>
+                        <input type="datetime-local" id="batchEnd" class="input w-full">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label style="font-size:12px">设备 (可选)</label>
+                    <select id="batchDevice" class="select w-full"></select>
+                </div>
+                <button class="btn btn-sm" id="batchCheckCount">查询匹配数量</button>
+                <span id="batchFilterCount" style="margin-left:8px;font-size:12px;color:var(--primary)"></span>
+            </div>
+        </div>
+
+        <h4 style="font-size:14px">2. 设置新值 (留空则不修改)</h4>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div class="mb-2"><label>IN</label><input id="batch_in" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>OUT</label><input id="batch_out" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>电量</label><input id="batch_bat" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>Tx电量</label><input id="batch_btx" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>记录类型</label><input id="batch_rec_type" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>告警状态</label>
+                <select id="batch_status" class="select w-full">
+                    <option value="">保持原值</option>
+                    <option value="0">正常 (0)</option>
+                    <option value="1">告警 (1)</option>
+                </select>
+            </div>
+        </div>
         <div class="mb-4">
             <label>活动类型</label>
-            <select id="batchTypeVal" class="select">
-                <option value="">-- 选择活动类型 --</option>
+            <select id="batch_act_type" class="select w-full">
+                <option value="">保持原值</option>
                 <option value="班团活动">班团活动</option>
                 <option value="公益/志愿活动">公益/志愿活动</option>
                 <option value="会议活动">会议活动</option>
                 <option value="培训活动">培训活动</option>
                 <option value="其他活动">其他活动</option>
-                <option value="全生异科导师活动">全生异科导师活动</option>
                 <option value="散客访问">散客访问</option>
-                <option value="社团活动">社团活动</option>
-                <option value="书院活动">书院活动</option>
-                <option value="体育活动">体育活动</option>
-                <option value="项目工坊活动">项目工坊活动</option>
-                <option value="艺术活动">艺术活动</option>
-                <option value="项目工坊">项目工坊</option>
             </select>
         </div>
+        <div class="mb-4">
+            <label>操作 (批量删除)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="batchDeleteFlag">
+                <span style="color:var(--danger)">确认删除匹配的记录 (慎用)</span>
+            </div>
+        </div>
+
         <div class="actions">
             <button class="btn" id="batchEditCancel">取消</button>
-            <button class="btn btn-primary" id="batchEditConfirm">保存</button>
+            <button class="btn btn-primary" id="batchEditConfirm">确认修改</button>
         </div>
     </div>
 </div>
@@ -283,16 +332,18 @@
     let mergePlan = { creates: [], updates: [] }; // Stores pending actions
 
     async function loadDevices() {
-        const mapRes = await fetch('/api/v1/device/mapping');
+        const mapRes = await fetch('/api/v1/devices/mapping');
         if(mapRes.ok) deviceMap = (await mapRes.json()).mapping || {};
 
         const res = await fetch('/api/v1/devices');
         const list = await res.json();
         
         els.device.innerHTML = list.map(d => {
-            const name = deviceMap[d.uuid] || d.uuid;
-            const display = name === d.uuid ? d.uuid : `${name} (${d.uuid})`;
-            return `<option value="${d.uuid}">${display}</option>`;
+            const uuid = typeof d === 'string' ? d : d.uuid;
+            const entry = deviceMap[uuid];
+            const name = entry ? (entry.name || uuid) : uuid;
+            const display = name === uuid ? uuid : `${name} (${uuid})`;
+            return `<option value="${uuid}">${display}</option>`;
         }).join('');
     }
 
@@ -312,8 +363,16 @@
         if(els.fMin.value) q.append('batterytx_min', els.fMin.value);
         if(els.fMax.value) q.append('batterytx_max', els.fMax.value);
         
-        const res = await fetch('/api/v1/data/history?' + q.toString());
+        const res = await fetch('/api/v1/records/history?' + q.toString());
+        if(!res.ok) {
+             console.error("Fetch history failed", res.status);
+             return;
+        }
         const rows = await res.json();
+        if(!Array.isArray(rows)) {
+            console.error("History data is not an array", rows);
+            return;
+        }
         
         els.tbl.innerHTML = rows.map(r => `
             <tr>
@@ -399,11 +458,13 @@
             activity_type: els.m_type.value
         };
 
-        let url = '/api/v1/admin/record/update';
+        let url = '/api/v1/admin/records';
+        let method = 'POST';
+
         if (currentEditId) {
-            payload.id = currentEditId;
+            url = '/api/v1/admin/records/' + currentEditId;
+            method = 'PUT';
         } else {
-            url = '/api/v1/admin/record/create';
             const uuid = els.device.value;
             if(!uuid) return showAlert('请先选择设备');
             payload.uuid = uuid;
@@ -414,7 +475,7 @@
         }
 
         const res = await fetch(url, {
-            method: 'POST',
+            method: method,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
@@ -431,10 +492,8 @@
     // --- Delete ---
     window.onDel = async (id) => {
         if(!await showConfirm('确认删除?')) return;
-        const res = await fetch('/api/v1/admin/record/delete', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id})
+        const res = await fetch('/api/v1/admin/records/' + id, {
+            method: 'DELETE'
         });
         if(res.ok) loadHistory();
         else await showAlert('删除失败');
@@ -449,10 +508,9 @@
         const s = els.delStart.value.replace(/[-T:]/g, '') + '00';
         const e = els.delEnd.value.replace(/[-T:]/g, '') + '00';
         
-        const res = await fetch('/api/v1/admin/record/delete-range', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({start: s, end: e})
+        const q = new URLSearchParams({start: s, end: e});
+        const res = await fetch('/api/v1/admin/records/range?' + q.toString(), {
+            method: 'DELETE'
         });
         if(res.ok) {
             els.delRangeModal.classList.remove('show');
@@ -463,35 +521,135 @@
     });
 
     // --- Batch Edit ---
+    const elsBatch = {
+        radios: document.getElementsByName('batchScope'),
+        filterOpts: document.getElementById('batchFilterOptions'),
+        checkCount: document.getElementById('batchCheckCount'),
+        filterCount: document.getElementById('batchFilterCount'),
+        start: document.getElementById('batchStart'),
+        end: document.getElementById('batchEnd'),
+        device: document.getElementById('batchDevice'),
+        // Inputs
+        in: document.getElementById('batch_in'),
+        out: document.getElementById('batch_out'),
+        bat: document.getElementById('batch_bat'),
+        btx: document.getElementById('batch_btx'),
+        rec_type: document.getElementById('batch_rec_type'),
+        status: document.getElementById('batch_status'),
+        act_type: document.getElementById('batch_act_type'),
+        delFlag: document.getElementById('batchDeleteFlag')
+    };
+
     els.batchEditBtn.addEventListener('click', () => {
         const checked = document.querySelectorAll('.row-check:checked');
-        if(checked.length === 0) return showAlert('请先选择记录');
         els.batchCount.textContent = checked.length;
-        els.batchTypeVal.value = '';
+        
+        // Init UI
+        elsBatch.radios[0].checked = true;
+        elsBatch.filterOpts.style.display = 'none';
+        
+        // Populate devices if needed
+        if(elsBatch.device.children.length === 0) {
+             elsBatch.device.innerHTML = '<option value="">-- 所有设备 --</option>' + els.device.innerHTML;
+        }
+        
         els.batchEditModal.classList.add('show');
     });
+    
+    elsBatch.radios.forEach(r => {
+        r.addEventListener('change', () => {
+            elsBatch.filterOpts.style.display = (r.value === 'filter') ? 'block' : 'none';
+        });
+    });
+
+    elsBatch.checkCount.addEventListener('click', async () => {
+        const s = elsBatch.start.value ? elsBatch.start.value.replace('T', ' ') : '';
+        const e = elsBatch.end.value ? elsBatch.end.value.replace('T', ' ') : '';
+        const uuid = elsBatch.device.value;
+        
+        const q = new URLSearchParams({start: s, end: e, uuid: uuid, size: 1}); 
+        try {
+            const res = await fetch('/api/v1/admin/records?' + q.toString());
+            const data = await res.json();
+            elsBatch.filterCount.textContent = `匹配 ${data.total} 条`;
+        } catch(e) {
+            elsBatch.filterCount.textContent = '查询出错';
+        }
+    });
+
     els.batchEditCancel.addEventListener('click', () => els.batchEditModal.classList.remove('show'));
+    
     els.batchEditConfirm.addEventListener('click', async () => {
-        const checked = document.querySelectorAll('.row-check:checked');
-        const ids = Array.from(checked).map(c => c.value);
-        const typeVal = els.batchTypeVal.value.trim();
+        const scope = Array.from(elsBatch.radios).find(r => r.checked).value;
+        let ids = [];
         
-        if(!typeVal) return showAlert('请输入活动类型');
+        if(scope === 'selection') {
+            const checked = document.querySelectorAll('.row-check:checked');
+            if(checked.length === 0) return showAlert('请先选择记录');
+            ids = Array.from(checked).map(c => c.value);
+        } else {
+            const s = elsBatch.start.value ? elsBatch.start.value.replace('T', ' ') : '';
+            const e = elsBatch.end.value ? elsBatch.end.value.replace('T', ' ') : '';
+            const uuid = elsBatch.device.value;
+            
+            // Call ID fetch endpoint
+            const q = new URLSearchParams({start: s, end: e, uuid: uuid});
+            try {
+                const res = await fetch('/api/v1/admin/records/ids?' + q.toString());
+                if(!res.ok) throw new Error('查询ID失败');
+                const data = await res.json();
+                ids = data.ids;
+            } catch(err) {
+                return showAlert(err.message);
+            }
+            
+            if(ids.length === 0) return showAlert('未找到匹配记录');
+            if(!await showConfirm(`确认修改筛选出的 ${ids.length} 条记录?`)) return;
+        }
         
-        const res = await fetch('/api/v1/admin/record/batch-update', {
+        // Delete Check
+        if(elsBatch.delFlag.checked) {
+             if(!await showConfirm(`警告: 确定要删除这 ${ids.length} 条记录吗? 此操作不可恢复！`)) return;
+             const res = await fetch('/api/v1/admin/records/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids })
+             });
+             if(res.ok) {
+                 els.batchEditModal.classList.remove('show');
+                 loadHistory();
+                 showAlert('批量删除成功');
+             } else {
+                 showAlert('批量删除失败');
+             }
+             return;
+        }
+
+        // Build updates
+        const updates = {};
+        if(elsBatch.in.value) updates.in_count = parseInt(elsBatch.in.value);
+        if(elsBatch.out.value) updates.out_count = parseInt(elsBatch.out.value);
+        if(elsBatch.bat.value) updates.battery = parseInt(elsBatch.bat.value);
+        if(elsBatch.btx.value) updates.btx = parseInt(elsBatch.btx.value);
+        if(elsBatch.rec_type.value) updates.rec_type = parseInt(elsBatch.rec_type.value);
+        if(elsBatch.status.value) updates.warn_status = parseInt(elsBatch.status.value);
+        if(elsBatch.act_type.value) updates.activity_type = elsBatch.act_type.value;
+        
+        if(Object.keys(updates).length === 0) return showAlert('未设置任何修改值');
+        
+        const res = await fetch('/api/v1/admin/records/batch-update', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 ids: ids,
-                updates: {
-                    activity_type: typeVal
-                }
+                updates: updates
             })
         });
         
         if(res.ok) {
             els.batchEditModal.classList.remove('show');
             loadHistory();
+            showAlert('批量修改成功');
         } else {
             await showAlert('批量修改失败');
         }
@@ -546,8 +704,10 @@
         
         // 2. Fetch Local for comparison
         const localQ = new URLSearchParams({uuid, start: s, end: e, limit: 10000});
-        const localRes = await fetch('/api/v1/data/history?' + localQ);
+        const localRes = await fetch('/api/v1/records/history?' + localQ);
+        if(!localRes.ok) return showAlert('获取本地数据失败');
         const localData = await localRes.json();
+        if(!Array.isArray(localData)) return showAlert('本地数据格式错误');
         
         // 3. Compare
         // Map local by time

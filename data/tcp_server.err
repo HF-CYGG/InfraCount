@@ -92,3 +92,145 @@ ib\asyncio\runners.py", line 44, in run
 OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
 2025-12-07 03:07:33,242 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-07 03:07:33,243 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 18:14:24,339 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-07 18:14:24,340 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 18:29:55,807 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+2025-12-07 18:30:01,503 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-07 18:30:01,505 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 19:02:02,141 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+2025-12-07 19:02:04,303 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 19:16:57,876 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 19:18:33,137 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-07 19:20:22,775 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 19:45:35,895 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-07 19:45:38,474 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 19:55:08,316 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+2025-12-07 19:55:10,284 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:00:55,519 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\windows_events.py", line 316, in run_forever
+2025-12-07 20:00:57,394 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:16:02,712 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-07 20:16:04,961 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:19:37,479 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:24:05,328 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:40:43,190 INFO root TCP Server stopped by signal.
+2025-12-07 20:40:45,336 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-07 20:43:25,173 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-07 20:43:28,106 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 15:57:18,101 INFO root TCP Server stopped by signal.
+2025-12-08 15:57:19,904 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 16:28:27,606 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 16:46:09,113 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 16:46:12,496 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 17:08:50,005 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\windows_events.py", line 316, in run_forever
+    super().run_forever()
+  File "E:\python310\lib\asyncio\base_events.py", line 595, in run_forever
+    self._run_once()
+  File "E:\python310\lib\asyncio\base_events.py", line 1845, in _run_once
+    event_list = self._selector.select(timeout)
+  File "E:\python310\lib\asyncio\windows_events.py", line 434, in select
+    self._poll(timeout)
+  File "E:\python310\lib\asyncio\windows_events.py", line 783, in _poll
+    status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
+KeyboardInterrupt
+2025-12-08 17:08:51,848 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 17:08:51,849 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 17:11:45,524 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 17:11:47,258 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 17:11:47,259 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 17:19:24,641 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 17:19:26,225 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 17:19:26,226 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 17:39:13,680 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\windows_events.py", line 316, in run_forever
+    super().run_forever()
+  File "E:\python310\lib\asyncio\base_events.py", line 595, in run_forever
+    self._run_once()
+  File "E:\python310\lib\asyncio\base_events.py", line 1845, in _run_once
+2025-12-08 17:39:15,632 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 17:39:15,633 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 17:58:53,004 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 17:58:53,006 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 18:11:51,949 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+2025-12-08 18:11:54,530 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 18:11:54,532 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 18:21:42,638 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+2025-12-08 18:21:44,507 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 18:21:44,509 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 19:10:41,155 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 19:10:42,835 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 19:10:42,835 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 19:13:54,792 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 19:20:27,441 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 19:20:27,442 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 19:26:54,032 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+2025-12-08 19:26:56,524 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 19:26:56,525 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 19:44:47,538 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+    self.run_forever()
+  File "E:\python310\lib\asyncio\windows_events.py", line 316, in run_forever
+2025-12-08 19:44:52,126 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 19:44:52,128 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 19:53:17,141 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-08 19:55:19,942 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 19:55:19,942 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-08 20:00:06,938 INFO root TCP Server stopped by signal.
+2025-12-08 22:55:37,583 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-08 22:55:37,583 INFO root TCP Server listening on 0.0.0.0:8085

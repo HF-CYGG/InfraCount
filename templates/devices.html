@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设备管理 - InfraCount</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="/static/lib/Sortable.min.js"></script>
     <style>
         .sortable-item {
             background: #fff;
@@ -119,8 +119,17 @@
 
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/layout.js"></script>
 <script>
+    // Ensure Sortable is loaded if not present
+    if (typeof Sortable === 'undefined') {
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js";
+        script.onload = () => console.log("Sortable loaded manually");
+        document.body.appendChild(script);
+    }
+
     initLayout('设备管理');
 
     const els = {
@@ -206,38 +215,30 @@
     async function loadDevices() {
         // We need a rich list. /api/v1/devices might be too simple.
         // Let's assume /api/v1/devices returns registry info or we merge it.
-        // Currently /api/v1/devices returns list of stats? No, it returns list_devices() which queries DB stats.
+        // currently /api/v1/devices returns list_devices() which queries DB stats.
         // admin/device/registry is better.
-        const res = await fetch('/api/v1/admin/device/registry?page_size=1000'); 
-        // Note: Registry endpoint might need auth. If user is just viewer, they can't see?
-        // Let's try public mapping endpoint for list if registry fails?
-        // Or assume user has token.
-        
-        if(res.status === 403) {
-             // Try simple list and merge mapping
-             // For now let's just use the registry endpoint and expect token or return partial.
-             // If 403, show empty or prompt.
-        }
-        
-        let items = [];
-        if(res.ok) {
-            const data = await res.json();
-            items = data.items || [];
-        } else {
-            // Fallback: Get stats list and mapping
+        // Always use the list+mapping approach to ensure ALL devices (even unregistered ones) are shown
+        try {
             const [devRes, mapRes] = await Promise.all([
                 fetch('/api/v1/devices'),
-                fetch('/api/v1/device/mapping')
+                fetch('/api/v1/devices/mapping')
             ]);
+            
             const devs = await devRes.json();
             const mapping = (await mapRes.json()).mapping || {};
-            // Merge
-            items = devs.map(d => ({
-                uuid: d.uuid,
-                name: mapping[d.uuid] || '',
-                category: '', // Can't get category easily without registry access
-                create_time: '-'
-            }));
+            
+            items = devs.map(d => {
+                const uuid = typeof d === 'string' ? d : d.uuid;
+                const entry = mapping[uuid];
+                return {
+                    uuid: uuid,
+                    name: entry ? (entry.name || '') : '',
+                    category: entry ? (entry.category || '') : '',
+                    create_time: '-'
+                };
+            });
+        } catch(e) {
+            console.error("Load devices failed", e);
         }
 
         els.table.innerHTML = items.map(d => `
@@ -268,7 +269,7 @@
         const category = els.editCategory.value;
         
         // Assuming /api/v1/admin/device/registry handles this
-        const res = await fetch('/api/v1/admin/device/registry', {
+        const res = await fetch('/api/v1/admin/registry', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

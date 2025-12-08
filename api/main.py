@@ -1,411 +1,533 @@
-from fastapi import FastAPI, Query, Body, Request, WebSocket, HTTPException
-from typing import Optional, List
-from starlette.responses import HTMLResponse, RedirectResponse, Response, FileResponse
-from starlette.staticfiles import StaticFiles
-import os
-import json
-import logging
-import csv
 import io
+import logging
+from typing import List, Optional, Dict, Any
+from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+from app import db
 from app import config
-from app.db import (
-    init_pool, close_pool, fetch_latest, fetch_history, list_devices, 
-    stats_daily, stats_hourly, stats_summary, stats_top, stats_total, 
-    admin_count_records, admin_list_records, admin_update_record, 
-    admin_delete_record, admin_create_record, list_alerts, 
-    admin_list_registry, admin_upsert_registry, admin_write_op, 
-    admin_delete_range, admin_get_categories, admin_get_uuids, 
-    get_device_mapping, admin_batch_upsert, admin_fetch_range, 
-    activity_bulk_insert, activity_list, activity_stats, activity_get_options,
-    get_academies, add_academy, delete_academy, admin_batch_update, admin_batch_save_records,
-    get_device_ip, update_academy_order
+
+app = FastAPI(title="InfraCount API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-from app.security import issue_csrf, validate_csrf
-import urllib.request
-import urllib.parse
-import ssl
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
-_executor = ThreadPoolExecutor(max_workers=5)
-
-app = FastAPI(title="Infrared Counter API", version="1.0")
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
-async def startup():
-    try:
-        await init_pool()
-    except Exception as e:
-        logging.error(f"Startup failed: {e}")
+async def startup_event():
+    if db.use_sqlite():
+        await db.init_sqlite()
+    else:
+        await db.init_pool()
 
 @app.on_event("shutdown")
-async def shutdown():
-    await close_pool()
+async def shutdown_event():
+    await db.close_pool()
 
-@app.get("/api/v1/health")
-async def health():
-    return {"status": "ok"}
+# --- Static & Pages ---
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return Response(status_code=204)
+    return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
-# --- Data & Stats API ---
-
-@app.get("/api/v1/data/latest")
-async def get_latest(uuid: str = Query(...)):
-    rows = await fetch_latest()
-    # Filter for specific uuid if needed, though fetch_latest gets all
-    for r in rows:
-        if r.get("uuid") == uuid:
-            return {
-                "uuid": r.get("uuid"),
-                "in": r.get("in_count"),
-                "out": r.get("out_count"),
-                "time": r.get("time"),
-                "battery_level": r.get("battery"),
-                "signal_status": r.get("signal_strength"),
-            }
-    return {}
-
-@app.get("/api/data/latest")
-async def get_latest_compat(uuid: str = Query(...)):
-    # Compat endpoint
-    return await get_latest(uuid)
-
-@app.get("/api/v1/data/history")
-async def get_history(uuid: str, start: Optional[str] = None, end: Optional[str] = None, limit: int = 500):
-    rows = await fetch_history(uuid, start, end, limit)
-    return rows
-
-@app.get("/api/v1/devices")
-async def api_list_devices(limit: int = 200):
-    # This should return list of device objects with metadata
-    uuids = await list_devices()
-    mapping = await get_device_mapping()
-    res = []
-    for u in uuids:
-        meta = mapping.get(u, {})
-        res.append({
-            "uuid": u,
-            "name": meta.get("name"),
-            "category": meta.get("category")
-        })
-    return res
-
-@app.get("/api/v1/stats/daily")
-async def api_stats_daily(uuid: str = None, start: Optional[str] = None, end: Optional[str] = None):
-    if start and len(start) == 10: start += " 00:00:00"
-    if end and len(end) == 10: end += " 23:59:59"
-    return await stats_daily(uuid, start, end)
-
-@app.get("/api/v1/stats/hourly")
-async def api_stats_hourly(uuid: str = None, date: str = None):
-    start = None
-    end = None
-    if date:
-        start = f"{date} 00:00:00"
-        end = f"{date} 23:59:59"
-    return await stats_hourly(uuid, start=start, end=end)
-
-@app.get("/api/v1/stats/summary")
-async def api_stats_summary(uuid: str = None):
-    return await stats_summary(uuid)
-
-@app.get("/api/v1/stats/total")
-async def api_stats_total(uuid: str = None, start: Optional[str] = None, end: Optional[str] = None):
-    return await stats_total(uuid, start, end)
-
-# --- Export API ---
-
-def make_csv(headers, rows, filename):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(headers)
-    for row in rows:
-        writer.writerow(row)
-    return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename={filename}"})
-
-@app.get("/api/v1/export/daily")
-async def export_daily(uuid: str = None, start: str = None, end: str = None):
-    data = await stats_daily(uuid, start, end)
-    rows = [[d['date'], d['in'], d['out']] for d in data]
-    return make_csv(['Date', 'In', 'Out'], rows, f'daily_{uuid or "all"}.csv')
-
-@app.get("/api/v1/export/hourly")
-async def export_hourly(uuid: str = None, date: str = None):
-    data = await stats_hourly(uuid, start=date, end=date)
-    rows = [[d['hour'], d['in'], d['out']] for d in data]
-    return make_csv(['Hour', 'In', 'Out'], rows, f'hourly_{uuid or "all"}_{date}.csv')
-
-@app.get("/api/v1/export/history")
-async def export_history(uuid: str = None, start: str = None, end: str = None):
-    rows = await fetch_history(uuid, start, end, limit=100000)
-    if not rows:
-        return make_csv([], [], 'empty.csv')
-    headers = list(rows[0].keys())
-    # Ensure headers are strings
-    headers = [str(h) for h in headers]
-    csv_rows = [[r[h] for h in headers] for r in rows]
-    return make_csv(headers, csv_rows, f'history_{uuid or "all"}.csv')
-
-# --- Admin / Registry API ---
-
-@app.get("/api/v1/device/mapping")
-async def api_device_mapping():
-    m = await get_device_mapping()
-    return {"mapping": {k: v.get("name") for k, v in m.items()}, "full_mapping": m}
-
-@app.get("/api/v1/admin/device/registry")
-async def api_registry_list():
-    items = await admin_list_registry()
-    return {"items": items}
-
-@app.post("/api/v1/admin/device/registry")
-async def api_registry_update(payload: dict = Body(...)):
-    uuid = payload.get("uuid")
-    name = payload.get("name")
-    category = payload.get("category")
-    if not uuid:
-        raise HTTPException(400, "Missing UUID")
-    await admin_upsert_registry(uuid, name, category)
-    return {"status": "ok"}
-
-@app.get("/api/v1/academies")
-async def api_list_academies():
-    return await get_academies()
-
-@app.post("/api/v1/academies")
-async def api_add_academy(payload: dict = Body(...)):
-    name = payload.get("name")
-    if not name:
-        raise HTTPException(400, "Missing name")
-    ok = await add_academy(name)
-    return {"ok": ok}
-
-@app.post("/api/v1/academies-reorder")
-async def api_reorder_academies(payload: dict = Body(...)):
-    order = payload.get("order") # List of IDs
-    if not order:
-        raise HTTPException(400, "Missing order list")
-    await update_academy_order(order)
-    return {"status": "ok"}
-
-@app.delete("/api/v1/academies/{id}")
-async def api_delete_academy(id: int):
-    ok = await delete_academy(id)
-    return {"ok": ok}
-
-@app.post("/api/v1/admin/record/create")
-async def api_record_create(payload: dict = Body(...)):
-    # Validate payload
-    if not payload.get("uuid"):
-        raise HTTPException(400, "Missing UUID")
-    if not payload.get("time"):
-        raise HTTPException(400, "Missing time")
-        
-    # Allowed fields
-    allowed = ["uuid", "time", "in_count", "out_count", "battery", "btx", "rec_type", "signal_strength", "warn_status", "activity_type"]
-    data = {k: v for k, v in payload.items() if k in allowed}
-    
-    # Map frontend keys if needed (battery_level -> battery)
-    if "battery_level" in payload and "battery" not in data:
-        data["battery"] = payload["battery_level"]
-    if "batterytx_level" in payload and "btx" not in data:
-        data["btx"] = payload["batterytx_level"]
-        
-    await admin_create_record(data)
-    return {"status": "ok"}
-
-@app.post("/api/v1/admin/record/delete")
-async def api_record_delete(payload: dict = Body(...)):
-    id = payload.get("id")
-    if not id:
-        raise HTTPException(400, "Missing ID")
-    await admin_delete_record(id)
-    return {"status": "ok"}
-
-@app.post("/api/v1/admin/record/update")
-async def api_record_update(payload: dict = Body(...)):
-    id = payload.get("id")
-    if not id:
-        raise HTTPException(400, "Missing ID")
-    # Clean payload to only allowed fields
-    allowed = ["time", "in_count", "out_count", "battery_level", "batterytx_level", "activity_type"]
-    data = {k: v for k, v in payload.items() if k in allowed}
-    # Map keys
-    if "battery_level" in data:
-        data["battery"] = data.pop("battery_level")
-    if "batterytx_level" in data:
-        data["btx"] = data.pop("batterytx_level")
-        
-    await admin_update_record(id, data)
-    return {"status": "ok"}
-
-@app.post("/api/v1/admin/record/batch-update")
-async def api_record_batch_update(payload: dict = Body(...)):
-    ids = payload.get("ids")
-    updates = payload.get("updates")
-    if not ids or not updates:
-        raise HTTPException(400, "Missing ids or updates")
-        
-    # Allowed
-    allowed = ["time", "in_count", "out_count", "battery_level", "batterytx_level", "activity_type"]
-    data = {k: v for k, v in updates.items() if k in allowed}
-    # Map keys
-    if "battery_level" in data:
-        data["battery"] = data.pop("battery_level")
-    if "batterytx_level" in data:
-        data["btx"] = data.pop("batterytx_level")
-        
-    await admin_batch_update(ids, data)
-    return {"status": "ok"}
-
-@app.post("/api/v1/admin/record/batch-save")
-async def api_record_batch_save(payload: dict = Body(...)):
-    creates = payload.get("creates", [])
-    updates = payload.get("updates", [])
-    
-    # Allowed fields
-    allowed = ["uuid", "time", "in_count", "out_count", "battery", "btx", "rec_type", "signal_strength", "warn_status", "activity_type", "id"]
-    
-    clean_creates = []
-    for c in creates:
-        # Map keys
-        if "battery_level" in c: c["battery"] = c.pop("battery_level")
-        if "batterytx_level" in c: c["btx"] = c.pop("batterytx_level")
-        clean = {k: v for k, v in c.items() if k in allowed and k != "id"} # creates don't have id
-        clean_creates.append(clean)
-        
-    clean_updates = []
-    for u in updates:
-        # Map keys
-        if "battery_level" in u: u["battery"] = u.pop("battery_level")
-        if "batterytx_level" in u: u["btx"] = u.pop("batterytx_level")
-        clean = {k: v for k, v in u.items() if k in allowed}
-        clean_updates.append(clean)
-        
-    await admin_batch_save_records(clean_creates, clean_updates)
-    return {"status": "ok"}
-
-@app.post("/api/v1/admin/sync/fetch")
-async def api_sync_fetch(payload: dict = Body(...)):
-    url = payload.get("url")
-    uuid = payload.get("uuid")
-    start = payload.get("start")
-    end = payload.get("end")
-    
-    if not uuid:
-        raise HTTPException(400, "Missing UUID")
-        
-    if not url:
-        ip = await get_device_ip(uuid)
-        if not ip:
-            raise HTTPException(400, "Device IP unknown and no URL provided")
-        url = f"http://{ip}:8000"
-        
-    # Parse URL to ensure it has scheme
-    if not url.startswith("http"):
-        url = "http://" + url
-        
-    # Build query params
-    params = {"uuid": uuid}
-    if start: params["start"] = start
-    if end: params["end"] = end
-    
-    query = urllib.parse.urlencode(params)
-    target = f"{url}/api/v1/data/history?{query}"
-    
-    def _fetch():
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        try:
-            with urllib.request.urlopen(target, context=ctx, timeout=10) as response:
-                if response.status == 200:
-                    return json.loads(response.read().decode())
-                else:
-                    return None
-        except Exception as e:
-            logging.error(f"Fetch failed: {e}")
-            return None
-            
-    loop = asyncio.get_event_loop()
-    data = await loop.run_in_executor(_executor, _fetch)
-    
-    if data is None:
-        raise HTTPException(502, "Fetch failed from remote device")
-        
-    return data
-
-@app.post("/api/v1/admin/record/delete-range")
-async def api_record_delete_range(payload: dict = Body(...)):
-    start = payload.get("start")
-    end = payload.get("end")
-    if not start or not end:
-        raise HTTPException(400, "Missing range")
-    await admin_delete_range(start, end)
-    return {"status": "ok"}
-
-@app.get("/api/v1/alerts")
-async def api_list_alerts(uuid: str = None, limit: int = 100):
-    return await list_alerts(uuid, limit)
-
-# --- Pages ---
-
-@app.get("/", response_class=RedirectResponse)
+@app.get("/")
 async def index():
-    return "/dashboard"
+    return FileResponse("templates/dashboard.html")
 
-@app.get("/dashboard", response_class=FileResponse)
-async def page_dashboard():
-    return "templates/dashboard.html"
+@app.get("/dashboard")
+async def dashboard():
+    return FileResponse("templates/dashboard.html")
 
-@app.get("/history", response_class=FileResponse)
-async def page_history_view():
-    return "templates/history.html"
+@app.get("/activity-dashboard")
+async def activity_dashboard():
+    return FileResponse("activity_dashboard.html")
 
-@app.get("/classification", response_class=FileResponse)
-async def page_classification():
-    return "templates/devices.html"
+@app.get("/activity")
+async def activity():
+    return FileResponse("templates/activity.html")
 
-@app.get("/devices", response_class=RedirectResponse)
-async def page_devices_redirect():
-    return "/classification"
+@app.get("/history")
+async def history():
+    return FileResponse("templates/history.html")
 
-@app.get("/alerts", response_class=FileResponse)
-async def page_alerts():
-    return "templates/alerts.html"
+@app.get("/history/academy")
+async def history_academy():
+    return FileResponse("templates/history_academy.html")
 
-@app.get("/activity-dashboard", response_class=FileResponse)
-async def page_activity_dashboard():
-    if os.path.exists("templates/activity.html"):
-        return "templates/activity.html"
-    return Response("Activity page not found", status_code=404)
+@app.get("/history/device")
+async def history_device():
+    return FileResponse("templates/history.html")
+
+@app.get("/devices")
+async def devices():
+    return FileResponse("templates/devices.html")
+
+@app.get("/alerts")
+async def alerts():
+    return FileResponse("templates/alerts.html")
+
+# --- Records ---
+
+@app.get("/api/v1/records/latest")
+async def get_records_latest(uuid: str):
+    return await db.fetch_latest(uuid)
+
+@app.get("/api/v1/records/history")
+async def get_records_history(
+    uuid: Optional[str] = None, 
+    limit: int = 100, 
+    start: Optional[str] = None, 
+    end: Optional[str] = None
+):
+    if uuid == "undefined":
+        return []
+    return await db.fetch_history(uuid=uuid, start=start, end=end, limit=limit)
 
 # --- Activity API ---
 
-@app.get("/api/v1/activity/list")
-async def api_activity_list(start: str = None, end: str = None, locations: str = None, types: str = None, academies: str = None, weekdays: str = None, min_time: str = None, page: int = 1, page_size: int = 50):
+@app.get("/api/v1/activity/options")
+async def activity_options():
+    return await db.activity_get_options()
+
+@app.get("/api/v1/activity/events")
+async def activity_events(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    locations: Optional[str] = None,
+    types: Optional[str] = None,
+    academies: Optional[str] = None,
+    weekdays: Optional[str] = None,
+    start_times: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50
+):
     loc_list = locations.split(",") if locations else None
     type_list = types.split(",") if types else None
     aca_list = academies.split(",") if academies else None
     wd_list = weekdays.split(",") if weekdays else None
-    return await activity_list(start, end, loc_list, type_list, aca_list, wd_list, min_time, page, page_size)
+    time_list = start_times.split(",") if start_times else None
+    
+    return await db.activity_list(
+        start_date=start_date,
+        end_date=end_date,
+        locations=loc_list,
+        types=type_list,
+        academies=aca_list,
+        weekdays=wd_list,
+        start_times=time_list,
+        page=page,
+        page_size=page_size
+    )
 
-@app.get("/api/v1/activity/options")
-async def api_activity_options():
-    return await activity_get_options()
-
-@app.get("/api/v1/activity/stats")
-async def api_activity_stats(start: str = None, end: str = None, locations: str = None, types: str = None, academies: str = None):
+@app.get("/api/v1/activity/aggregations")
+async def activity_aggregations(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    locations: Optional[str] = None,
+    types: Optional[str] = None,
+    academies: Optional[str] = None,
+    weekdays: Optional[str] = None,
+    start_times: Optional[str] = None
+):
     loc_list = locations.split(",") if locations else None
     type_list = types.split(",") if types else None
     aca_list = academies.split(",") if academies else None
-    return await activity_stats(start, end, loc_list, type_list, aca_list)
+    wd_list = weekdays.split(",") if weekdays else None
+    time_list = start_times.split(",") if start_times else None
+    
+    return await db.activity_stats(
+        start_date=start_date,
+        end_date=end_date,
+        locations=loc_list,
+        types=type_list,
+        academies=aca_list,
+        weekdays=wd_list,
+        start_times=time_list
+    )
 
 @app.post("/api/v1/activity/upload")
-async def api_activity_upload(payload: List[dict] = Body(...)):
-    count = await activity_bulk_insert(payload)
+async def activity_upload(file: UploadFile = File(...)):
+    # Simple CSV parser
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    lines = text.splitlines()
+    
+    if not lines:
+        return {"imported": 0}
+        
+    # Headers: 日期,起始时间,结束时间,书院,具体地点,活动名称,活动类型,受众学生数
+    # Map to: date, start_time, end_time, academy, location, activity_name, activity_type, audience_count
+    
+    events = []
+    # Skip header if present
+    start_idx = 0
+    if "日期" in lines[0]:
+        start_idx = 1
+        
+    import datetime
+    
+    for line in lines[start_idx:]:
+        parts = line.split(",")
+        if len(parts) < 8: continue
+        
+        try:
+            d_str = parts[0].strip()
+            s_time = parts[1].strip()
+            e_time = parts[2].strip()
+            
+            # Calc weekday (Chinese)
+            dt = datetime.datetime.strptime(d_str, "%Y-%m-%d")
+            wd_map = {1:"周一", 2:"周二", 3:"周三", 4:"周四", 5:"周五", 6:"周六", 7:"周日"}
+            weekday = wd_map.get(dt.isoweekday(), "")
+            
+            # Calc duration
+            t1 = datetime.datetime.strptime(f"{d_str} {s_time}", "%Y-%m-%d %H:%M")
+            t2 = datetime.datetime.strptime(f"{d_str} {e_time}", "%Y-%m-%d %H:%M")
+            duration = int((t2 - t1).total_seconds() / 60)
+            
+            events.append({
+                "date": d_str,
+                "weekday": weekday,
+                "start_time": s_time,
+                "end_time": e_time,
+                "duration_minutes": duration,
+                "academy": parts[3].strip(),
+                "location": parts[4].strip(),
+                "activity_name": parts[5].strip(),
+                "activity_type": parts[6].strip(),
+                "audience_count": int(parts[7].strip() or 0),
+                "notes": ""
+            })
+        except:
+            continue
+            
+    count = await db.activity_bulk_insert(events)
+    return {"imported": count}
+
+@app.post("/api/v1/activity/walkin/preview")
+async def walkin_preview(payload: Dict[str, Any] = Body(...)):
+    devices = payload.get("devices", [])
+    start = payload.get("start")
+    end = payload.get("end")
+    items = await db.walkin_preview(devices, start, end)
+    return {"items": items}
+
+@app.post("/api/v1/activity/walkin/sync")
+async def walkin_sync(payload: Dict[str, Any] = Body(...)):
+    items = payload.get("items", [])
+    count = await db.activity_bulk_insert(items)
+    return {"count": count}
+
+# --- Stats ---
+
+@app.get("/api/v1/stats/summary")
+async def get_stats_summary(uuid: Optional[str] = None):
+    return await db.stats_summary(uuid)
+
+@app.get("/api/v1/stats/daily")
+async def get_stats_daily(
+    uuid: Optional[str] = None, 
+    start: Optional[str] = None, 
+    end: Optional[str] = None
+):
+    return await db.stats_daily(uuid, start, end)
+
+@app.get("/api/v1/stats/hourly")
+async def get_stats_hourly(
+    uuid: Optional[str] = None, 
+    date: Optional[str] = None
+):
+    return await db.stats_hourly(uuid, date)
+
+# --- Devices ---
+
+@app.get("/api/v1/devices")
+async def list_devices():
+    return await db.list_devices()
+
+@app.get("/api/v1/devices/mapping")
+async def get_device_mapping():
+    return await db.get_device_mapping()
+
+@app.get("/api/v1/device/mapping")
+async def get_device_mapping_singular():
+    return await db.get_device_mapping()
+
+# --- Alerts ---
+
+@app.get("/api/v1/alerts")
+async def list_alerts(uuid: Optional[str] = None, limit: int = 100):
+    return await db.list_alerts(uuid, limit)
+
+# --- Admin Records ---
+
+@app.get("/api/v1/admin/records")
+async def admin_list_records(
+    page: int = 1, 
+    size: int = 50, 
+    uuid: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    warn: Optional[int] = None,
+    rec_type: Optional[int] = None,
+    btx_min: Optional[int] = None,
+    btx_max: Optional[int] = None
+):
+    items = await db.admin_list_records(page, size, uuid, start, end, warn, rec_type, btx_min, btx_max)
+    total = await db.admin_count_records(uuid, start, end, warn, rec_type, btx_min, btx_max)
+    return {"items": items, "total": total}
+
+@app.post("/api/v1/admin/records")
+async def admin_create_record(data: Dict[str, Any] = Body(...)):
+    await db.admin_create_record(data)
+    return {"status": "ok"}
+
+@app.put("/api/v1/admin/records/{id}")
+async def admin_update_record(id: int, data: Dict[str, Any] = Body(...)):
+    await db.admin_update_record(id, data)
+    return {"status": "ok"}
+
+@app.delete("/api/v1/admin/records/{id}")
+async def admin_delete_record(id: int):
+    await db.admin_delete_record(id)
+    return {"status": "ok"}
+
+@app.post("/api/v1/admin/records/batch-save")
+async def admin_batch_save_records(payload: Dict[str, Any] = Body(...)):
+    creates = payload.get("creates", [])
+    updates = payload.get("updates", [])
+    await db.admin_batch_save_records(creates, updates)
+    return {"status": "ok"}
+
+@app.post("/api/v1/admin/records/batch-update")
+async def admin_batch_update(payload: Dict[str, Any] = Body(...)):
+    ids = payload.get("ids", [])
+    updates = payload.get("updates", {})
+    await db.admin_batch_update(ids, updates)
+    return {"status": "ok"}
+
+@app.delete("/api/v1/admin/records/range")
+async def admin_delete_range(start: str, end: str):
+    await db.admin_delete_range(start, end)
+    return {"status": "ok"}
+
+@app.get("/api/v1/admin/records/ids")
+async def admin_get_record_ids(
+    uuid: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None
+):
+    ids = await db.admin_get_record_ids(uuid, start, end)
+    return {"ids": ids}
+
+@app.post("/api/v1/admin/records/batch-delete")
+async def admin_batch_delete(payload: Dict[str, Any] = Body(...)):
+    ids = payload.get("ids", [])
+    await db.admin_batch_delete(ids)
+    return {"status": "ok"}
+
+# --- Admin Registry ---
+
+@app.get("/api/v1/admin/registry")
+async def admin_list_registry():
+    return await db.admin_list_registry()
+
+@app.post("/api/v1/admin/registry")
+async def admin_upsert_registry(data: Dict[str, Any] = Body(...)):
+    uuid = data.get("uuid")
+    name = data.get("name")
+    category = data.get("category")
+    if not uuid: raise HTTPException(400, "Missing uuid")
+    await db.admin_upsert_registry(uuid, name, category)
+    return {"status": "ok"}
+
+# --- Academies ---
+
+@app.get("/api/v1/academies")
+async def get_academies():
+    return await db.get_academies()
+
+@app.post("/api/v1/academies")
+async def add_academy(data: Dict[str, Any] = Body(...)):
+    name = data.get("name")
+    if not name: raise HTTPException(400, "Missing name")
+    success = await db.add_academy(name)
+    if not success: raise HTTPException(400, "Failed to add academy")
+    return {"status": "ok"}
+
+@app.delete("/api/v1/academies/{id}")
+async def delete_academy(id: int):
+    success = await db.delete_academy(id)
+    if not success: raise HTTPException(400, "Failed to delete")
+    return {"status": "ok"}
+
+@app.put("/api/v1/academies/order")
+async def update_academy_order(order_list: List[int] = Body(...)):
+    await db.update_academy_order(order_list)
+    return {"status": "ok"}
+
+# --- Activity ---
+
+@app.get("/api/v1/activity/list")
+async def activity_list(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    locations: Optional[str] = None, # Comma separated
+    types: Optional[str] = None,
+    academies: Optional[str] = None,
+    weekdays: Optional[str] = None,
+    start_times: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50
+):
+    loc_list = locations.split(",") if locations else None
+    type_list = types.split(",") if types else None
+    aca_list = academies.split(",") if academies else None
+    wd_list = weekdays.split(",") if weekdays else None
+    time_list = start_times.split(",") if start_times else None
+    
+    return await db.activity_list(
+        start_date, end_date, loc_list, type_list, aca_list, wd_list, time_list, page, page_size
+    )
+
+@app.get("/api/v1/activity/options")
+async def activity_options():
+    return await db.activity_get_options()
+
+@app.get("/api/v1/activity/stats")
+async def activity_stats(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    locations: Optional[str] = None,
+    types: Optional[str] = None,
+    academies: Optional[str] = None
+):
+    loc_list = locations.split(",") if locations else None
+    type_list = types.split(",") if types else None
+    aca_list = academies.split(",") if academies else None
+    
+    return await db.activity_stats(start_date, end_date, loc_list, type_list, aca_list)
+
+@app.post("/api/v1/activity/sync-visitors")
+async def api_activity_sync_visitors(payload: Dict[str, Any] = Body(...)):
+    date = payload.get("date")
+    if not date: raise HTTPException(400, "Missing date")
+    count = await db.activity_sync_visitors(date)
+    return {"count": count}
+
+@app.delete("/api/v1/activity/{id}")
+async def api_activity_delete(id: int):
+    success = await db.activity_delete(id)
+    if not success: raise HTTPException(404, "Not found")
+    return {"status": "ok"}
+
+@app.post("/api/v1/activity/import-excel")
+async def api_activity_import_excel(file: UploadFile = File(...)):
+    if not file.filename.endswith(('.xls', '.xlsx')):
+        raise HTTPException(400, "Invalid file format")
+    
+    contents = await file.read()
+    
+    # Try Pandas
+    try:
+        import pandas as pd
+        df = pd.read_excel(io.BytesIO(contents))
+        df = df.fillna('')
+        iterator = df.to_dict('records')
+    except ImportError:
+        # Try openpyxl
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(filename=io.BytesIO(contents), read_only=True, data_only=True)
+            ws = wb.active
+            rows = list(ws.values)
+            if not rows: return {"count": 0}
+            headers = rows[0]
+            data = rows[1:]
+            # Convert to list of dicts
+            iterator = []
+            for r in data:
+                d = {headers[i]: (r[i] if r[i] is not None else '') for i in range(len(r)) if i < len(headers)}
+                iterator.append(d)
+        except ImportError:
+             raise HTTPException(500, "Missing libraries (pandas or openpyxl)")
+             
+    # Helper to get val
+    def get_val(row, keys):
+        for k in keys:
+            if k in row: return row[k]
+        return None
+
+    events = []
+    
+    for row in iterator:
+        # Mapping
+        date_raw = get_val(row, ['年/月/日', 'Date', '日期'])
+        if not date_raw: continue
+        
+        # Parse Date
+        date_str = str(date_raw).split(' ')[0] # 2023-01-01
+        
+        # Weekday
+        weekday = str(get_val(row, ['周几', 'Weekday']) or '')
+        
+        # Times
+        start_time = str(get_val(row, ['起始时间', 'Start']) or '')
+        end_time = str(get_val(row, ['结束时间', 'End']) or '')
+        
+        # Duration
+        duration_raw = str(get_val(row, ['时长', 'Duration']) or '')
+        # Parse "X时Y分" or "30"
+        duration = 0
+        if '时' in duration_raw:
+            parts = duration_raw.split('时')
+            h = int(parts[0]) if parts[0].isdigit() else 0
+            m_part = parts[1].replace('分', '')
+            m = int(m_part) if m_part.isdigit() else 0
+            duration = h * 60 + m
+        elif '分' in duration_raw:
+             m = int(duration_raw.replace('分', ''))
+             duration = m
+        elif duration_raw.isdigit():
+             duration = int(duration_raw)
+             
+        academy = str(get_val(row, ['书院', 'Academy']) or '')
+        location = str(get_val(row, ['具体地点', 'Location']) or '')
+        act_name = str(get_val(row, ['活动名称', 'Activity Name']) or '')
+        act_type = str(get_val(row, ['活动类型', 'Activity Type']) or '')
+        
+        audience = get_val(row, ['受众学生数', 'Audience'])
+        try:
+            audience = int(audience)
+        except:
+            audience = 0
+            
+        notes = str(get_val(row, ['备注', 'Remarks']) or '')
+        
+        events.append({
+            "date": date_str,
+            "weekday": weekday,
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration_minutes": duration,
+            "academy": academy,
+            "location": location,
+            "activity_name": act_name,
+            "activity_type": act_type,
+            "audience_count": audience,
+            "notes": notes
+        })
+        
+    count = 0
+    if events:
+        count = await db.activity_bulk_insert(events)
+        
     return {"count": count}

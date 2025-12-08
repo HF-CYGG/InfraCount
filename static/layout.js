@@ -9,9 +9,22 @@ const SIDEBAR_HTML = `
     <a href="/dashboard" class="nav-item">
         数据看板
     </a>
-    <a href="/history" class="nav-item">
-        历史数据
-    </a>
+    
+    <div class="nav-group">
+        <div class="nav-item nav-group-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center">
+            <span>历史数据</span>
+            <span style="font-size:10px">▼</span>
+        </div>
+        <div class="nav-group-items" style="display:none; padding-left:16px; background:rgba(0,0,0,0.02)">
+            <a href="/history/academy" class="nav-item" style="font-size:13px">
+                书院数据
+            </a>
+            <a href="/history/device" class="nav-item" style="font-size:13px">
+                设备数据
+            </a>
+        </div>
+    </div>
+
     <a href="/alerts" class="nav-item">
         告警中心
     </a>
@@ -46,7 +59,41 @@ const ALERT_HTML = `
 </div>
 `;
 
+// Interval Tracking for SPA Cleanup
+const _pageIntervals = new Set();
+const _nativeSetInterval = window.setInterval;
+const _nativeClearInterval = window.clearInterval;
+
+window.setInterval = function(fn, delay, ...args) {
+    const id = _nativeSetInterval(fn, delay, ...args);
+    _pageIntervals.add(id);
+    return id;
+};
+
+window.clearInterval = function(id) {
+    _nativeClearInterval(id);
+    _pageIntervals.delete(id);
+};
+
+function clearPageIntervals() {
+    for (const id of _pageIntervals) {
+        _nativeClearInterval(id);
+    }
+    _pageIntervals.clear();
+}
+
 function initLayout(title, customContentId) {
+    // Idempotency Check
+    const existingLayout = document.querySelector('.app-layout');
+    if (existingLayout) {
+        const titleEl = document.querySelector('.page-title');
+        if (titleEl) {
+            titleEl.textContent = title;
+        }
+        updateActiveLink();
+        return; 
+    }
+
     const body = document.body;
     
     // Restore theme
@@ -102,19 +149,35 @@ function initLayout(title, customContentId) {
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     });
 
-    // Active Link Logic
-    const path = location.pathname;
-    sidebar.querySelectorAll('.nav-item').forEach(a => {
-        if (a.getAttribute('href') === path) {
-            a.classList.add('active');
-        }
+    // Sidebar Dropdown Logic
+    document.querySelectorAll('.nav-group-title').forEach(title => {
+        title.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const group = title.parentElement;
+            const items = group.querySelector('.nav-group-items');
+            const arrow = title.querySelector('span:last-child');
+            
+            if(items.style.display === 'none') {
+                items.style.display = 'block';
+                arrow.style.transform = 'rotate(180deg)';
+            } else {
+                items.style.display = 'none';
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        });
     });
+
+    // Active Link Logic
+    updateActiveLink();
     
     // Time
-    setInterval(() => {
+    const clockId = setInterval(() => {
         const now = new Date();
         document.getElementById('currentTime').textContent = now.toLocaleString();
     }, 1000);
+    // Protect clock interval from cleanup
+    _pageIntervals.delete(clockId);
 
     // Alert & Confirm Logic
     const alertContainer = document.createElement('div');
@@ -168,4 +231,142 @@ function initLayout(title, customContentId) {
         confirmModal.classList.remove('show');
         if(confirmResolve) confirmResolve(false);
     });
+
+    // Initialize SPA Navigation
+    setupSpaNavigation();
+}
+
+function updateActiveLink() {
+    const path = location.pathname;
+    document.querySelectorAll('.app-sidebar .nav-item').forEach(a => {
+        a.classList.remove('active');
+        if (a.getAttribute('href') === path) {
+            a.classList.add('active');
+            
+            // Expand parent group if exists
+            const group = a.closest('.nav-group');
+            if (group) {
+                const items = group.querySelector('.nav-group-items');
+                const arrow = group.querySelector('.nav-group-title span:last-child');
+                if(items) items.style.display = 'block';
+                if(arrow) arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+    });
+}
+
+function setupSpaNavigation() {
+    document.body.addEventListener('click', async (e) => {
+        const link = e.target.closest('a.nav-item');
+        if (link && link.getAttribute('href').startsWith('/')) {
+            e.preventDefault();
+            const url = link.getAttribute('href');
+            await navigateTo(url);
+        }
+    });
+
+    window.addEventListener('popstate', () => {
+        navigateTo(location.pathname, false);
+    });
+}
+
+async function navigateTo(url, push = true) {
+    if (push) {
+        history.pushState(null, '', url);
+    }
+
+    try {
+        const res = await fetch(url);
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Clear existing page intervals
+        clearPageIntervals();
+
+        // Update Title
+        document.title = doc.title;
+        
+        // Update Content
+        const content = document.querySelector('.app-content');
+        content.innerHTML = ''; // Clear current content
+
+        // Extract body children from fetched doc
+        // We need to be careful not to include the layout script itself if possible, 
+        // or let initLayout handle the idempotency.
+        const newBody = doc.body;
+        
+        // Move nodes
+        const scriptsToRun = [];
+        
+        Array.from(newBody.childNodes).forEach(node => {
+            if (node.tagName === 'SCRIPT') {
+                scriptsToRun.push(node);
+            } else {
+                content.appendChild(node.cloneNode(true));
+            }
+        });
+
+        // Run scripts sequentially
+        await runScriptsSequentially(scriptsToRun, content);
+        
+        // Update Styles (Head)
+        // This is a simple merge: add any link/style from new doc that isn't in current doc
+        const currentHead = document.head;
+        const newHead = doc.head;
+        
+        Array.from(newHead.querySelectorAll('link[rel="stylesheet"], style')).forEach(node => {
+            let exists = false;
+            if (node.tagName === 'LINK') {
+                exists = !!currentHead.querySelector(`link[href="${node.getAttribute('href')}"]`);
+            }
+            // For style tags, it's hard to check equality, we might just append. 
+            // Warning: duplicated styles possible.
+            
+            if (!exists) {
+                currentHead.appendChild(node.cloneNode(true));
+            }
+        });
+
+        updateActiveLink();
+
+    } catch (err) {
+        console.error('Navigation failed:', err);
+        window.location.reload(); // Fallback
+    }
+}
+
+async function runScriptsSequentially(scripts, contentEl) {
+    for (const script of scripts) {
+        // Skip layout.js as it is already loaded
+        if (script.src && script.src.includes('layout.js')) {
+            continue;
+        }
+
+        await new Promise((resolve, reject) => {
+            const newScript = document.createElement('script');
+            if (script.src) {
+                // External Script
+                newScript.src = script.src;
+                newScript.onload = () => resolve();
+                newScript.onerror = () => {
+                    console.warn('Failed to load script:', script.src);
+                    resolve(); // Continue anyway
+                };
+                contentEl.appendChild(newScript);
+            } else {
+                // Inline Script
+                // Wrap in IIFE to avoid global variable collisions (e.g. const state)
+                newScript.textContent = `(async function() { 
+                    try {
+                        ${script.textContent}
+                    } catch(e) {
+                        console.error('Inline script execution error:', e);
+                    }
+                })();`;
+                contentEl.appendChild(newScript);
+                resolve();
+            }
+        });
+    }
 }

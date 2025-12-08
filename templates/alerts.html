@@ -108,7 +108,7 @@
 
     async function init() {
         // Load device mapping
-        const mapRes = await fetch('/api/v1/device/mapping');
+        const mapRes = await fetch('/api/v1/devices/mapping');
         if(mapRes.ok) {
             const j = await mapRes.json();
             deviceMap = j.mapping || {};
@@ -119,10 +119,11 @@
         if(devRes.ok) {
             const list = await devRes.json();
             list.forEach(d => {
-                const name = deviceMap[d.uuid] || d.uuid;
+                const uuid = typeof d === 'string' ? d : d.uuid;
+                const name = deviceMap[uuid] ? (deviceMap[uuid].name || uuid) : uuid;
                 const opt = document.createElement('option');
-                opt.value = d.uuid;
-                opt.textContent = name === d.uuid ? d.uuid : `${name}`;
+                opt.value = uuid;
+                opt.textContent = name === uuid ? uuid : `${name}`;
                 els.uuid.appendChild(opt);
             });
         }
@@ -153,7 +154,8 @@
         els.k_info.textContent = info;
         
         els.table.innerHTML = data.map(r => {
-            const name = deviceMap[r.uuid] || r.uuid;
+            const entry = deviceMap[r.uuid];
+            const name = entry ? (entry.name || r.uuid) : r.uuid;
             const display = name === r.uuid ? r.uuid : `${name} <span class="text-muted" style="font-size:12px">(${r.uuid.substring(0,8)}...)</span>`;
             return `
             <tr>
