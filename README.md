@@ -84,7 +84,6 @@ gantt
     title InfraCount 开发里程碑
     dateFormat  YYYY-MM-DD
     axisFormat  %m-%d
-    excludes    weekends
 
     section 核心基建
     TCP服务框架       :done,    core1, 2023-12-01, 7d
