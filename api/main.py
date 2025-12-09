@@ -571,6 +571,11 @@ async def update_location_mapping(payload: Dict[str, str] = Body(...)):
     await db.update_location_academy_mapping(location, academy)
     return {"status": "ok"}
 
+@app.delete("/api/v1/locations/mapping")
+async def delete_location_mapping(location: str = Query(...)):
+    await db.delete_location_academy_mapping(location)
+    return {"status": "ok"}
+
 @app.get("/api/v1/locations/all")
 async def get_all_locations():
     locs = await db.get_all_activity_locations()

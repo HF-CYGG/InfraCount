@@ -71,14 +71,27 @@
 
 <div class="card" style="margin-top: 20px;">
     <div class="flex justify-between items-center mb-4">
-        <h3>场地-书院 归属配置</h3>
+        <h3>标准场地配置 (用于AI识别与归属)</h3>
         <button class="btn" id="refreshLocBtn">刷新</button>
     </div>
+    
+    <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; gap:12px; align-items:end;">
+        <div style="flex:1">
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">标准场地名称</label>
+            <input id="newLocName" class="input" placeholder="例如：Hello会客厅(Y1-103)" style="width:100%">
+        </div>
+        <div style="width:200px">
+            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">归属书院</label>
+            <select id="newLocAca" class="select" style="width:100%"></select>
+        </div>
+        <button class="btn btn-primary" id="addLocBtn">添加</button>
+    </div>
+
     <div class="table-wrap" style="max-height: 500px; overflow-y: auto;">
         <table>
             <thead>
                 <tr>
-                    <th>场地名称 (Excel数据)</th>
+                    <th>标准场地名称</th>
                     <th>归属书院</th>
                     <th style="width:100px">操作</th>
                 </tr>
@@ -136,6 +149,26 @@
     </div>
 </div>
 
+<!-- Location Edit Modal -->
+<div id="locEditModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>编辑标准场地</h3>
+        <input type="hidden" id="locEditOldName">
+        <div class="mb-4">
+            <label style="display:block;margin-bottom:4px">标准场地名称</label>
+            <input id="locEditName" class="input" style="width:100%">
+        </div>
+        <div class="mb-4">
+            <label style="display:block;margin-bottom:4px">归属书院</label>
+            <select id="locEditAca" class="select" style="width:100%"></select>
+        </div>
+        <div class="actions">
+            <button class="btn" id="locEditCancel">取消</button>
+            <button class="btn btn-primary" id="locEditSave">保存</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="/static/layout.js"></script>
@@ -165,7 +198,15 @@
         academyList: document.getElementById('academyList'),
         newAcademy: document.getElementById('newAcademy'),
         addAcademy: document.getElementById('addAcademy'),
-        closeAcademy: document.getElementById('closeAcademy')
+        closeAcademy: document.getElementById('closeAcademy'),
+
+        // Loc Edit
+        locEditModal: document.getElementById('locEditModal'),
+        locEditOldName: document.getElementById('locEditOldName'),
+        locEditName: document.getElementById('locEditName'),
+        locEditAca: document.getElementById('locEditAca'),
+        locEditCancel: document.getElementById('locEditCancel'),
+        locEditSave: document.getElementById('locEditSave')
     };
 
     function showToast(msg) {
@@ -343,18 +384,26 @@
     // --- Location Mapping Logic ---
     els.locationTable = document.getElementById('locationTable');
     els.refreshLoc = document.getElementById('refreshLocBtn');
+    els.newLocName = document.getElementById('newLocName');
+    els.newLocAca = document.getElementById('newLocAca');
+    els.addLocBtn = document.getElementById('addLocBtn');
 
     async function loadLocationMapping() {
         try {
-            const [locsRes, mapRes, acaRes] = await Promise.all([
-                fetch('/api/v1/locations/all'),
+            const [mapRes, acaRes] = await Promise.all([
                 fetch('/api/v1/locations/mapping'),
                 fetch('/api/v1/academies')
             ]);
             
-            const locs = await locsRes.json();
             const mapping = (await mapRes.json()).mapping || {};
             const academies = await acaRes.json();
+            
+            // Populate New Loc Academy Select
+            els.newLocAca.innerHTML = `<option value="">-- 选择书院 --</option>` + 
+                academies.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+
+            // Render Table (Sorted by name)
+            const locs = Object.keys(mapping).sort();
             
             els.locationTable.innerHTML = locs.map((l, index) => {
                 const currentAca = mapping[l] || '';
@@ -365,14 +414,10 @@
                 return `
                 <tr>
                     <td>${l}</td>
+                    <td>${currentAca}</td>
                     <td>
-                        <select class="select" onchange="updateLocMapping('${safeL}', this.value, '${statusId}')">
-                            <option value="">未指定</option>
-                            ${academies.map(a => `<option value="${a.name}" ${a.name === currentAca ? 'selected' : ''}>${a.name}</option>`).join('')}
-                        </select>
-                    </td>
-                    <td>
-                        <span class="text-muted" id="${statusId}"></span>
+                        <button class="btn btn-sm btn-primary" onclick="openLocEdit('${safeL}', '${currentAca}')" style="margin-right:4px">修改</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteLocMapping('${safeL}')">删除</button>
                     </td>
                 </tr>
                 `;
@@ -384,30 +429,97 @@
         }
     }
 
-    window.updateLocMapping = async (loc, aca, statusId) => {
-        const statusEl = document.getElementById(statusId);
-        if(statusEl) statusEl.textContent = '保存中...';
+    window.openLocEdit = (name, aca) => {
+        els.locEditOldName.value = name;
+        els.locEditName.value = name;
+        
+        // Copy options from newLocAca to locEditAca if empty
+        if(els.locEditAca.options.length <= 1) {
+            els.locEditAca.innerHTML = els.newLocAca.innerHTML;
+        }
+        els.locEditAca.value = aca;
+        
+        els.locEditModal.classList.add('show');
+    };
+    
+    els.locEditCancel.addEventListener('click', () => els.locEditModal.classList.remove('show'));
+    
+    els.locEditSave.addEventListener('click', async () => {
+        const oldName = els.locEditOldName.value;
+        const newName = els.locEditName.value.trim();
+        const aca = els.locEditAca.value;
+        
+        if(!newName) { showToast('名称不能为空'); return; }
+        
+        try {
+            // If name changed, delete old first
+            if(oldName !== newName) {
+                // Ideally this should be a transaction or rename API, 
+                // but for now we do Delete + Add
+                const delRes = await fetch(`/api/v1/locations/mapping?location=${encodeURIComponent(oldName)}`, {
+                    method: 'DELETE'
+                });
+                if(!delRes.ok) throw new Error('Delete failed');
+            }
+            
+            // Add/Update new
+            const res = await fetch('/api/v1/locations/mapping', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({location: newName, academy: aca})
+            });
+            
+            if(res.ok) {
+                showToast('保存成功');
+                els.locEditModal.classList.remove('show');
+                loadLocationMapping();
+            } else {
+                throw new Error('Save failed');
+            }
+        } catch(e) {
+            console.error(e);
+            showToast('保存失败');
+        }
+    });
+
+    els.addLocBtn.addEventListener('click', async () => {
+        const name = els.newLocName.value.trim();
+        const aca = els.newLocAca.value;
+        if(!name) { showToast('请输入场地名称'); return; }
+        if(!aca) { showToast('请选择归属书院'); return; }
         
         try {
             const res = await fetch('/api/v1/locations/mapping', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({location: loc, academy: aca})
+                body: JSON.stringify({location: name, academy: aca})
             });
             if(res.ok) {
-                if(statusEl) {
-                    statusEl.textContent = '已保存';
-                    statusEl.style.color = 'green';
-                    setTimeout(() => statusEl.textContent = '', 2000);
-                }
+                showToast('添加成功');
+                els.newLocName.value = '';
+                loadLocationMapping();
             } else {
                 throw new Error();
             }
         } catch(e) {
-            if(statusEl) {
-                statusEl.textContent = '失败';
-                statusEl.style.color = 'red';
+            showToast('添加失败');
+        }
+    });
+
+    window.deleteLocMapping = async (loc) => {
+        if(!await showConfirm('确定删除此标准场地配置?')) return;
+        try {
+            const res = await fetch(`/api/v1/locations/mapping?location=${encodeURIComponent(loc)}`, {
+                method: 'DELETE'
+            });
+            if(res.ok) {
+                showToast('已删除');
+                loadLocationMapping();
+            } else {
+                throw new Error();
             }
+        } catch(e) {
+            showToast('删除失败');
         }
     };
     

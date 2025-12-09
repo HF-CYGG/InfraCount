@@ -1551,6 +1551,19 @@ async def update_location_academy_mapping(location_name: str, academy_name: str)
                     ON DUPLICATE KEY UPDATE academy_name=%s
                 """, (location_name, academy_name, academy_name))
 
+async def delete_location_academy_mapping(location_name: str):
+    """Deletes a mapping"""
+    sql = "DELETE FROM location_academy WHERE location_name=?" if use_sqlite() else "DELETE FROM location_academy WHERE location_name=%s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (location_name,))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (location_name,))
+
 async def get_all_activity_locations():
     """Returns list of distinct locations from activity_events"""
     sql = "SELECT DISTINCT location FROM activity_events ORDER BY location"
