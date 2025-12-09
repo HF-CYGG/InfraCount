@@ -80,7 +80,6 @@ README.md          # 项目说明（当前文件）
 
 ### 📅 开发路线图 (Roadmap)
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'darkMode': true }}}%%
 gantt
     title InfraCount 开发里程碑 (2024-2025)
     dateFormat  YYYY-MM-DD
@@ -149,39 +148,34 @@ pie
 ## 🏗️ 系统架构
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'lineColor': '#ffffff' }}}%%
 graph TD
-    %% 全局样式：白色连线
-    linkStyle default stroke:#fff,stroke-width:2px;
+    %% 全局样式：使用默认连线颜色以适应亮/暗主题
+    %% linkStyle default stroke-width:2px;
 
-    %% 定义样式：高对比度暗色主题配色
-    classDef device fill:#8e44ad,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef core fill:#2980b9,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef db fill:#27ae60,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef web fill:#c0392b,stroke:#fff,stroke-width:2px,color:#fff;
+    %% 定义样式：保留彩色背景与白字，边框设为透明以适应不同背景
+    classDef device fill:#8e44ad,stroke:none,color:#fff;
+    classDef core fill:#2980b9,stroke:none,color:#fff;
+    classDef db fill:#27ae60,stroke:none,color:#fff;
+    classDef web fill:#c0392b,stroke:none,color:#fff;
 
     subgraph IoT_Layer [感知层]
-        style IoT_Layer fill:#222,stroke:#666,color:#fff
         Device1[📍 红外计数器 A]:::device
         Device2[📍 红外计数器 B]:::device
         Device3[📍 红外计数器 N]:::device
     end
 
     subgraph Service_Layer [服务层]
-        style Service_Layer fill:#222,stroke:#666,color:#fff
         TCPServer[📡 TCP 接入服务 :8085]:::core
         Protocol[⚙️ 协议解析引擎]:::core
         Matcher[🧠 智能归属匹配]:::core
     end
 
     subgraph Data_Layer [数据层]
-        style Data_Layer fill:#222,stroke:#666,color:#fff
         DB[(🗄️ MySQL / SQLite)]:::db
         Cache[🚀 内存缓存]:::db
     end
 
     subgraph App_Layer [应用层]
-        style App_Layer fill:#222,stroke:#666,color:#fff
         API[🔌 FastAPI 网关 :8000]:::web
         Dashboard[📊 可视化看板]:::web
         Admin[🛡️ 管理后台]:::web
@@ -206,8 +200,8 @@ graph TD
 
 ```mermaid
 classDiagram
-    %% 样式适配暗色
-    classDef table fill:#2c3e50,stroke:#fff,stroke-width:1px,color:#fff;
+    %% 样式适配：深色背景白字，边框透明
+    classDef table fill:#2c3e50,stroke:none,color:#fff;
     
     class Device {
         +String uuid (PK)
@@ -335,14 +329,14 @@ stateDiagram-v2
 
 ```mermaid
 graph TD
-    %% 样式定义 - 强制高对比度
-    linkStyle default stroke:#bbb,stroke-width:1px;
+    %% 样式定义 - 使用默认连线颜色
+    %% linkStyle default stroke:#bbb,stroke-width:1px;
     
-    %% 定义节点样式：使用深色背景+白色文字，兼容暗色模式
-    classDef root fill:#4a148c,stroke:#fff,stroke-width:2px,color:#fff,font-size:16px;
-    classDef l1 fill:#0d47a1,stroke:#fff,stroke-width:1px,color:#fff;
-    classDef l2 fill:#1b5e20,stroke:#fff,stroke-width:1px,color:#fff;
-    classDef l3 fill:#b71c1c,stroke:#fff,stroke-width:1px,color:#fff;
+    %% 定义节点样式：深色背景+白色文字，边框透明
+    classDef root fill:#4a148c,stroke:none,color:#fff,font-size:16px;
+    classDef l1 fill:#0d47a1,stroke:none,color:#fff;
+    classDef l2 fill:#1b5e20,stroke:none,color:#fff;
+    classDef l3 fill:#b71c1c,stroke:none,color:#fff;
 
     %% 根节点
     R((InfraCount)):::root
