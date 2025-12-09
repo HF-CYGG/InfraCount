@@ -80,6 +80,7 @@ README.md          # 项目说明（当前文件）
 
 ### 📅 开发路线图 (Roadmap)
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'darkMode': true }}}%%
 gantt
     title InfraCount 开发里程碑
     dateFormat  YYYY-MM-DD
@@ -121,31 +122,39 @@ gantt
 ## 🏗️ 系统架构
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'lineColor': '#ffffff' }}}%%
 graph TD
-    %% 定义样式
-    classDef device fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef core fill:#bbf,stroke:#333,stroke-width:2px;
-    classDef db fill:#bfb,stroke:#333,stroke-width:2px;
-    classDef web fill:#fbf,stroke:#333,stroke-width:2px;
+    %% 全局样式：白色连线
+    linkStyle default stroke:#fff,stroke-width:2px;
+
+    %% 定义样式：高对比度暗色主题配色
+    classDef device fill:#8e44ad,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef core fill:#2980b9,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef db fill:#27ae60,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef web fill:#c0392b,stroke:#fff,stroke-width:2px,color:#fff;
 
     subgraph IoT_Layer [感知层]
+        style IoT_Layer fill:#222,stroke:#666,color:#fff
         Device1[📍 红外计数器 A]:::device
         Device2[📍 红外计数器 B]:::device
         Device3[📍 红外计数器 N]:::device
     end
 
     subgraph Service_Layer [服务层]
+        style Service_Layer fill:#222,stroke:#666,color:#fff
         TCPServer[📡 TCP 接入服务 :8085]:::core
         Protocol[⚙️ 协议解析引擎]:::core
         Matcher[🧠 智能归属匹配]:::core
     end
 
     subgraph Data_Layer [数据层]
+        style Data_Layer fill:#222,stroke:#666,color:#fff
         DB[(🗄️ MySQL / SQLite)]:::db
         Cache[🚀 内存缓存]:::db
     end
 
     subgraph App_Layer [应用层]
+        style App_Layer fill:#222,stroke:#666,color:#fff
         API[🔌 FastAPI 网关 :8000]:::web
         Dashboard[📊 可视化看板]:::web
         Admin[🛡️ 管理后台]:::web
@@ -169,6 +178,7 @@ graph TD
 ## 🌳 功能树状图
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 mindmap
   root((InfraCount))
     后端核心
