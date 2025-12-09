@@ -82,25 +82,39 @@ README.md          # 项目说明（当前文件）
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': { 'darkMode': true }}}%%
 gantt
-    title InfraCount 开发里程碑
+    title InfraCount 开发里程碑 (2024-2025)
     dateFormat  YYYY-MM-DD
     axisFormat  %m-%d
+    
+    %% 定义颜色
+    %% classDef planned fill:#b71c1c,stroke:#fff,stroke-width:1px;
+    %% classDef active fill:#e65100,stroke:#fff,stroke-width:1px;
+    %% classDef done fill:#1b5e20,stroke:#fff,stroke-width:1px;
 
-    section 核心基建
+    section 🏛️ 核心基建
     TCP服务框架       :done,    core1, 2023-12-01, 7d
     协议解析引擎       :done,    core2, after core1, 10d
     数据库架构设计     :done,    core3, after core2, 5d
+    Docker容器化支持  :active,  core4, 2024-04-01, 10d
 
-    section 业务功能
+    section 📦 业务功能
     数据上报与存储     :done,    biz1,  2024-01-01, 10d
     RESTful API开发   :done,    biz2,  after biz1, 14d
     Web可视化看板      :done,    biz3,  after biz2, 14d
-    多账户权限体系     :active,  biz4,  2024-02-15, 10d
+    多账户权限体系     :active,  biz4,  2024-02-15, 14d
+    标准场地管理       :active,  biz5,  2024-03-01, 10d
 
-    section 智能化与高级特性
-    场地自动归属       :active,  ai1,   2024-03-01, 14d
-    异常流量检测       :         ai2,   after ai1, 20d
-    客流预测模型       :         ai3,   2024-04-01, 30d
+    section 🧠 智能化与AI
+    场地自动归属(模糊) :active,  ai1,   2024-03-01, 14d
+    异常流量检测(规则) :         ai2,   after ai1, 20d
+    LSTM客流预测模型   :         ai3,   2024-05-01, 45d
+    热力图深度分析     :         ai4,   after ai3, 20d
+
+    section 🌐 生态与集成
+    Webhook消息推送    :         eco1,  2024-04-15, 10d
+    钉钉/飞书集成      :         eco2,  after eco1, 10d
+    移动端App (Beta)   :         eco3,  2024-06-01, 60d
+    OpenAPI V2.0      :         eco4,  2024-08-01, 30d
 ```
 
 ### 🚀 功能完成度
@@ -111,11 +125,24 @@ gantt
 | **数据层** | 多数据库支持 | ✅ 完成 | ![](https://geps.dev/progress/100) | SQLite + MySQL |
 | **Web层** | 实时数据看板 | ✅ 完成 | ![](https://geps.dev/progress/100) | 10s 自动刷新 |
 | **Web层** | 账户权限管理 | 🚀 迭代 | ![](https://geps.dev/progress/90) | 角色分级/编辑 |
-| **运维层** | 一键部署脚本 | 🚀 迭代 | ![](https://geps.dev/progress/85) | Win/Linux 双端 |
-| **智能层** | AI 场地校正 | 🚧 开发 | ![](https://geps.dev/progress/60) | 模糊匹配算法 |
+| **Web层** | 标准场地配置 | 🚀 迭代 | ![](https://geps.dev/progress/85) | 一键校正/反馈 |
+| **运维层** | 一键部署脚本 | ✅ 完成 | ![](https://geps.dev/progress/100) | Win/Linux 双端 |
+| **智能层** | AI 场地校正 | 🚧 开发 | ![](https://geps.dev/progress/70) | 模糊匹配/自学习 |
 | **智能层** | 流量预测分析 | 📅 规划 | ![](https://geps.dev/progress/0) | 引入机器学习 |
+| **生态层** | 消息推送集成 | 📅 规划 | ![](https://geps.dev/progress/0) | Webhook/钉钉 |
 
 > *注：进度条实时渲染，状态图表自动更新*
+
+### 🛠️ 技术栈构成
+```mermaid
+pie
+    title 项目代码构成 (预估)
+    "Python (Backend)" : 45
+    "HTML/JS (Frontend)" : 30
+    "SQL (Database)" : 10
+    "Shell/PowerShell (Ops)" : 10
+    "Markdown (Docs)" : 5
+```
 
 ---
 
@@ -171,6 +198,135 @@ graph TD
     
     Dashboard -->|HTTP/WS| API
     Admin -->|HTTP| API
+```
+
+---
+
+## � 核心数据模型
+
+```mermaid
+classDiagram
+    %% 样式适配暗色
+    classDef table fill:#2c3e50,stroke:#fff,stroke-width:1px,color:#fff;
+    
+    class Device {
+        +String uuid (PK)
+        +DateTime last_time
+        +Int battery_level
+        +Int signal_status
+        +String current_location
+        +update_status()
+    }
+    
+    class InfraredRecord {
+        +Int id (PK)
+        +String device_uuid (FK)
+        +Int in_count
+        +Int out_count
+        +DateTime record_time
+        +String location
+        +String academy
+    }
+
+    class LocationMapping {
+        +Int id (PK)
+        +String device_uuid
+        +String standard_location
+        +String academy_category
+        +match_rule()
+    }
+
+    class User {
+        +Int id (PK)
+        +String username
+        +String password_hash
+        +String role [admin, user]
+        +check_permission()
+    }
+
+    Device "1" -- "n" InfraredRecord : generates
+    Device "1" -- "1" LocationMapping : binds
+    LocationMapping "1" -- "n" InfraredRecord : tags
+    
+    Device:::table
+    InfraredRecord:::table
+    LocationMapping:::table
+    User:::table
+```
+
+---
+
+## �� 数据与设备流程
+
+### 1. 设备上报与告警流程 (Sequence Diagram)
+```mermaid
+sequenceDiagram
+    %% 样式定义
+    participant D as Device (红外设备)
+    participant T as TCP Server
+    participant M as Matcher (AI归属)
+    participant DB as Database
+    participant WS as WebSocketMgr
+    participant W as Web/Dashboard
+
+    Note over D,T: TCP 长连接保持
+
+    %% 数据上报
+    D->>T: 发送 XML 数据包 (0x21)
+    activate T
+    T->>T: 解析帧头 & XML
+    T->>DB: 写入原始记录 (Raw Data)
+    
+    T->>M: 请求场地归属匹配
+    activate M
+    M->>M: 模糊匹配/规则查找
+    M-->>T: 返回 Location/Academy
+    deactivate M
+
+    T->>DB: 更新归属信息
+    T->>WS: 广播新数据事件
+    WS-->>W: 推送实时更新
+    
+    T-->>D: 返回 ACK (0x21 Response)
+    deactivate T
+
+    %% 告警触发
+    par 异步检测
+        T->>T: 检查电量/信号/心跳
+        opt 电量 < 20%
+            T->>DB: 写入告警记录
+            T->>WS: 推送告警通知
+            WS-->>W: 弹窗提示 "低电量"
+        end
+    end
+```
+
+### 2. 设备生命周期状态 (State Diagram)
+```mermaid
+stateDiagram-v2
+    [*] --> Unknown: 设备初次接入
+
+    state "在线 (Online)" as Online {
+        [*] --> Idle: 等待数据
+        Idle --> Reporting: 上报数据
+        Reporting --> Idle: ACK确认
+        Idle --> Syncing: 时间同步
+        Syncing --> Idle: 完成同步
+    }
+
+    Unknown --> Online: TCP握手成功
+    Online --> Offline: 心跳超时/连接断开
+    Offline --> Online: 重连成功
+
+    state "异常状态" as Error {
+        LowBattery: 低电量 (<20%)
+        WeakSignal: 弱信号 (RSSI < -90)
+    }
+
+    Online --> LowBattery: 电量检测
+    LowBattery --> Online: 更换电池
+    Online --> WeakSignal: 信号检测
+    WeakSignal --> Online: 信号恢复
 ```
 
 ---
@@ -242,4 +398,18 @@ graph TD
     C4 --> C4_2(日志系统):::l2
     C4_2 --> C4_2_1[轮转归档]:::l3
     C4_2 --> C4_2_2[错误追踪]:::l3
+
+    %% 5. 未来规划 (New)
+    R --> C5[未来规划]:::l1
+    C5 --> C5_1(AI增强):::l2
+    C5_1 --> C5_1_1[流量预测]:::l3
+    C5_1 --> C5_1_2[异常检测]:::l3
+    
+    C5 --> C5_2(移动端):::l2
+    C5_2 --> C5_2_1[小程序]:::l3
+    C5_2 --> C5_2_2[App]:::l3
+    
+    C5 --> C5_3(集成):::l2
+    C5_3 --> C5_3_1[钉钉/飞书]:::l3
+    C5_3 --> C5_3_2[Webhook]:::l3
 ```
