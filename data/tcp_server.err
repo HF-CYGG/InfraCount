@@ -332,3 +332,12 @@ Traceback (most recent call last):
 2025-12-09 19:41:37,650 INFO root TCP Server listening on 0.0.0.0:8085
 2025-12-09 19:42:45,682 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-09 19:42:45,683 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 20:20:37,849 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\ÏîÄ¿\InfraCount\tcp_server.py", line 158, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
+2025-12-09 20:27:11,803 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 20:27:11,803 INFO root TCP Server listening on 0.0.0.0:8085

@@ -5651,3 +5651,54 @@ INFO:     127.0.0.1:4350 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
 INFO:     127.0.0.1:4679 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
 INFO:     127.0.0.1:4679 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
 INFO:     127.0.0.1:4679 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13818 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2321 - "GET /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2321 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13818 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8597 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2321 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2321 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2321 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3548 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:7103 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7103 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:7103 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3416 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3056 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7103 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7103 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7103 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8808 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8808 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:8808 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5288 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10192 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8808 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8808 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8808 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2482 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13606 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5931 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:2901 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7601 - "GET /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7601 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7601 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2901 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13188 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14322 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1230 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7601 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7601 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1230 - "GET /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6109 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12238 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:13642 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11579 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2943 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6109 - "GET /api/v1/academies HTTP/1.1" 200 OK
