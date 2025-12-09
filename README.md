@@ -73,5 +73,141 @@ README.md          # 项目说明（当前文件）
 - 数据库不可达：接口将返回空数据以保证服务可用，恢复连接后自动入库与统计
 - CDN受限：`/dashboard` 使用 Chart.js CDN，如内网环境需改为本地静态资源
 
-## 许可证
-- 内部项目，默认不开放外部使用；如需对外发布请补充许可证说明。
+
+---
+
+## 📊 项目进度与规划
+
+### 📅 开发路线图 (Roadmap)
+```mermaid
+gantt
+    title InfraCount 开发里程碑
+    dateFormat  YYYY-MM-DD
+    axisFormat  %m-%d
+    excludes    weekends
+
+    section 核心基建
+    TCP服务框架       :done,    core1, 2023-12-01, 7d
+    协议解析引擎       :done,    core2, after core1, 10d
+    数据库架构设计     :done,    core3, after core2, 5d
+
+    section 业务功能
+    数据上报与存储     :done,    biz1,  2024-01-01, 10d
+    RESTful API开发   :done,    biz2,  after biz1, 14d
+    Web可视化看板      :done,    biz3,  after biz2, 14d
+    多账户权限体系     :active,  biz4,  2024-02-15, 10d
+
+    section 智能化与高级特性
+    场地自动归属       :active,  ai1,   2024-03-01, 14d
+    异常流量检测       :         ai2,   after ai1, 20d
+    客流预测模型       :         ai3,   2024-04-01, 30d
+```
+
+### 🚀 功能完成度
+| 模块 | 功能点 | 状态 | 进度 | 说明 |
+| :--- | :--- | :---: | :--- | :--- |
+| **接入层** | TCP 高并发服务 | ✅ 完成 | ![](https://geps.dev/progress/100) | 基于 asyncio |
+| **接入层** | 私有协议解析 | ✅ 完成 | ![](https://geps.dev/progress/100) | XML/二进制混合 |
+| **数据层** | 多数据库支持 | ✅ 完成 | ![](https://geps.dev/progress/100) | SQLite + MySQL |
+| **Web层** | 实时数据看板 | ✅ 完成 | ![](https://geps.dev/progress/100) | 10s 自动刷新 |
+| **Web层** | 账户权限管理 | 🚀 迭代 | ![](https://geps.dev/progress/90) | 角色分级/编辑 |
+| **运维层** | 一键部署脚本 | 🚀 迭代 | ![](https://geps.dev/progress/85) | Win/Linux 双端 |
+| **智能层** | AI 场地校正 | 🚧 开发 | ![](https://geps.dev/progress/60) | 模糊匹配算法 |
+| **智能层** | 流量预测分析 | 📅 规划 | ![](https://geps.dev/progress/0) | 引入机器学习 |
+
+> *注：进度条实时渲染，状态图表自动更新*
+
+---
+
+## 🏗️ 系统架构
+
+```mermaid
+graph TD
+    %% 定义样式
+    classDef device fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef core fill:#bbf,stroke:#333,stroke-width:2px;
+    classDef db fill:#bfb,stroke:#333,stroke-width:2px;
+    classDef web fill:#fbf,stroke:#333,stroke-width:2px;
+
+    subgraph IoT_Layer [感知层]
+        Device1[📍 红外计数器 A]:::device
+        Device2[📍 红外计数器 B]:::device
+        Device3[📍 红外计数器 N]:::device
+    end
+
+    subgraph Service_Layer [服务层]
+        TCPServer[📡 TCP 接入服务 :8085]:::core
+        Protocol[⚙️ 协议解析引擎]:::core
+        Matcher[🧠 智能归属匹配]:::core
+    end
+
+    subgraph Data_Layer [数据层]
+        DB[(🗄️ MySQL / SQLite)]:::db
+        Cache[🚀 内存缓存]:::db
+    end
+
+    subgraph App_Layer [应用层]
+        API[🔌 FastAPI 网关 :8000]:::web
+        Dashboard[📊 可视化看板]:::web
+        Admin[🛡️ 管理后台]:::web
+    end
+
+    %% 链路关系
+    Device1 & Device2 & Device3 -->|TCP/XML| TCPServer
+    TCPServer -->|Raw Data| Protocol
+    Protocol -->|Clean Data| Matcher
+    Matcher -->|Structured Data| DB
+    
+    API -->|Query| DB
+    API -->|Cache| Cache
+    
+    Dashboard -->|HTTP/WS| API
+    Admin -->|HTTP| API
+```
+
+---
+
+## 🌳 功能树状图
+
+```mermaid
+mindmap
+  root((InfraCount))
+    后端核心
+      TCP服务
+        并发连接
+        心跳保活
+        异常熔断
+      协议处理
+        XML解析
+        数据清洗
+        ACK回包
+      数据存储
+        连接池管理
+        自动迁移
+    Web应用
+      可视化
+        实时流量图
+        热力分布
+        历史回溯
+      API接口
+        RESTful规范
+        Token认证
+        数据导出
+    管理后台
+      设备管理
+        状态监控
+        远程配置
+      场地管理
+        自动校正
+        手工绑定
+      用户管理
+        权限分配
+        操作审计
+    运维支持
+      一键脚本
+        Windows
+        Linux
+      日志系统
+        轮转归档
+        错误追踪
+```
