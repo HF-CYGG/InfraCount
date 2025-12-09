@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - InfraCount</title>
     <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/lib/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/fonts/el-messiri.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=El+Messiri:wght@700&display=swap');
+        /* @import url('https://fonts.googleapis.com/css2?family=El+Messiri:wght@700&display=swap'); */
 
         * {
             margin: 0;
@@ -172,13 +173,13 @@
             display: inline-block;
             width: 20px;
             height: 20px;
-            background: url('https://snipp.ru/demo/495/view.svg') 0 0 no-repeat;
+            background: url('/static/img/view.svg') 0 0 no-repeat;
             transition: 0.5s;
             cursor: pointer;
         }
 
         .form .inputBx .view {
-            background: url('https://snipp.ru/demo/495/no-view.svg') 0 0 no-repeat;
+            background: url('/static/img/no-view.svg') 0 0 no-repeat;
             transition: 0.5s;
         }
 
@@ -246,6 +247,7 @@
             background-color: #000;
             background-image: linear-gradient(to right, #434343 0%, black 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 

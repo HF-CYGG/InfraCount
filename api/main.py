@@ -82,6 +82,79 @@ async def auth_change_password(request: Request, payload: Dict[str, str] = Body(
     await db.change_password(user["id"], new_pw)
     return {"status": "ok"}
 
+# --- User Management (Admin) ---
+
+@app.get("/api/v1/users")
+async def list_users(request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+        
+    users = await db.get_all_users()
+    return {"users": users}
+
+@app.post("/api/v1/users")
+async def create_user_api(request: Request, payload: Dict[str, str] = Body(...)):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+        
+    username = payload.get("username")
+    password = payload.get("password")
+    role = payload.get("role", "user")
+    
+    if not username or not password:
+        raise HTTPException(400, "Missing username or password")
+        
+    success = await db.create_user(username, password, role)
+    if not success:
+        raise HTTPException(400, "Failed to create user (might already exist)")
+        
+    return {"status": "ok"}
+
+@app.put("/api/v1/users/{user_id}")
+async def update_user_api(user_id: int, request: Request, payload: Dict[str, Any] = Body(...)):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+        
+    # Prevent self-lockout or critical edits if needed, but let's allow for now.
+    
+    username = payload.get("username")
+    password = payload.get("password")
+    role = payload.get("role")
+    
+    success = await db.update_user(user_id, username, password, role)
+    if not success:
+        raise HTTPException(400, "Failed to update user")
+        
+    return {"status": "ok"}
+
+@app.delete("/api/v1/users/{user_id}")
+async def delete_user_api(user_id: int, request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+        
+    if user["id"] == user_id:
+        raise HTTPException(400, "Cannot delete yourself")
+        
+    await db.delete_user(user_id)
+    return {"status": "ok"}
+
+
 # --- Pages ---
 
 @app.get("/login")

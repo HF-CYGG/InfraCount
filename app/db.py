@@ -121,6 +121,98 @@ async def change_password(user_id, new_password):
                 await cur.execute(sql, (p_hash, user_id))
     return True
 
+async def get_all_users():
+    sql = "SELECT id, username, role, created_at, last_login FROM users ORDER BY id" if use_sqlite() else "SELECT id, username, role, created_at, last_login FROM users ORDER BY id"
+    # Note: last_login might not exist yet, let's check schema or add it.
+    # Looking at init_sqlite, there is no last_login column. I should add it or ignore it.
+    # The user requested "last login time" in the profile card.
+    # I'll stick to existing columns first: id, username, role, created_at.
+    
+    sql = "SELECT id, username, role, created_at FROM users ORDER BY id"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql)
+                return await cur.fetchall()
+
+async def create_user(username, password, role="user"):
+    p_hash = hash_password(password)
+    sql = "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)" if use_sqlite() else "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)"
+    
+    try:
+        if use_sqlite():
+            if not _sqlite: await init_sqlite()
+            await _sqlite.execute(sql, (username, p_hash, role))
+            await _sqlite.commit()
+        else:
+            if not _pool: await init_pool()
+            async with _pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(sql, (username, p_hash, role))
+        return True
+    except Exception as e:
+        logging.error(f"Error creating user: {e}")
+        return False
+
+async def update_user(user_id, username=None, password=None, role=None):
+    updates = []
+    params = []
+    
+    if username:
+        updates.append("username=?")
+        params.append(username)
+    if password:
+        updates.append("password_hash=?")
+        params.append(hash_password(password))
+    if role:
+        updates.append("role=?")
+        params.append(role)
+        
+    if not updates:
+        return False
+        
+    sql_base = "UPDATE users SET " + ", ".join(updates) + " WHERE id=?"
+    params.append(user_id)
+    
+    # Adjust placeholders for MySQL if needed
+    if not use_sqlite():
+        sql_base = sql_base.replace("?", "%s")
+        
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql_base, tuple(params))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_base, tuple(params))
+    return True
+
+async def delete_user(user_id):
+    # Don't allow deleting admin (id=1 usually, or check username)
+    # But let's just handle deletion here.
+    sql = "DELETE FROM users WHERE id=?" if use_sqlite() else "DELETE FROM users WHERE id=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (user_id,))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (user_id,))
+    return True
+
+
 
 async def init_sqlite():
     global _sqlite
@@ -155,6 +247,12 @@ async def init_sqlite():
             p_hash = hash_password("admin")
             await _sqlite.execute("INSERT INTO users (username, password_hash, role) VALUES ('admin', ?, 'admin')", (p_hash,))
 
+    # Migration: Add created_at if not exists
+    try:
+        await _sqlite.execute("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+    except Exception:
+        pass
+    
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -289,6 +387,14 @@ async def init_pool():
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
+                # MySQL Migration for users.created_at
+                try:
+                    await cur.execute("SHOW COLUMNS FROM users LIKE 'created_at'")
+                    if not await cur.fetchone():
+                        await cur.execute("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+                except Exception as e:
+                    logging.info(f"MySQL Migration failed (users.created_at): {e}")
+
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS sessions (
                         token VARCHAR(64) PRIMARY KEY,

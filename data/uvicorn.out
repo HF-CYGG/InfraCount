@@ -5024,3 +5024,186 @@ INFO:     127.0.0.1:13400 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
 INFO:     127.0.0.1:13400 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
 INFO:     127.0.0.1:13400 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
 INFO:     127.0.0.1:13400 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3326 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1071 - "GET /static/fonts/el-messiri.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3326 - "GET /static/lib/fontawesome/css/all.min.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3326 - "GET /static/img/view.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1071 - "GET /static/lib/fontawesome/webfonts/fa-solid-900.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3326 - "GET /static/fonts/el-messiri-0.ttf HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /static/img/no-view.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8576 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4789 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6619 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10921 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9396 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9396 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9396 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8342 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10921 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6619 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6619 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10921 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10921 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6619 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5845 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6619 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10921 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3802 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14924 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10350 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10350 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7703 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3724 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9609 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7171 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7171 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7171 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9609 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3724 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:7703 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10350 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11710 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3040 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14759 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11710 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11710 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11710 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11710 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /static/layout.js?v=auth_v1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9376 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5949 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4736 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5949 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12979 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1173 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12979 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12979 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1173 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1173 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8041 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:9172 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9172 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8041 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:9172 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9172 - "GET /devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:9172 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8041 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8408 - "GET /api/v1/devices HTTP/1.1" 200 OK
+INFO:     127.0.0.1:11460 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14233 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6424 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14233 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:6424 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1837 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6485 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:14070 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6485 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1837 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14070 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:8243 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6143 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6143 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /static/lib/echarts.min.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4623 - "GET /favicon.ico HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6143 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8243 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:10280 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:10280 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:6337 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6337 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14617 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3307 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6337 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6337 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6337 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6337 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /static/lib/fontawesome/css/all.min.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:12145 - "GET /static/fonts/el-messiri.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:12145 - "GET /static/img/view.svg HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:3892 - "GET /static/lib/fontawesome/webfonts/fa-solid-900.woff2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:12145 - "GET /static/fonts/el-messiri-0.ttf HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:12145 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12145 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:3892 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3892 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12145 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3170 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3170 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:3892 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "POST /api/v1/auth/logout HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3892 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1244 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1244 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1244 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6902 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14837 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1244 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1244 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1244 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1244 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14837 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1244 - "GET /api/v1/auth/me HTTP/1.1" 200 OK

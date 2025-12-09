@@ -62,6 +62,46 @@ const ALERT_HTML = `
 </div>
 `;
 
+const PROFILE_MODAL_HTML = `
+<div id="appProfileModal" class="modal-backdrop" style="z-index:9999">
+    <div class="modal" style="width:500px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0;">我的账户</h2>
+            <span id="closeProfileModal" style="cursor:pointer; font-size:24px;">&times;</span>
+        </div>
+        
+        <div class="user-info" style="margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #eee;">
+            <div style="display:flex; margin:10px 0; color:#666;">
+                <span style="width:100px; font-weight:500;">用户名</span>
+                <span id="profileUsername">加载中...</span>
+            </div>
+            <div style="display:flex; margin:10px 0; color:#666;">
+                <span style="width:100px; font-weight:500;">角色</span>
+                <span id="profileRole">加载中...</span>
+            </div>
+            <div style="display:flex; margin:10px 0; color:#666;">
+                <span style="width:100px; font-weight:500;">上次登录</span>
+                <span id="profileLastLogin">--</span>
+            </div>
+        </div>
+
+        <h3>修改密码</h3>
+        <form id="profileChangePwdForm">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label class="form-label" style="display:block; margin-bottom:5px;">新密码</label>
+                <input type="password" name="newPassword" class="form-control" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" required minlength="6">
+            </div>
+            <div class="form-group" style="margin-bottom:15px;">
+                <label class="form-label" style="display:block; margin-bottom:5px;">确认新密码</label>
+                <input type="password" name="confirmPassword" class="form-control" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary">更新密码</button>
+        </form>
+    </div>
+</div>
+`;
+
+
 // Interval Tracking for SPA Cleanup
 const _pageIntervals = new Set();
 const _nativeSetInterval = window.setInterval;
@@ -132,11 +172,23 @@ function initLayout(title, customContentId) {
             <button id="themeToggle" class="btn btn-sm">
                 ${body.classList.contains('dark-mode') ? '亮色模式' : '暗色模式'}
             </button>
-            <div style="width:32px;height:32px;background:#e9ecef;border-radius:50%;display:flex;align-items:center;justify-content:center"></div>
+            <div style="position:relative;">
+                <div id="userAvatar" style="width:32px;height:32px;background:#e9ecef;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                     </svg>
+                </div>
+                <div id="userDropdown" style="display:none; position:absolute; top:45px; right:0; background:white; border:1px solid #e9ecef; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); width:160px; z-index:1000;">
+                    <div id="openProfileBtn" style="padding:12px 16px; cursor:pointer; border-bottom:1px solid #f1f3f5; font-size:14px; color:#333;">个人账户</div>
+                    <div id="doLogoutBtn" style="padding:12px 16px; cursor:pointer; color:#dc3545; font-size:14px;">退出登录</div>
+                </div>
+            </div>
         </div>
     `;
     
     const content = document.createElement('div');
+
     content.className = 'app-content';
     
     // Move existing nodes
@@ -242,8 +294,108 @@ function initLayout(title, customContentId) {
         if(confirmResolve) confirmResolve(false);
     });
 
+    // --- User Profile Logic ---
+    
+    // Add Profile Modal to Body
+    const profileContainer = document.createElement('div');
+    profileContainer.innerHTML = PROFILE_MODAL_HTML;
+    document.body.appendChild(profileContainer);
+    
+    const userAvatar = document.getElementById('userAvatar');
+    const userDropdown = document.getElementById('userDropdown');
+    const openProfileBtn = document.getElementById('openProfileBtn');
+    const doLogoutBtn = document.getElementById('doLogoutBtn');
+    
+    const profileModal = document.getElementById('appProfileModal');
+    const closeProfileModal = document.getElementById('closeProfileModal');
+    
+    // Toggle Dropdown
+    userAvatar.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = userDropdown.style.display === 'none';
+        userDropdown.style.display = isHidden ? 'block' : 'none';
+    });
+    
+    // Close dropdown on outside click
+    document.addEventListener('click', () => {
+        if(userDropdown) userDropdown.style.display = 'none';
+    });
+    
+    // Open Profile Modal
+    openProfileBtn.addEventListener('click', async () => {
+        profileModal.classList.add('show');
+        // Load User Info
+        try {
+            const res = await fetch('/api/v1/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.user) {
+                    document.getElementById('profileUsername').textContent = data.user.username;
+                    document.getElementById('profileRole').textContent = data.user.role;
+                    // Mock last login if not available
+                    document.getElementById('profileLastLogin').textContent = data.user.last_login || new Date().toLocaleString(); 
+                }
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    });
+    
+    closeProfileModal.addEventListener('click', () => {
+        profileModal.classList.remove('show');
+    });
+    
+    // Profile Change Password
+    const profilePwdForm = document.getElementById('profileChangePwdForm');
+    if (profilePwdForm) {
+        profilePwdForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const newPwd = form.newPassword.value;
+            const confirmPwd = form.confirmPassword.value;
+
+            if (newPwd !== confirmPwd) {
+                window.showAlert('两次输入的密码不一致');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/v1/auth/password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({new_password: newPwd})
+                });
+
+                if (res.ok) {
+                    window.showAlert('密码修改成功');
+                    form.reset();
+                    profileModal.classList.remove('show');
+                } else {
+                    window.showAlert('修改失败，请重试');
+                }
+            } catch (e) {
+                console.error(e);
+                window.showAlert('发生错误');
+            }
+        });
+    }
+
+    // Logout
+    doLogoutBtn.addEventListener('click', async () => {
+        const confirmed = await window.showConfirm('确定要退出登录吗？');
+        if(!confirmed) return;
+        
+        try {
+            await fetch('/api/v1/auth/logout', {method: 'POST'});
+            window.location.href = '/login';
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
     // Initialize SPA Navigation
     setupSpaNavigation();
+
 }
 
 function updateActiveLink() {

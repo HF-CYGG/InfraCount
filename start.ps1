@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Kill-Port-Process {
@@ -33,9 +33,6 @@ function Cleanup-Resources {
     Kill-Port-Process 8085 # TCP Server
     Kill-Port-Process 8000 # Web Server (if running on 8000)
     
-    # Kill Python processes launched by this env (rough check)
-    # This is a bit aggressive, so we focus on ports mostly.
-    
     Write-Host "[信息] 清理完成。" -ForegroundColor Green
 }
 
@@ -62,7 +59,6 @@ $TaskName = "InfraCountService"
 Write-Host "正在检查后台服务 '$TaskName'..." -ForegroundColor Cyan
 
 # Check if task exists and is running
-# Using cmd /c to be compatible with older PS versions and avoid exceptions
 $taskRunning = $false
 $query = cmd /c "schtasks /query /tn `"$TaskName`" /fo LIST 2>nul"
 if ($query -match "Status:\s+Running") {

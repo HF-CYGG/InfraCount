@@ -1,0 +1,7 @@
+@font-face {
+  font-family: 'El Messiri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/static/fonts/el-messiri-0.ttf) format('truetype');
+}
