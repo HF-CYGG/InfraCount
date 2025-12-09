@@ -471,6 +471,8 @@
                 <button class="btn hidden" id="btnPrev">上一步</button>
                 <button class="btn btn-primary" id="btnNext" disabled>下一步</button>
                 <button class="btn btn-primary hidden" id="btnFinish">完成</button>
+                <button class="btn hidden" id="btnSkip">跳过重复</button>
+                <button class="btn btn-primary hidden" id="btnOverwrite" style="background:#f57c00;border-color:#f57c00">覆盖重复</button>
             </div>
         </div>
     </div>
@@ -595,6 +597,7 @@
         step: 1,
         file: null,
         data: [],
+        duplicates: [],
         CHUNK_SIZE: 500,
         
         el: {
@@ -608,6 +611,8 @@
             btnPrev: document.getElementById('btnPrev'),
             btnNext: document.getElementById('btnNext'),
             btnFinish: document.getElementById('btnFinish'),
+            btnSkip: document.getElementById('btnSkip'),
+            btnOverwrite: document.getElementById('btnOverwrite'),
             // Preview
             previewTotal: document.getElementById('previewTotal'),
             previewDateRange: document.getElementById('previewDateRange'),
@@ -630,6 +635,10 @@
             this.el.btnNext.addEventListener('click', () => this.next());
             this.el.btnPrev.addEventListener('click', () => this.prev());
             this.el.btnFinish.addEventListener('click', () => this.close());
+            
+            // Duplicate handling
+            this.el.btnSkip.addEventListener('click', () => this.finishImport());
+            this.el.btnOverwrite.addEventListener('click', () => this.overwriteDuplicates());
 
             // File Input
             this.el.dropZone.addEventListener('click', () => this.el.fileInput.click());
@@ -657,7 +666,7 @@
 
         close() {
             this.el.modal.classList.remove('show');
-            if(this.step === 3 && this.data.length > 0) {
+            if(this.step === 3 && (this.data.length > 0 || this.duplicates.length > 0)) {
                 loadData();
             }
         },
@@ -666,10 +675,13 @@
             this.step = 1;
             this.file = null;
             this.data = [];
+            this.duplicates = [];
             this.el.fileInput.value = '';
             this.el.fileInfo.classList.add('hidden');
             this.el.dropZone.classList.remove('hidden');
             this.el.btnNext.disabled = true;
+            this.el.btnSkip.classList.add('hidden');
+            this.el.btnOverwrite.classList.add('hidden');
             this.renderStep();
         },
 
@@ -684,8 +696,8 @@
 
             this.el.btnPrev.classList.toggle('hidden', this.step === 1 || this.step === 3);
             this.el.btnNext.classList.toggle('hidden', this.step === 3);
-            this.el.btnFinish.classList.toggle('hidden', this.step !== 3); 
-            this.el.btnCancel.classList.toggle('hidden', this.step === 3);
+            this.el.btnFinish.classList.toggle('hidden', true); // Hide finish until done
+            this.el.btnCancel.classList.toggle('hidden', this.step === 3); // Hide cancel initially in step 3
 
             if (this.step === 1) {
                 this.el.btnNext.disabled = !this.file;
@@ -875,10 +887,14 @@
         async startImport() {
             const total = this.data.length;
             let imported = 0;
+            this.duplicates = [];
             const startTime = Date.now();
 
             this.el.progressStatus.textContent = "正在导入...";
             this.el.progressStatus.style.color = "#2b2d42";
+            this.el.btnSkip.classList.add('hidden');
+            this.el.btnOverwrite.classList.add('hidden');
+            this.el.btnFinish.classList.add('hidden');
 
             for(let i=0; i<total; i+=this.CHUNK_SIZE) {
                 const chunk = this.data.slice(i, i+this.CHUNK_SIZE);
@@ -886,17 +902,24 @@
                     const res = await fetch('/api/v1/activity/walkin/sync', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({items: chunk})
+                        body: JSON.stringify({items: chunk, mode: 'skip'})
                     });
                     
                     if(!res.ok) throw new Error(await res.text());
+                    const json = await res.json();
+                    
+                    if(json.duplicates && json.duplicates.length > 0) {
+                        json.duplicates.forEach(idx => {
+                            this.duplicates.push(chunk[idx]);
+                        });
+                    }
                     
                     imported += chunk.length;
                     
                     const percent = Math.min(100, Math.round((imported / total) * 100));
                     this.el.progressRing.style.setProperty('--percent', percent);
                     this.el.progressPercent.textContent = percent + '%';
-                    this.el.progressCount.textContent = `已导入 ${imported} / ${total}`;
+                    this.el.progressCount.textContent = `已处理 ${imported} / ${total}`;
                     
                     const elapsed = Date.now() - startTime;
                     if(imported > 0) {
@@ -906,7 +929,7 @@
                         this.el.progressTime.textContent = `预计剩余时间: ${(etaMs/1000).toFixed(1)}s`;
                     }
                     
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, 50));
                 } catch(err) {
                     this.el.progressStatus.textContent = "导入出错: " + err.message;
                     this.el.progressStatus.style.color = "#f72585";
@@ -916,11 +939,64 @@
                 }
             }
 
+            if(this.duplicates.length > 0) {
+                this.el.progressStatus.textContent = `发现 ${this.duplicates.length} 条重复数据`;
+                this.el.progressStatus.style.color = "#f57c00";
+                this.el.progressTime.textContent = "请选择处理方式";
+                this.el.btnSkip.classList.remove('hidden');
+                this.el.btnOverwrite.classList.remove('hidden');
+            } else {
+                this.finishImport();
+            }
+        },
+
+        async overwriteDuplicates() {
+            const total = this.duplicates.length;
+            if(total === 0) return this.finishImport();
+            
+            this.el.progressStatus.textContent = "正在覆盖重复数据...";
+            this.el.progressStatus.style.color = "#2b2d42";
+            this.el.btnSkip.classList.add('hidden');
+            this.el.btnOverwrite.classList.add('hidden');
+            
+            let processed = 0;
+            
+            for(let i=0; i<total; i+=this.CHUNK_SIZE) {
+                const chunk = this.duplicates.slice(i, i+this.CHUNK_SIZE);
+                try {
+                     const res = await fetch('/api/v1/activity/walkin/sync', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({items: chunk, mode: 'overwrite'})
+                    });
+                    
+                    if(!res.ok) throw new Error(await res.text());
+                    
+                    processed += chunk.length;
+                    const percent = Math.min(100, Math.round((processed / total) * 100));
+                    this.el.progressRing.style.setProperty('--percent', percent);
+                    this.el.progressPercent.textContent = percent + '%';
+                    this.el.progressCount.textContent = `覆盖进度 ${processed} / ${total}`;
+                    
+                } catch(err) {
+                    this.el.progressStatus.textContent = "覆盖出错: " + err.message;
+                    this.el.progressStatus.style.color = "#f72585";
+                    this.el.btnCancel.classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            this.finishImport();
+        },
+
+        finishImport() {
             this.el.progressStatus.textContent = "导入完成!";
             this.el.progressStatus.style.color = "#4cc9f0";
+            this.el.progressTime.textContent = "";
             this.el.btnFinish.classList.remove('hidden');
             this.el.btnCancel.classList.add('hidden');
-            
+            this.el.btnSkip.classList.add('hidden');
+            this.el.btnOverwrite.classList.add('hidden');
             loadData();
         }
     };

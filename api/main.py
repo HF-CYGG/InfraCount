@@ -223,8 +223,9 @@ async def walkin_preview(payload: Dict[str, Any] = Body(...)):
 @app.post("/api/v1/activity/walkin/sync")
 async def walkin_sync(payload: Dict[str, Any] = Body(...)):
     items = payload.get("items", [])
-    count = await db.activity_bulk_insert(items)
-    return {"count": count}
+    mode = payload.get("mode", "skip")
+    result = await db.activity_bulk_insert(items, mode=mode)
+    return result
 
 # --- Stats ---
 

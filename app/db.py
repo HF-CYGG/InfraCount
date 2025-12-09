@@ -1020,47 +1020,117 @@ async def list_alerts(uuid=None, limit=100):
 
 # --- Activity Events (Preserved) ---
 
-async def activity_bulk_insert(events: list[dict]):
+async def activity_bulk_insert(events: list[dict], mode: str = "skip"):
     if not events:
-        return 0
-    count = 0
+        return {"inserted": 0, "updated": 0, "duplicates": []}
+    
+    # 1. Prepare
+    # Normalize keys for comparison. Key: (date, start_time, location, activity_name)
+    # We maintain original indices to report back duplicates relative to input list.
+    
+    # Optimization: Query existing records in the date range of the batch
+    dates = [e.get("date") for e in events if e.get("date")]
+    if not dates:
+        return {"inserted": 0, "updated": 0, "duplicates": []}
+
+    min_date, max_date = min(dates), max(dates)
+    
+    # Fetch existing signatures in range
+    existing_sigs = set()
+    
     cols = ["date", "weekday", "start_time", "end_time", "duration_minutes", "academy", "location", "activity_name", "activity_type", "audience_count", "notes"]
     
-    if use_sqlite():
-        if _sqlite is None:
-            await init_sqlite()
-        if _sqlite:
-            for e in events:
-                cur = await _sqlite.execute("SELECT id FROM activity_events WHERE date=? AND start_time=? AND location=? AND activity_name=?", 
-                                            (e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name")))
-                row = await cur.fetchone()
-                if not row:
-                    vals = [e.get(c) for c in cols]
-                    await _sqlite.execute(
-                        f"INSERT INTO activity_events({','.join(cols)}) VALUES({','.join(['?']*len(cols))})",
-                        vals
-                    )
-                    count += 1
-            await _sqlite.commit()
-            return count
+    check_sql = "SELECT date, start_time, location, activity_name FROM activity_events WHERE date >= ? AND date <= ?" if use_sqlite() else \
+                "SELECT date, start_time, location, activity_name FROM activity_events WHERE date >= %s AND date <= %s"
     
-    if _pool is None:
-        await init_pool()
-    if _pool:
-        async with _pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                 for e in events:
-                    await cur.execute("SELECT id FROM activity_events WHERE date=%s AND start_time=%s AND location=%s AND activity_name=%s", 
-                                      (e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name")))
-                    row = await cur.fetchone()
-                    if not row:
-                        vals = [e.get(c) for c in cols]
-                        await cur.execute(
-                            f"INSERT INTO activity_events({','.join(cols)}) VALUES({','.join(['%s']*len(cols))})",
-                            vals
-                        )
-                        count += 1
-    return count
+    rows = await run_query(check_sql, [min_date, max_date])
+    for r in rows:
+        # Tuple of (date, start_time, location, activity_name)
+        existing_sigs.add((r[0], r[1], r[2], r[3]))
+        
+    to_insert = []
+    to_update = []
+    duplicate_indices = []
+    
+    for i, e in enumerate(events):
+        # Ensure values are strings for comparison if needed, but DB returns strings usually
+        sig = (e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name"))
+        
+        if sig in existing_sigs:
+            if mode == "overwrite":
+                to_update.append(e)
+            else:
+                duplicate_indices.append(i)
+        else:
+            to_insert.append(e)
+            # Add to existing_sigs to handle duplicates within the batch itself!
+            existing_sigs.add(sig)
+
+    inserted_count = 0
+    updated_count = 0
+    
+    # 2. Bulk Insert
+    if to_insert:
+        BATCH_SIZE = 500
+        for i in range(0, len(to_insert), BATCH_SIZE):
+            chunk = to_insert[i:i + BATCH_SIZE]
+            
+            vals = []
+            for e in chunk:
+                vals.extend([e.get(c) for c in cols])
+                
+            placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(cols))
+            row_placeholder = f"({placeholders})"
+            all_placeholders = ",".join([row_placeholder] * len(chunk))
+            
+            insert_sql = f"INSERT INTO activity_events({','.join(cols)}) VALUES {all_placeholders}"
+            
+            if use_sqlite():
+                if _sqlite is None: await init_sqlite()
+                if _sqlite:
+                    await _sqlite.execute(insert_sql, vals)
+                    await _sqlite.commit()
+            else:
+                if _pool is None: await init_pool()
+                if _pool:
+                    async with _pool.acquire() as conn:
+                        async with conn.cursor() as cur:
+                            await cur.execute(insert_sql, vals)
+        
+        inserted_count = len(to_insert)
+
+    # 3. Bulk Update (Overwrite)
+    if to_update and mode == "overwrite":
+        update_sql = "UPDATE activity_events SET weekday=?, end_time=?, duration_minutes=?, academy=?, activity_type=?, audience_count=?, notes=? WHERE date=? AND start_time=? AND location=? AND activity_name=?" if use_sqlite() else \
+                     "UPDATE activity_events SET weekday=%s, end_time=%s, duration_minutes=%s, academy=%s, activity_type=%s, audience_count=%s, notes=%s WHERE date=%s AND start_time=%s AND location=%s AND activity_name=%s"
+                     
+        update_params = []
+        for e in to_update:
+            # Set params
+            p = [e.get("weekday"), e.get("end_time"), e.get("duration_minutes"), e.get("academy"), e.get("activity_type"), e.get("audience_count"), e.get("notes")]
+            # Where params
+            p.extend([e.get("date"), e.get("start_time"), e.get("location"), e.get("activity_name")])
+            update_params.append(p)
+            
+        BATCH_SIZE = 500
+        for i in range(0, len(update_params), BATCH_SIZE):
+            chunk_params = update_params[i:i + BATCH_SIZE]
+            
+            if use_sqlite():
+                if _sqlite is None: await init_sqlite()
+                if _sqlite:
+                    await _sqlite.executemany(update_sql, chunk_params)
+                    await _sqlite.commit()
+            else:
+                if _pool is None: await init_pool()
+                if _pool:
+                    async with _pool.acquire() as conn:
+                        async with conn.cursor() as cur:
+                            await cur.executemany(update_sql, chunk_params)
+                            
+        updated_count = len(to_update)
+
+    return {"inserted": inserted_count, "updated": updated_count, "duplicates": duplicate_indices}
 
 async def activity_list(start_date: str = None, end_date: str = None, locations: list = None, types: list = None, academies: list = None, weekdays: list = None, start_times: list = None, page: int = 1, page_size: int = 50):
     offset = (page - 1) * page_size
