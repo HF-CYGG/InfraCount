@@ -1,7 +1,9 @@
 import io
 import logging
+import difflib
 from typing import List, Optional, Dict, Any
-from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile
+from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, Request, Response
+from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +32,65 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     await db.close_pool()
+
+# --- Auth ---
+
+@app.post("/api/v1/auth/login")
+async def auth_login(response: Response, payload: Dict[str, str] = Body(...)):
+    username = payload.get("username")
+    password = payload.get("password")
+    user = await db.authenticate_user(username, password)
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+    
+    session_token = await db.create_session(user["id"])
+    # Set cookie
+    response.set_cookie(key="session_token", value=session_token, httponly=True, max_age=7*24*3600)
+    return {"status": "ok", "user": user}
+
+@app.post("/api/v1/auth/logout")
+async def auth_logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token:
+        await db.delete_session(token)
+    response.delete_cookie("session_token")
+    return {"status": "ok"}
+
+@app.get("/api/v1/auth/me")
+async def auth_me(request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(401, "Invalid session")
+    return {"user": user}
+
+@app.post("/api/v1/auth/password")
+async def auth_change_password(request: Request, payload: Dict[str, str] = Body(...)):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(401, "Invalid session")
+        
+    new_pw = payload.get("new_password")
+    if not new_pw:
+        raise HTTPException(400, "Missing password")
+        
+    await db.change_password(user["id"], new_pw)
+    return {"status": "ok"}
+
+# --- Pages ---
+
+@app.get("/login")
+async def login_page():
+    return FileResponse("templates/login.html")
+
+@app.get("/account")
+async def account_page():
+    return FileResponse("templates/account.html")
 
 # --- Static & Pages ---
 
@@ -580,3 +641,27 @@ async def delete_location_mapping(location: str = Query(...)):
 async def get_all_locations():
     locs = await db.get_all_activity_locations()
     return locs
+
+class CorrectionPayload(BaseModel):
+    location: str
+    academy: str
+    merge_locations: List[str] = []
+
+@app.get("/api/v1/locations/correction-candidates")
+async def get_correction_candidates(location: str = Query(...)):
+    all_locs = await db.get_all_activity_locations()
+    mapping = await db.get_location_academy_mapping()
+    mapped_locs = set(mapping.keys())
+    
+    # Candidates are locations that are NOT the target location AND NOT already mapped
+    # We assume if it's already mapped, it's correct and shouldn't be merged automatically
+    candidates = [l for l in all_locs if l != location and l not in mapped_locs]
+    
+    # Use close matches
+    matches = difflib.get_close_matches(location, candidates, n=10, cutoff=0.6)
+    return matches
+
+@app.post("/api/v1/locations/correct")
+async def execute_correction(payload: CorrectionPayload):
+    count = await db.correct_location_data(payload.location, payload.academy, payload.merge_locations)
+    return {"count": count}

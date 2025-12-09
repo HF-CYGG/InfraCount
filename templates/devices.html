@@ -86,6 +86,14 @@
         </div>
         <button class="btn btn-primary" id="addLocBtn">添加</button>
     </div>
+    
+    <!-- Filter Bar -->
+    <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center;">
+        <input id="searchLoc" class="input" placeholder="搜索场地..." style="width:200px">
+        <select id="filterLocAca" class="select" style="width:150px">
+            <option value="">所有书院</option>
+        </select>
+    </div>
 
     <div class="table-wrap" style="max-height: 500px; overflow-y: auto;">
         <table>
@@ -169,6 +177,33 @@
     </div>
 </div>
 
+<!-- Location Correction Modal -->
+<div id="locCorrectionModal" class="modal-backdrop">
+    <div class="modal" style="max-width: 600px;">
+        <h3>场地数据校正</h3>
+        <p style="margin-bottom:8px">将对场地 <strong id="correctLocName"></strong> 的历史数据进行校正。</p>
+        <p style="margin-bottom:16px">目标归属书院: <strong id="correctLocAca" style="color:var(--primary)"></strong></p>
+        
+        <div id="similarLocsSection" style="display:none">
+            <hr style="border:0; border-top:1px solid #eee; margin:12px 0;">
+            <h5 style="font-size:14px; font-weight:bold; margin-bottom:8px;">发现相似的未归属场地</h5>
+            <p style="color:#666; font-size:12px; margin-bottom:8px;">勾选下列场地，将其历史数据合并到当前标准场地（重命名并统一归属）。</p>
+            <div id="similarLocsList" style="max-height: 200px; overflow-y: auto; border:1px solid #eee; padding:8px; border-radius:4px;">
+                <!-- Checkboxes go here -->
+            </div>
+        </div>
+        
+        <div id="correctLoading" style="text-align:center; margin:16px 0; display:none; color:#666;">
+            <div>正在查找相似场地...</div>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+            <button class="btn" id="locCorrectCancel">取消</button>
+            <button class="btn btn-warning" id="locCorrectConfirm">确认校正</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="/static/layout.js"></script>
@@ -206,7 +241,11 @@
         locEditName: document.getElementById('locEditName'),
         locEditAca: document.getElementById('locEditAca'),
         locEditCancel: document.getElementById('locEditCancel'),
-        locEditSave: document.getElementById('locEditSave')
+        locEditSave: document.getElementById('locEditSave'),
+
+        // Loc Filter
+        searchLoc: document.getElementById('searchLoc'),
+        filterLocAca: document.getElementById('filterLocAca')
     };
 
     function showToast(msg) {
@@ -399,13 +438,31 @@
             const academies = await acaRes.json();
             
             // Populate New Loc Academy Select
-            els.newLocAca.innerHTML = `<option value="">-- 选择书院 --</option>` + 
+            const acaOpts = `<option value="">-- 选择书院 --</option>` + 
                 academies.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+            els.newLocAca.innerHTML = acaOpts;
+            
+            // Populate Filter Academy Select (preserve selection if possible)
+            const currentFilterAca = els.filterLocAca.value;
+            els.filterLocAca.innerHTML = `<option value="">所有书院</option>` + 
+                academies.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+            els.filterLocAca.value = currentFilterAca;
 
             // Render Table (Sorted by name)
             const locs = Object.keys(mapping).sort();
+            const searchVal = els.searchLoc.value.trim().toLowerCase();
+            const filterAcaVal = els.filterLocAca.value;
             
-            els.locationTable.innerHTML = locs.map((l, index) => {
+            const filteredLocs = locs.filter(l => {
+                const currentAca = mapping[l] || '';
+                // Search filter
+                if(searchVal && !l.toLowerCase().includes(searchVal)) return false;
+                // Academy filter
+                if(filterAcaVal && currentAca !== filterAcaVal) return false;
+                return true;
+            });
+
+            els.locationTable.innerHTML = filteredLocs.map((l, index) => {
                 const currentAca = mapping[l] || '';
                 // Escape string for ID and JS params
                 const safeL = l.replace(/"/g, '&quot;').replace(/'/g, "\\'");
@@ -416,8 +473,11 @@
                     <td>${l}</td>
                     <td>${currentAca}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="openLocEdit('${safeL}', '${currentAca}')" style="margin-right:4px">修改</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteLocMapping('${safeL}')">删除</button>
+                        <div style="display:flex;gap:4px">
+                            <button class="btn btn-sm btn-primary" onclick="openLocEdit('${safeL}', '${currentAca}')">修改</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteLocMapping('${safeL}')">删除</button>
+                            <button class="btn btn-sm btn-warning" onclick="openLocCorrection('${safeL}', '${currentAca}')">校正</button>
+                        </div>
                     </td>
                 </tr>
                 `;
@@ -428,6 +488,10 @@
             showToast('加载场地配置失败');
         }
     }
+
+    // Filter Events
+    els.searchLoc.addEventListener('input', loadLocationMapping);
+    els.filterLocAca.addEventListener('change', loadLocationMapping);
 
     window.openLocEdit = (name, aca) => {
         els.locEditOldName.value = name;
@@ -522,6 +586,92 @@
             showToast('删除失败');
         }
     };
+    
+    // Correction Logic
+    els.locCorrectModal = document.getElementById('locCorrectionModal');
+    els.locCorrectCancel = document.getElementById('locCorrectCancel');
+    els.locCorrectConfirm = document.getElementById('locCorrectConfirm');
+    
+    els.locCorrectCancel.addEventListener('click', () => {
+        els.locCorrectModal.classList.remove('show');
+    });
+
+    let currentCorrectionTarget = null;
+    let currentCorrectionAca = null;
+
+    window.openLocCorrection = async (name, aca) => {
+        currentCorrectionTarget = name;
+        currentCorrectionAca = aca;
+        
+        document.getElementById('correctLocName').textContent = name;
+        document.getElementById('correctLocAca').textContent = aca;
+        document.getElementById('similarLocsSection').style.display = 'none';
+        document.getElementById('similarLocsList').innerHTML = '';
+        
+        els.locCorrectModal.classList.add('show');
+        
+        // Fetch candidates
+        document.getElementById('correctLoading').style.display = 'block';
+        try {
+            const res = await fetch(`/api/v1/locations/correction-candidates?location=${encodeURIComponent(name)}`);
+            const candidates = await res.json();
+            
+            if (candidates && candidates.length > 0) {
+                const listHtml = candidates.map(c => {
+                    const safeC = c.replace(/"/g, '&quot;');
+                    return `
+                    <div style="margin-bottom:4px">
+                        <label style="display:flex;align-items:center;cursor:pointer">
+                            <input type="checkbox" value="${safeC}" style="margin-right:8px">
+                            <span>${c}</span>
+                        </label>
+                    </div>
+                `}).join('');
+                document.getElementById('similarLocsList').innerHTML = listHtml;
+                document.getElementById('similarLocsSection').style.display = 'block';
+            } else {
+                 document.getElementById('similarLocsSection').style.display = 'none';
+            }
+        } catch(e) {
+            console.error(e);
+        } finally {
+            document.getElementById('correctLoading').style.display = 'none';
+        }
+    };
+    
+    els.locCorrectConfirm.addEventListener('click', async () => {
+        const mergeLocs = [];
+        const checkboxes = document.querySelectorAll('#similarLocsList input[type="checkbox"]:checked');
+        checkboxes.forEach(chk => mergeLocs.push(chk.value));
+        
+        const msg = `确定要校正 ${currentCorrectionTarget} 的数据吗？` + 
+                    (mergeLocs.length ? `\n将合并 ${mergeLocs.length} 个相似场地。` : '') + 
+                    `\n这将更新相关的历史活动记录。`;
+
+        if(!await showConfirm(msg)) return;
+        
+        try {
+            const res = await fetch('/api/v1/locations/correct', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    location: currentCorrectionTarget,
+                    academy: currentCorrectionAca,
+                    merge_locations: mergeLocs
+                })
+            });
+            const data = await res.json();
+            if(res.ok) {
+                showToast(`校正完成，更新了 ${data.count} 条记录`);
+                els.locCorrectModal.classList.remove('show');
+                loadLocationMapping();
+            } else {
+                throw new Error();
+            }
+        } catch(e) {
+            showToast('校正失败');
+        }
+    });
     
     if(els.refreshLoc) els.refreshLoc.addEventListener('click', loadLocationMapping);
     loadLocationMapping();

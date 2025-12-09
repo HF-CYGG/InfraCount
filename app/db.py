@@ -15,6 +15,113 @@ _sqlite = None
 def use_sqlite():
     return config.DB_DRIVER == "sqlite"
 
+import hashlib
+import uuid
+
+def hash_password(password: str) -> str:
+    # Simple salted hash (SHA256)
+    salt = "infrared_salt_v1" # In prod this should be per-user random
+    return hashlib.sha256((password + salt).encode()).hexdigest()
+
+async def authenticate_user(username, password):
+    p_hash = hash_password(password)
+    sql = "SELECT id, username, password_hash, role FROM users WHERE username=?" if use_sqlite() else "SELECT id, username, password_hash, role FROM users WHERE username=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, (username,)) as cur:
+            row = await cur.fetchone()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, (username,))
+                row = await cur.fetchone()
+                
+    if row:
+        stored_hash = row["password_hash"]
+        if stored_hash == p_hash:
+            return {"id": row["id"], "username": row["username"], "role": row["role"]}
+            
+    return None
+
+async def create_session(user_id):
+    token = str(uuid.uuid4())
+    # Expires in 7 days
+    import datetime
+    expires = datetime.datetime.now() + datetime.timedelta(days=7)
+    
+    sql = "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)" if use_sqlite() else "INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, %s)"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (token, user_id, expires))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (token, user_id, expires))
+                
+    return token
+
+async def get_user_by_token(token):
+    sql = """
+        SELECT u.id, u.username, u.role 
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.token = ? AND s.expires_at > CURRENT_TIMESTAMP
+    """ if use_sqlite() else """
+        SELECT u.id, u.username, u.role 
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        WHERE s.token = %s AND s.expires_at > NOW()
+    """
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, (token,)) as cur:
+            row = await cur.fetchone()
+            if row:
+                return {"id": row["id"], "username": row["username"], "role": row["role"]}
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, (token,))
+                row = await cur.fetchone()
+                if row:
+                    return row
+    return None
+
+async def delete_session(token):
+    sql = "DELETE FROM sessions WHERE token=?" if use_sqlite() else "DELETE FROM sessions WHERE token=%s"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (token,))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (token,))
+
+async def change_password(user_id, new_password):
+    p_hash = hash_password(new_password)
+    sql = "UPDATE users SET password_hash=? WHERE id=?" if use_sqlite() else "UPDATE users SET password_hash=%s WHERE id=%s"
+    
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(sql, (p_hash, user_id))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql, (p_hash, user_id))
+    return True
+
+
 async def init_sqlite():
     global _sqlite
     if _sqlite:
@@ -25,6 +132,29 @@ async def init_sqlite():
     _sqlite.row_factory = aiosqlite.Row
     
     # Init tables
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password_hash TEXT,
+            role TEXT DEFAULT 'user',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER,
+            expires_at DATETIME
+        )
+    """)
+    
+    # Check if admin exists, if not create default
+    async with _sqlite.execute("SELECT id FROM users WHERE username='admin'") as cur:
+        if not await cur.fetchone():
+            p_hash = hash_password("admin")
+            await _sqlite.execute("INSERT INTO users (username, password_hash, role) VALUES ('admin', ?, 'admin')", (p_hash,))
+
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +280,28 @@ async def init_pool():
         # Create tables if not exist (MySQL)
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(64) UNIQUE,
+                        password_hash VARCHAR(128),
+                        role VARCHAR(32) DEFAULT 'user',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS sessions (
+                        token VARCHAR(64) PRIMARY KEY,
+                        user_id BIGINT,
+                        expires_at DATETIME
+                    )
+                """)
+                # Check admin
+                await cur.execute("SELECT id FROM users WHERE username='admin'")
+                if not await cur.fetchone():
+                    p_hash = hash_password("admin")
+                    await cur.execute("INSERT INTO users (username, password_hash, role) VALUES ('admin', %s, 'admin')", (p_hash,))
+                
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS records (
                         id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -1579,3 +1731,53 @@ async def get_all_activity_locations():
                 await cur.execute(sql)
                 rows = await cur.fetchall()
                 return [row[0] for row in rows if row[0]]
+
+async def correct_location_data(target_location: str, target_academy: str, merge_locations: list = None):
+    """
+    Updates academy for target_location.
+    Optionally merges other locations into target_location (renaming them and setting academy).
+    Returns total modified rows.
+    """
+    count = 0
+    
+    # 1. Fix exact matches (update academy only)
+    sql_exact = "UPDATE activity_events SET academy = ? WHERE location = ?" if use_sqlite() else "UPDATE activity_events SET academy = %s WHERE location = %s"
+    params_exact = (target_academy, target_location)
+    
+    # 2. Merge similar locations (update location AND academy)
+    sql_merge = None
+    params_merge = []
+    if merge_locations:
+        placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(merge_locations))
+        sql_merge = f"UPDATE activity_events SET location = ?, academy = ? WHERE location IN ({placeholders})"
+        if use_sqlite():
+            params_merge = [target_location, target_academy] + merge_locations
+        else:
+            # MySQL might need distinct params structure depending on driver, usually list is fine
+            params_merge = [target_location, target_academy] + merge_locations
+
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql_exact, params_exact) as cur:
+            count += cur.rowcount
+        if sql_merge:
+            async with _sqlite.execute(sql_merge, params_merge) as cur:
+                count += cur.rowcount
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql_exact, params_exact)
+                count += cur.rowcount
+                if sql_merge:
+                    await cur.execute(sql_merge, params_merge)
+                    count += cur.rowcount
+            # aiomysql pool connection commits automatically on context exit or needs explicit commit? 
+            # Usually autocommit is off by default.
+            await conn.commit()
+            
+    return count
+
+
+

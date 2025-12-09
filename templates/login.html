@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - InfraCount</title>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=El+Messiri:wght@700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'El Messiri', sans-serif;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #031323;
+            overflow: hidden;
+        }
+
+        .fas {
+            width: 32px;
+        }
+
+        section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 10s ease infinite;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .box {
+            position: relative;
+        }
+
+        .box .square {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            animation: square 10s linear infinite;
+            animation-delay: calc(-1s * var(--i));
+        }
+
+        @keyframes square {
+            0%, 100% { transform: translateY(-20px); }
+            50% { transform: translateY(20px); }
+        }
+
+        .box .square:nth-child(1) {
+            width: 100px;
+            height: 100px;
+            top: -15px;
+            right: -45px;
+        }
+
+        .box .square:nth-child(2) {
+            width: 150px;
+            height: 150px;
+            top: 105px;
+            left: -125px;
+            z-index: 2;
+        }
+
+        .box .square:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            bottom: 85px;
+            right: -45px;
+            z-index: 2;
+        }
+
+        .box .square:nth-child(4) {
+            width: 50px;
+            height: 50px;
+            bottom: 35px;
+            left: -95px;
+        }
+
+        .box .square:nth-child(5) {
+            width: 50px;
+            height: 50px;
+            top: -15px;
+            left: -25px;
+        }
+
+        .box .square:nth-child(6) {
+            width: 85px;
+            height: 85px;
+            top: 165px;
+            right: -155px;
+            z-index: 2;
+        }
+
+        .container {
+            position: relative;
+            padding: 50px;
+            width: 400px; /* Adjusted width for better spacing */
+            min-height: 380px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+        }
+
+        .container::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            bottom: 5px;
+            left: 5px;
+            border-radius: 5px;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.1) 2%);
+        }
+
+        .form {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .form h2 {
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form .inputBx {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .form .inputBx input {
+            width: 100%;
+            outline: none;
+            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 10px;
+            padding-left: 40px;
+            border-radius: 15px;
+            color: #fff;
+            font-size: 16px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .form .inputBx .password-control {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: url('https://snipp.ru/demo/495/view.svg') 0 0 no-repeat;
+            transition: 0.5s;
+            cursor: pointer;
+        }
+
+        .form .inputBx .view {
+            background: url('https://snipp.ru/demo/495/no-view.svg') 0 0 no-repeat;
+            transition: 0.5s;
+        }
+
+        .form .inputBx .fas {
+            position: absolute;
+            top: 13px;
+            left: 13px;
+            color: #fff;
+            width: auto;
+        }
+
+        .form .inputBx input[type="submit"] {
+            background: #fff;
+            color: #111;
+            max-width: 100px;
+            padding: 8px 10px;
+            box-shadow: none;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: 1.5s;
+            display: block;
+            margin: 0 auto;
+            padding-left: 10px; /* Reset padding for submit button */
+        }
+
+        .form .inputBx input[type="submit"]:hover {
+            background: linear-gradient(115deg, rgba(0,0,0,0.10), rgba(255,255,255,0.25));
+            color: #fff;
+            transition: .5s;
+        }
+
+        .form .inputBx input::placeholder {
+            color: #fff;
+        }
+
+        .form .inputBx span {
+            position: absolute;
+            left: 40px;
+            padding: 10px 0;
+            display: inline-block;
+            color: #fff;
+            transition: .5s;
+            pointer-events: none;
+            top: -2px;
+        }
+
+        .form .inputBx input:focus ~ span,
+        .form .inputBx input:valid ~ span {
+            transform: translateX(-40px) translateY(-30px);
+            font-size: 12px;
+        }
+
+        .form p {
+            color: #fff;
+            font-size: 15px;
+            margin-top: 5px;
+        }
+
+        .form p a {
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .form p a:hover {
+            background-color: #000;
+            background-image: linear-gradient(to right, #434343 0%, black 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .error {
+            color: #ff6b6b;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            display: none;
+            background: rgba(0,0,0,0.3);
+            padding: 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<section>
+    <div class="box">
+        <div class="square" style="--i:0;"></div>
+        <div class="square" style="--i:1;"></div>
+        <div class="square" style="--i:2;"></div>
+        <div class="square" style="--i:3;"></div>
+        <div class="square" style="--i:4;"></div>
+        <div class="square" style="--i:5;"></div>
+
+        <div class="container">
+            <div class="form">
+                <h2>InfraCount 登录</h2>
+                <form id="loginForm">
+                    <div class="inputBx">
+                        <input type="text" name="username" required>
+                        <i class="fas fa-user"></i>
+                        <span>用户名</span>
+                    </div>
+                    <div class="inputBx">
+                        <input type="password" name="password" id="password-input" required>
+                        <i class="fas fa-lock"></i>
+                        <span>密码</span>
+                        <div class="password-control" onclick="return show_hide_password(this);"></div>
+                    </div>
+                    <div class="inputBx">
+                        <input type="submit" value="登录">
+                    </div>
+                    <div class="error" id="errorMsg">用户名或密码错误</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    function show_hide_password(target){
+        var input = document.getElementById('password-input');
+        if (input.getAttribute('type') == 'password') {
+            target.classList.add('view');
+            input.setAttribute('type', 'text');
+        } else {
+            target.classList.remove('view');
+            input.setAttribute('type', 'password');
+        }
+        return false;
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const username = form.username.value;
+        const password = form.password.value;
+        const errorMsg = document.getElementById('errorMsg');
+        
+        try {
+            const res = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+
+            if (res.ok) {
+                // Redirect
+                window.location.href = '/activity-dashboard';
+            } else {
+                errorMsg.textContent = '用户名或密码错误';
+                errorMsg.style.display = 'block';
+            }
+        } catch (e) {
+            console.error(e);
+            errorMsg.textContent = '网络请求失败';
+            errorMsg.style.display = 'block';
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 
 function Kill-Port-Process {
     param([int]$port)
-    Write-Host "Checking Port $port..." -ForegroundColor Cyan
+    Write-Host "正在检查端口 $port..." -ForegroundColor Cyan
     $netstat = cmd /c "netstat -ano | findstr :$port"
     if ($netstat) {
         $lines = $netstat -split "`r`n"
@@ -12,13 +12,13 @@ function Kill-Port-Process {
                 $parts = $line.Trim() -split "\s+"
                 $pidFound = $parts[-1]
                 if ($pidFound -match "^\d+$") {
-                    Write-Host "Found process with PID: $pidFound on port $port"
-                    Write-Host "Attempting to kill PID $pidFound..."
+                    Write-Host "发现端口 $port 被进程 PID: $pidFound 占用"
+                    Write-Host "尝试结束进程 $pidFound..."
                     try {
                         Stop-Process -Id $pidFound -Force -ErrorAction SilentlyContinue
-                        Write-Host "Process killed." -ForegroundColor Green
+                        Write-Host "进程已结束。" -ForegroundColor Green
                     } catch {
-                        Write-Host "[WARN] Failed to kill process $pidFound. Access Denied or already gone." -ForegroundColor Yellow
+                        Write-Host "[警告] 无法结束进程 $pidFound。拒绝访问或进程已不存在。" -ForegroundColor Yellow
                     }
                 }
             }
@@ -27,7 +27,7 @@ function Kill-Port-Process {
 }
 
 function Cleanup-Resources {
-    Write-Host "`n[INFO] Cleaning up resources..." -ForegroundColor Yellow
+    Write-Host "`n[信息] 正在清理资源..." -ForegroundColor Yellow
     
     # Kill known ports
     Kill-Port-Process 8085 # TCP Server
@@ -36,12 +36,12 @@ function Cleanup-Resources {
     # Kill Python processes launched by this env (rough check)
     # This is a bit aggressive, so we focus on ports mostly.
     
-    Write-Host "[INFO] Cleanup complete." -ForegroundColor Green
+    Write-Host "[信息] 清理完成。" -ForegroundColor Green
 }
 
 function Pause-Exit {
     Cleanup-Resources
-    Write-Host "`nPress Enter to exit..." -NoNewline -ForegroundColor Cyan
+    Write-Host "`n按回车键退出..." -NoNewline -ForegroundColor Cyan
     Read-Host
     exit
 }
@@ -52,14 +52,14 @@ Set-Location $ROOT
 $VENV_PYTHON = "$ROOT\.venv\Scripts\python.exe"
 
 if (-not (Test-Path $VENV_PYTHON)) {
-    Write-Host "[ERROR] Environment not found!" -ForegroundColor Red
-    Write-Host "Please run 'install.ps1' first (as Administrator) to install dependencies." -ForegroundColor Yellow
+    Write-Host "[错误] 未找到运行环境！" -ForegroundColor Red
+    Write-Host "请先以管理员身份运行 'install.ps1' 安装依赖。" -ForegroundColor Yellow
     Pause-Exit
 }
 
 # --- Conflict Resolution Start ---
 $TaskName = "InfraCountService"
-Write-Host "Checking for background service '$TaskName'..." -ForegroundColor Cyan
+Write-Host "正在检查后台服务 '$TaskName'..." -ForegroundColor Cyan
 
 # Check if task exists and is running
 # Using cmd /c to be compatible with older PS versions and avoid exceptions
@@ -70,8 +70,8 @@ if ($query -match "Status:\s+Running") {
 }
 
 if ($taskRunning) {
-    Write-Host "[WARN] Background service '$TaskName' is running." -ForegroundColor Yellow
-    Write-Host "Stopping background service to avoid conflicts..." -ForegroundColor Yellow
+    Write-Host "[警告] 后台服务 '$TaskName' 正在运行。" -ForegroundColor Yellow
+    Write-Host "正在停止后台服务以避免冲突..." -ForegroundColor Yellow
     
     # Try to stop it
     cmd /c "schtasks /end /tn `"$TaskName`" 2>nul" | Out-Null
@@ -82,11 +82,11 @@ if ($taskRunning) {
     # Check again
     $queryAfter = cmd /c "schtasks /query /tn `"$TaskName`" /fo LIST 2>nul"
     if ($queryAfter -match "Status:\s+Running") {
-         Write-Host "[ERROR] Failed to stop background service." -ForegroundColor Red
-         Write-Host "Please run this script as Administrator or manually stop the task." -ForegroundColor Red
+         Write-Host "[错误] 停止后台服务失败。" -ForegroundColor Red
+         Write-Host "请以管理员身份运行此脚本或手动停止任务。" -ForegroundColor Red
          Pause-Exit
     } else {
-         Write-Host "Background service stopped." -ForegroundColor Green
+         Write-Host "后台服务已停止。" -ForegroundColor Green
     }
 }
 
@@ -95,13 +95,13 @@ Kill-Port-Process 8085
 
 # --- Conflict Resolution End ---
 
-Write-Host "[INFO] Starting InfraCount Services..." -ForegroundColor Green
-Write-Host "Logs are being written to data/ directory." -ForegroundColor Gray
+Write-Host "[信息] 正在启动 InfraCount 服务..." -ForegroundColor Green
+Write-Host "日志将写入 data/ 目录。" -ForegroundColor Gray
 
 try {
     & $VENV_PYTHON "$ROOT\tools\launcher.py"
 } catch {
-    Write-Host "[ERROR] Launcher exited with error:" -ForegroundColor Red
+    Write-Host "[错误] 启动器异常退出：" -ForegroundColor Red
     Write-Host $_ -ForegroundColor Red
 } finally {
     Pause-Exit

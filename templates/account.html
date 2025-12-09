@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账户管理 - InfraCount</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .account-card {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 30px;
+        }
+        .user-info {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .user-info h2 {
+            margin-top: 0;
+            color: var(--text);
+        }
+        .info-row {
+            display: flex;
+            margin: 10px 0;
+            color: #666;
+        }
+        .info-label {
+            width: 100px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card account-card">
+    <div class="user-info">
+        <h2>我的账户</h2>
+        <div class="info-row">
+            <span class="info-label">用户名</span>
+            <span id="username">加载中...</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">角色</span>
+            <span id="role">加载中...</span>
+        </div>
+    </div>
+
+    <h3>修改密码</h3>
+    <form id="changePwdForm">
+        <div class="form-group">
+            <label class="form-label">新密码</label>
+            <input type="password" name="newPassword" class="form-control" required minlength="6">
+        </div>
+        <div class="form-group">
+            <label class="form-label">确认新密码</label>
+            <input type="password" name="confirmPassword" class="form-control" required minlength="6">
+        </div>
+        <button type="submit" class="btn">更新密码</button>
+    </form>
+    
+    <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <button id="logoutBtn" class="btn" style="background-color: #dc3545; width: 100%;">退出登录</button>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/layout.js"></script>
+<script>
+    // Initialize Layout
+    initLayout('账户管理', null);
+
+    // Toast helper
+    function showToast(msg, isError=false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.backgroundColor = isError ? '#dc3545' : 'var(--primary)';
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    }
+
+    // Load User Info
+    async function loadUser() {
+        try {
+            const res = await fetch('/api/v1/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.user) {
+                    document.getElementById('username').textContent = data.user.username;
+                    document.getElementById('role').textContent = data.user.role;
+                }
+            } else {
+                window.location.href = '/login';
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    loadUser();
+
+    // Change Password
+    document.getElementById('changePwdForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const newPwd = form.newPassword.value;
+        const confirmPwd = form.confirmPassword.value;
+
+        if (newPwd !== confirmPwd) {
+            showToast('两次输入的密码不一致', true);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/v1/auth/password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({new_password: newPwd})
+            });
+
+            if (res.ok) {
+                showToast('密码修改成功');
+                form.reset();
+            } else {
+                showToast('修改失败，请重试', true);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('发生错误', true);
+        }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        if(!confirm('确定要退出登录吗？')) return;
+        
+        try {
+            await fetch('/api/v1/auth/logout', {method: 'POST'});
+            window.location.href = '/login';
+        } catch (e) {
+            console.error(e);
+        }
+    });
+</script>
+</body>
+</html>

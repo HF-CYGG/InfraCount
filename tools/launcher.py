@@ -45,7 +45,7 @@ def main():
     # Open Dashboard
     try:
         time.sleep(2)
-        url = "http://127.0.0.1:8000/dashboard"
+        url = "http://127.0.0.1:8000/login"
         print(f"Opening {url} ...")
         webbrowser.open(url)
     except Exception:

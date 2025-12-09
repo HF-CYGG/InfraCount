@@ -540,8 +540,20 @@ function toggleAcademy(el) {
 // Build Query
 function buildQuery(forAgg = false) {
     const p = new URLSearchParams();
-    if(state.filters.start) p.append('start_date', state.filters.start);
-    if(state.filters.end) p.append('end_date', state.filters.end);
+    
+    // Date Logic: Specific Week > Whole Month > All Time (if Reset)
+    if(state.filters.start && state.filters.end) {
+        p.append('start_date', state.filters.start);
+        p.append('end_date', state.filters.end);
+    } else if (state.month) {
+        // Fallback to full month if month is selected but no week is picked
+        const [y, m] = state.month.split('-').map(Number);
+        const start = new Date(y, m-1, 1);
+        const end = new Date(y, m, 0); 
+        p.append('start_date', fmtDate(start));
+        p.append('end_date', fmtDate(end));
+    }
+    
     if(state.filters.locations.length) p.append('locations', state.filters.locations.join(','));
     if(state.filters.academies.length) p.append('academies', state.filters.academies.join(','));
     if(state.filters.weekdays.length) p.append('weekdays', state.filters.weekdays.join(','));
@@ -662,6 +674,10 @@ function updateTable(data) {
 
 // Week Generator
 function renderWeeks() {
+    if (!state.month) {
+        els.weekList.innerHTML = '';
+        return;
+    }
     const [y, m] = state.month.split('-').map(Number);
     const startMonth = new Date(y, m-1, 1);
     const endMonth = new Date(y, m, 0);
@@ -674,12 +690,6 @@ function renderWeeks() {
         let end = new Date(curr);
         end.setDate(end.getDate() + 6); // 7 days interval
         
-        // Cap at end of month? User said "only allow selection of time periods within the current month"
-        // But usually "7 days interval" implies fixed 7 days.
-        // If the interval crosses month boundary, do we clip it?
-        // "只允许选择当月内的时间段" -> Only select time periods within the month.
-        // If I strictly follow "7 days", the last week might cross.
-        // Let's clip it to end of month if it crosses.
         if (end > endMonth) end = new Date(endMonth);
         
         ranges.push({
@@ -703,13 +713,14 @@ function renderWeeks() {
 }
 
 function fmtDate(d) {
-    return d.toISOString().split('T')[0];
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
 window.selectWeek = (s, e) => {
     state.filters.start = s;
     state.filters.end = e;
     renderWeeks(); // Re-render to update active state
+    saveState();
 };
 
 // Event Listeners
@@ -718,7 +729,8 @@ els.statsMonth.addEventListener('change', () => {
     state.filters.start = '';
     state.filters.end = '';
     renderWeeks();
-    els.applyFilters.click();
+    // User requested manual apply
+    saveState();
 });
 
 els.toggleSidebar.addEventListener('click', () => {
@@ -738,11 +750,14 @@ els.applyFilters.addEventListener('click', () => {
     state.filters.types = Array.from(document.querySelectorAll('#typeFilter .checkbox-tag.checked')).map(el => el.dataset.val);
     state.filters.start_times = Array.from(document.querySelectorAll('#startTimeFilter .checkbox-tag.checked')).map(el => el.dataset.val);
     state.page = 1;
+    saveState();
     loadData();
 });
 
 els.resetFilters.addEventListener('click', () => {
-    // Reset date?
+    // Reset Month and Date
+    state.month = '';
+    els.statsMonth.value = '';
     state.filters.start = '';
     state.filters.end = '';
     renderWeeks();
@@ -762,14 +777,68 @@ els.resetFilters.addEventListener('click', () => {
 els.prevPage.addEventListener('click', () => { if(state.page > 1) { state.page--; loadData(); } });
 els.nextPage.addEventListener('click', () => { state.page++; loadData(); });
 
+// --- Persistence ---
+function saveState() {
+    try {
+        const s = {
+            month: state.month,
+            filters: state.filters
+        };
+        localStorage.setItem('INFRA_DASHBOARD_STATE', JSON.stringify(s));
+    } catch(e) { console.error(e); }
+}
+
+function loadState() {
+    try {
+        const s = localStorage.getItem('INFRA_DASHBOARD_STATE');
+        if(s) {
+            const parsed = JSON.parse(s);
+            if(parsed.month !== undefined) state.month = parsed.month;
+            if(parsed.filters) state.filters = parsed.filters;
+        }
+    } catch(e) { console.error(e); }
+}
+
+function restoreFilterUI() {
+    // 1. Mark Checked
+    const setChecked = (selector, values) => {
+        document.querySelectorAll(selector + ' .checkbox-tag').forEach(el => {
+            if(values.includes(el.dataset.val)) el.classList.add('checked');
+        });
+    };
+    
+    setChecked('#academyFilter', state.filters.academies);
+    setChecked('#locationFilter', state.filters.locations);
+    setChecked('#weekdayFilter', state.filters.weekdays);
+    setChecked('#typeFilter', state.filters.types);
+    setChecked('#startTimeFilter', state.filters.start_times);
+
+    // 2. Filter Locations by Academy
+    const selectedAcademies = state.filters.academies;
+    const locBtns = document.querySelectorAll('#locationFilter .checkbox-tag');
+    locBtns.forEach(btn => {
+        const assignedAca = btn.dataset.aca;
+        let visible = true;
+        if (selectedAcademies.length > 0) {
+            visible = selectedAcademies.includes(assignedAca);
+        }
+        btn.style.display = visible ? 'inline-flex' : 'none';
+    });
+}
+
 // Init
 async function init() {
     initLayout('书院空间使用数据看板');
+
+    loadState(); // Load Saved State
 
     initCharts();
     els.statsMonth.value = state.month;
     renderWeeks();
     await loadOptions();
+    
+    restoreFilterUI(); // Restore UI selection
+
     await loadData();
 }
 init();

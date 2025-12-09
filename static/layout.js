@@ -31,6 +31,9 @@ const SIDEBAR_HTML = `
     <a href="/devices" class="nav-item">
         设备管理
     </a>
+    <a href="/account" class="nav-item">
+        账户管理
+    </a>
 </div>
 <div style="padding:16px;border-top:1px solid #e9ecef;font-size:12px;color:#868e96;text-align:center">
     v1.0 by_夜喵cats
@@ -83,6 +86,13 @@ function clearPageIntervals() {
 }
 
 function initLayout(title, customContentId) {
+    // Auth Check
+    if (window.location.pathname !== '/login') {
+        fetch('/api/v1/auth/me').then(r => {
+            if (r.status === 401) window.location.href = '/login';
+        });
+    }
+
     // Idempotency Check
     const existingLayout = document.querySelector('.app-layout');
     if (existingLayout) {
