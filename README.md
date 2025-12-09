@@ -248,10 +248,10 @@ classDiagram
     Device "1" -- "1" LocationMapping : binds
     LocationMapping "1" -- "n" InfraredRecord : tags
     
-    Device:::table
-    InfraredRecord:::table
-    LocationMapping:::table
-    User:::table
+    class Device table
+    class InfraredRecord table
+    class LocationMapping table
+    class User table
 ```
 
 ---
