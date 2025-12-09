@@ -1,84 +1,118 @@
-# 书院人流计数器后端
+# 书院人流计数器后端 (InfraCount Backend)
 
-基于 Python 异步 TCP 服务与 FastAPI 构建的人流计数设备后端，支持设备数据接入、协议解析、MySQL 入库、统计聚合与可视化展示，同时提供数据导出能力。
+> **基于 Python Asyncio + FastAPI 的高性能红外设备接入与数据分析平台**
 
-## 快速开始
-- 环境要求：`Python 3.10+`、`pip`；数据库可选：`SQLite(本地文件)` 或 `MySQL`
-- 安装依赖：
-  - `pip install -r requirements.txt`
-  - 如网络受限可使用国内源：`pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`
-- 初始化数据库：
-  - 使用SQLite（默认）：无需手工建库，首次启动自动在 `data/infrared.db` 创建
-  - 使用MySQL：在 MySQL 执行 `schema.sql`
-- 配置环境变量（可选）：
-  - `DB_DRIVER`：`sqlite` 或 `mysql`（默认 `sqlite` 本地文件存储）
-  - 当 `mysql`：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`
-  - 当 `sqlite`：`DB_SQLITE_PATH`（默认 `./data/infrared.db`）
-  - `TCP_HOST`、`TCP_PORT`（默认 `0.0.0.0:8085`）
-- 启动服务：
-  - TCP接入：`python tcp_server.py`
-  - API服务：`uvicorn api.main:app --host 0.0.0.0 --port 8000`
-- 打开页面：`http://localhost:8000/dashboard`
+本项目专为高校书院/场馆场景设计，提供从设备接入、数据清洗、持久化存储到实时可视化的一站式解决方案。支持高并发 TCP 连接、多租户权限管理、AI 辅助场地归属匹配以及多维度流量统计分析。
+
+## 核心特性
+- **高并发接入**：基于 `asyncio` 的 TCP 服务，单机轻松支撑数千台设备长连接。
+- **稳定可靠**：内置心跳保活、断线重连、异常熔断机制，确保数据不丢失。
+- **智能归属**：集成模糊匹配算法，自动关联设备与物理场地，减少人工配置。
+- **实时看板**：集成 ECharts/Chart.js，提供秒级刷新的流量趋势图与热力分布。
+- **安全可控**：完善的 RBAC 权限体系，支持多级管理员与操作审计。
+
+## 快速开始 (Quick Start)
+
+### 方式一：脚本一键部署 (推荐)
+无需手动安装依赖，脚本自动检测环境并启动服务。
+
+**Windows (PowerShell):**
+```powershell
+# 安装并启动
+.\install.ps1
+.\start.ps1
+```
+
+**Linux / macOS:**
+```bash
+# 赋予权限并启动
+chmod +x install.sh start.sh
+./install.sh
+./start.sh
+```
+
+### 方式二：手动部署
+1. **环境准备**：确保 Python 3.10+ 及 pip 已安装。
+2. **安装依赖**：
+   ```bash
+   pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+   ```
+3. **数据库初始化**：
+   - **SQLite (默认)**：直接启动，系统自动创建 `data/infrared.db`。
+   - **MySQL**：需导入 `schema.sql` 并配置环境变量。
+4. **启动服务**：
+   ```bash
+   # 终端 1：启动 TCP 接入服务 (默认端口 8085)
+   python tcp_server.py
+   
+   # 终端 2：启动 Web API 服务 (默认端口 8000)
+   uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+访问管理面板：[http://localhost:8000/dashboard](http://localhost:8000/dashboard) (默认账号：admin / admin123)
 
 ## 目录结构
-```
-app/
-  config.py        # 环境与端口配置
-  db.py            # aiomysql 连接池与入库
-  protocol.py      # 帧解析与XML解析、回包构建
-  logging.py       # 基础日志配置
-api/
-  main.py          # FastAPI 接口与可视化页面
-tcp_server.py      # asyncio TCP 服务入口
-schema.sql         # MySQL 初始化脚本
-tools/
-  simulator.py     # 设备上报模拟器
-requirements.txt   # 依赖清单
-API接入文档.md      # 详细接口与协议说明
-README.md          # 项目说明（当前文件）
+```text
+InfraCount/
+├── api/
+│   └── main.py          # FastAPI 路由入口与 Web 页面控制器
+├── app/
+│   ├── config.py        # 全局配置加载
+│   ├── db.py            # 数据库连接池 (MySQL/SQLite)
+│   ├── protocol.py      # 私有协议解析与封包构建
+│   ├── matcher.py       # 场地归属智能匹配逻辑
+│   ├── security.py      # 密码哈希与 Token 校验
+│   └── events.py        # 全局事件总线
+├── templates/           # Jinja2 前端模板 (Dashboard, Login, Devices...)
+├── static/              # 静态资源 (CSS, JS, Fonts, Libs)
+├── tools/
+│   └── simulator.py     # 设备上报模拟器 (测试用)
+├── tcp_server.py        # TCP 接入层主程序
+├── requirements.txt     # Python 依赖清单
+├── schema.sql           # MySQL 数据库结构定义
+├── install.ps1/sh       # 一键安装脚本
+└── start.ps1/sh         # 一键启动脚本
 ```
 
 ## 设备接入与协议
-- 设备 TCP 端口：`8085`
-- 帧结构：`HEAD(FA F5 F6) + SEQ(2) + TYPE(1) + LEN(2,BE) + XML + TAIL(FA F6 F5)`
-- 支持类型：
-  - `0x21` 数据上报 → 回包：`<UP_SENSOR_DATA_RES><uuid>{uuid}</uuid><ret>0</ret></UP_SENSOR_DATA_RES>`
-  - `0x22` 时间同步 → 回包：`<TIME_SYNC_RES><ret>0</ret><time>YYYY-MM-DD HH:MM:SS</time></TIME_SYNC_RES>`
+- **TCP 监听端口**：`8085` (可通过 `TCP_PORT` 环境变量修改)
+- **协议格式**：`HEAD(3) + SEQ(2) + TYPE(1) + LEN(2) + PAYLOAD(XML) + TAIL(3)`
+- **主要指令**：
+  - `0x21` **数据上报**：设备上传进出人数 → 服务器回复 ACK。
+  - `0x22` **时间同步**：设备请求校时 → 服务器下发当前时间。
+  - `0x23` **心跳包**：维持 TCP 连接活跃 (默认 60s)。
 
-## API概览
-- 健康检查：`GET /api/v1/health`
-- 最新数据：`GET /api/v1/data/latest?uuid=...`
-- 历史数据：`GET /api/v1/data/history?uuid=...&start=YYYY-MM-DD HH:MM:SS&end=YYYY-MM-DD HH:MM:SS&limit=500`
-- 设备列表：`GET /api/v1/devices?limit=200`
-- 日统计：`GET /api/v1/stats/daily?uuid=...&start=...&end=...`
-- 小时统计：`GET /api/v1/stats/hourly?uuid=...&date=YYYY-MM-DD`
-- 概览统计：`GET /api/v1/stats/summary?uuid=...`
-- 设备Top榜：`GET /api/v1/stats/top?metric=in|out&start=...&end=...&limit=10`
+## API 接口概览
+| 模块 | 方法 | 路径 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **基础** | `GET` | `/api/v1/health` | 服务健康检查 |
+| **数据** | `GET` | `/api/v1/data/latest` | 获取指定设备的最新上报 |
+| **数据** | `GET` | `/api/v1/data/history` | 查询历史流量记录 (支持分页) |
+| **统计** | `GET` | `/api/v1/stats/daily` | 获取日流量统计趋势 |
+| **统计** | `GET` | `/api/v1/stats/top` | 获取流量 Top N 设备榜单 |
+| **设备** | `GET` | `/api/v1/devices` | 获取设备列表与在线状态 |
+| **导出** | `GET` | `/api/v1/export/*` | 导出 CSV 格式报表 |
 
-## 可视化与导出
-- 页面：`GET /dashboard`
-  - 设备选择、日期范围、自动刷新（10s）
-  - 日折线图与小时柱状图、统计卡片（IN/OUT/净流量/最近上报）
-  - 最近记录表（默认 50 条）
-- 导出CSV：
-  - 日统计：`GET /api/v1/export/daily?uuid=...&start=...&end=...`
-  - 小时统计：`GET /api/v1/export/hourly?uuid=...&date=YYYY-MM-DD`
-  - 历史记录：`GET /api/v1/export/history?uuid=...&start=...&end=...&limit=10000`
+## 可视化功能
+- **综合看板**：`GET /dashboard` - 实时流量卡片、小时级趋势图、设备状态概览。
+- **设备管理**：`GET /devices` - 设备列表、在线状态监控、场地绑定编辑。
+- **历史查询**：`GET /history` - 原始数据明细查询与导出。
+- **账户中心**：`GET /account` - 修改密码、管理子账号 (Admin only)。
 
-## 模拟器
-- 发送一条上报并打印 ACK：`python tools/simulator.py`
-
-## 常见问题
-- `aiomysql` 未安装或网络受限：使用国内源或离线安装 wheel 包
-- 数据库不可达：接口将返回空数据以保证服务可用，恢复连接后自动入库与统计
-- CDN受限：`/dashboard` 使用 Chart.js CDN，如内网环境需改为本地静态资源
+## 常见问题 (FAQ)
+- **Q: 数据库连接失败？**
+  - A: 请检查 `config.py` 或环境变量。如使用 SQLite，确保 `data/` 目录有写入权限。
+- **Q: 页面图表不显示？**
+  - A: 项目内置了常用图表库的本地资源。如遇显示问题，请检查浏览器控制台是否有静态资源加载错误。
+- **Q: 如何修改监听端口？**
+  - A: 修改 `app/config.py` 文件或设置环境变量 `TCP_PORT=9000`。
 
 
 ---
 
-## 📊 项目进度与规划
+## 项目进度与规划
 
-### 📅 开发路线图 (Roadmap)
+### 开发路线图 (Roadmap)
 ```mermaid
 gantt
     title InfraCount 开发里程碑 (2024-2025)
@@ -90,52 +124,52 @@ gantt
     %% classDef active fill:#e65100,stroke:#fff,stroke-width:1px;
     %% classDef done fill:#1b5e20,stroke:#fff,stroke-width:1px;
 
-    section 🏛️ 核心基建
+    section 核心基建
     TCP服务框架       :done,    core1, 2023-12-01, 7d
     协议解析引擎       :done,    core2, after core1, 10d
     数据库架构设计     :done,    core3, after core2, 5d
     Docker容器化支持  :active,  core4, 2024-04-01, 10d
 
-    section 📦 业务功能
+    section 业务功能
     数据上报与存储     :done,    biz1,  2024-01-01, 10d
     RESTful API开发   :done,    biz2,  after biz1, 14d
     Web可视化看板      :done,    biz3,  after biz2, 14d
     多账户权限体系     :active,  biz4,  2024-02-15, 14d
     标准场地管理       :active,  biz5,  2024-03-01, 10d
 
-    section 🧠 智能化与AI
+    section 智能化与AI
     场地自动归属(模糊) :active,  ai1,   2024-03-01, 14d
     异常流量检测(规则) :         ai2,   after ai1, 20d
     LSTM客流预测模型   :         ai3,   2024-05-01, 45d
     热力图深度分析     :         ai4,   after ai3, 20d
 
-    section 🌐 生态与集成
+    section 生态与集成
     Webhook消息推送    :         eco1,  2024-04-15, 10d
     钉钉/飞书集成      :         eco2,  after eco1, 10d
     移动端App (Beta)   :         eco3,  2024-06-01, 60d
     OpenAPI V2.0      :         eco4,  2024-08-01, 30d
 ```
 
-### 🚀 功能完成度
+### 功能完成度
 | 模块 | 功能点 | 状态 | 进度 | 说明 |
 | :--- | :--- | :---: | :--- | :--- |
-| **接入层** | TCP 高并发服务 | ✅ 完成 | ![](https://geps.dev/progress/100) | 基于 asyncio |
-| **接入层** | 私有协议解析 | ✅ 完成 | ![](https://geps.dev/progress/100) | XML/二进制混合 |
-| **数据层** | 多数据库支持 | ✅ 完成 | ![](https://geps.dev/progress/100) | SQLite + MySQL |
-| **Web层** | 实时数据看板 | ✅ 完成 | ![](https://geps.dev/progress/100) | 10s 自动刷新 |
-| **Web层** | 账户权限管理 | 🚀 迭代 | ![](https://geps.dev/progress/90) | 角色分级/编辑 |
-| **Web层** | 标准场地配置 | 🚀 迭代 | ![](https://geps.dev/progress/85) | 一键校正/反馈 |
-| **运维层** | 一键部署脚本 | ✅ 完成 | ![](https://geps.dev/progress/100) | Win/Linux 双端 |
-| **智能层** | AI 场地校正 | 🚧 开发 | ![](https://geps.dev/progress/70) | 模糊匹配/自学习 |
-| **智能层** | 流量预测分析 | 📅 规划 | ![](https://geps.dev/progress/0) | 引入机器学习 |
-| **生态层** | 消息推送集成 | 📅 规划 | ![](https://geps.dev/progress/0) | Webhook/钉钉 |
+| **接入层** | TCP 高并发服务 | 完成 | ![](https://geps.dev/progress/100) | 基于 asyncio |
+| **接入层** | 私有协议解析 | 完成 | ![](https://geps.dev/progress/100) | XML/二进制混合 |
+| **数据层** | 多数据库支持 | 完成 | ![](https://geps.dev/progress/100) | SQLite + MySQL |
+| **Web层** | 实时数据看板 | 完成 | ![](https://geps.dev/progress/100) | 10s 自动刷新 |
+| **Web层** | 账户权限管理 | 迭代 | ![](https://geps.dev/progress/90) | 角色分级/编辑 |
+| **Web层** | 标准场地配置 | 迭代 | ![](https://geps.dev/progress/85) | 一键校正/反馈 |
+| **运维层** | 一键部署脚本 | 完成 | ![](https://geps.dev/progress/100) | Win/Linux 双端 |
+| **智能层** | AI 场地校正 | 开发 | ![](https://geps.dev/progress/70) | 模糊匹配/自学习 |
+| **智能层** | 流量预测分析 | 规划 | ![](https://geps.dev/progress/0) | 引入机器学习 |
+| **生态层** | 消息推送集成 | 规划 | ![](https://geps.dev/progress/0) | Webhook/钉钉 |
 
 > *注：进度条实时渲染，状态图表自动更新*
 
-### � 未来规划详情 (Future Plans)
+### 未来规划详情 (Future Plans)
 为了进一步提升系统的智能化与实用性，我们制定了详细的 2024-2025 演进计划：
 
-#### 1. 🧠 AI 增强 (AI Intelligence)
+#### 1. AI 增强 (AI Intelligence)
 - **LSTM 客流预测模型**：
   - 基于历史流量数据与节假日/天气因子，构建 LSTM 深度学习模型。
   - 实现未来 24 小时至 7 天的客流趋势预测，辅助场馆运营调度。
@@ -143,17 +177,17 @@ gantt
   - 识别非正常的流量突增/骤降（如火警逃生、设备遮挡）。
   - 结合设备信号强度与电池数据，通过规则引擎+统计学模型自动告警。
 
-#### 2. 📱 移动端生态 (Mobile)
+#### 2. 移动端生态 (Mobile)
 - **微信小程序 (Lite)**：提供核心数据概览、实时告警推送，方便运维人员随时查看。
 - **原生 App (Pro)**：集成蓝牙配置功能，支持现场对红外计数器进行参数设置与固件升级。
 
-#### 3. 🌐 企业级集成 (Integration)
+#### 3. 企业级集成 (Integration)
 - **IM 消息推送**：
   - 支持钉钉/飞书/企业微信的 Webhook 机器人，实时推送设备离线、低电量及流量阈值告警。
 - **OpenAPI V2.0**：
   - 开放更加标准化的 RESTful 接口，支持 OAuth2.0 认证，方便第三方系统（如教务系统、楼宇自控系统）集成数据。
 
-### �️ 技术栈构成
+### 技术栈构成
 ```mermaid
 pie
     title 项目代码构成 (预估)
@@ -166,7 +200,7 @@ pie
 
 ---
 
-## 🏗️ 系统架构
+## 系统架构
 
 本系统采用经典的分层架构设计，实现了从底层硬件接入到上层应用展示的全链路打通：
 
@@ -187,26 +221,26 @@ graph TD
     classDef web fill:#c0392b,stroke:none,color:#fff;
 
     subgraph IoT_Layer [感知层]
-        Device1[📍 红外计数器 A]:::device
-        Device2[📍 红外计数器 B]:::device
-        Device3[📍 红外计数器 N]:::device
+        Device1[红外计数器 A]:::device
+        Device2[红外计数器 B]:::device
+        Device3[红外计数器 N]:::device
     end
 
     subgraph Service_Layer [服务层]
-        TCPServer[📡 TCP 接入服务 :8085]:::core
-        Protocol[⚙️ 协议解析引擎]:::core
-        Matcher[🧠 智能归属匹配]:::core
+        TCPServer[TCP 接入服务 :8085]:::core
+        Protocol[协议解析引擎]:::core
+        Matcher[智能归属匹配]:::core
     end
 
     subgraph Data_Layer [数据层]
-        DB[(🗄️ MySQL / SQLite)]:::db
-        Cache[🚀 内存缓存]:::db
+        DB[(MySQL / SQLite)]:::db
+        Cache[内存缓存]:::db
     end
 
     subgraph App_Layer [应用层]
-        API[🔌 FastAPI 网关 :8000]:::web
-        Dashboard[📊 可视化看板]:::web
-        Admin[🛡️ 管理后台]:::web
+        API[FastAPI 网关 :8000]:::web
+        Dashboard[可视化看板]:::web
+        Admin[管理后台]:::web
     end
 
     %% 链路关系
@@ -224,7 +258,7 @@ graph TD
 
 ---
 
-##  核心数据模型
+## 核心数据模型
 
 系统基于关系型数据库设计，主要包含以下核心实体：
 - **Device**：设备基础信息表，记录 UUID、电量、信号及当前状态。
@@ -284,7 +318,7 @@ classDiagram
 
 ---
 
-##  数据与设备流程
+## 数据与设备流程
 
 为了清晰展示数据如何在系统中流转，以及设备的生命周期管理，我们梳理了以下核心流程：
 
@@ -361,7 +395,7 @@ stateDiagram-v2
 
 ---
 
-## 🌳 功能树状图
+## 功能树状图
 
 ```mermaid
 graph TD
