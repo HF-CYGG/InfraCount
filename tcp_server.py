@@ -128,15 +128,25 @@ async def main():
         await init_pool()
     except Exception:
         pass
-    try:
-        server = await asyncio.start_server(handle_client, config.TCP_HOST, config.TCP_PORT)
-    except OSError as e:
-        if e.errno == 10048: # WinError: Address already in use
-             logging.critical(f"Port {config.TCP_PORT} is already in use! The service might be already running.")
-        else:
-             logging.critical(f"Failed to start TCP server: {e}")
-        raise
     
+    # Retry loop for binding port
+    server = None
+    for i in range(3):
+        try:
+            server = await asyncio.start_server(handle_client, config.TCP_HOST, config.TCP_PORT)
+            break
+        except OSError as e:
+            if e.errno == 10048: # WinError: Address already in use
+                logging.warning(f"Port {config.TCP_PORT} is in use, retrying ({i+1}/3)...")
+                await asyncio.sleep(1)
+            else:
+                logging.critical(f"Failed to start TCP server: {e}")
+                raise e
+    
+    if server is None:
+        logging.critical(f"Port {config.TCP_PORT} is already in use! The service might be already running.")
+        return
+
     async with server:
         try:
             logging.info(f"TCP Server listening on {config.TCP_HOST}:{config.TCP_PORT}")

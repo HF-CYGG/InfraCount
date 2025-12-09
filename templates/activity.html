@@ -1455,20 +1455,20 @@
         // Load Options & Mapping
         let opts = { locations:[], types:[], academies:[], weekdays:[], times:[] };
         let acaList = [];
-        let deviceMap = {};
+        let standardLocMap = {};
 
         try {
-            const [optRes, acaRes, mapRes] = await Promise.all([
+            const [optRes, acaRes, locMapRes] = await Promise.all([
                 fetch('/api/v1/activity/options'),
                 fetch('/api/v1/academies'),
-                fetch('/api/v1/devices/mapping')
+                fetch('/api/v1/locations/mapping')
             ]);
             
             if(optRes.ok) opts = await optRes.json();
             if(acaRes.ok) acaList = await acaRes.json();
-            if(mapRes.ok) {
-                const mapData = await mapRes.json();
-                deviceMap = mapData.mapping || {};
+            if(locMapRes.ok) {
+                const mapData = await locMapRes.json();
+                standardLocMap = mapData.mapping || {};
             }
         } catch(e) {
             console.error("Load options failed", e);
@@ -1490,12 +1490,10 @@
         renderOptions(els.academyList, Array.from(academyNames).sort(), 'academies', 'academy-pill');
         renderOptions(els.typeList, Array.from(typeSet).sort(), 'types', 'tag');
         
-        // Locations with Mapping
-        const locations = (opts.locations || []).map(l => {
-            const entry = deviceMap[l];
-            const name = entry ? (entry.name || l) : l;
-            return { val: l, display: name === l ? l : name }; 
-        });
+        // Locations: Use Standard Venue Configuration (from devices page)
+        const standardLocations = Object.keys(standardLocMap).sort();
+        const locations = standardLocations.map(l => ({ val: l, display: l }));
+        
         renderLocations(els.locationList, locations, 'locations', 'location-item');
         
         renderTimes(opts.times || []);

@@ -72,7 +72,10 @@
 <div class="card" style="margin-top: 20px;">
     <div class="flex justify-between items-center mb-4">
         <h3>标准场地配置 (用于AI识别与归属)</h3>
-        <button class="btn" id="refreshLocBtn">刷新</button>
+        <div class="flex gap-2">
+            <button class="btn btn-warning" id="autoCorrectBtn">一键校正</button>
+            <button class="btn" id="refreshLocBtn">刷新</button>
+        </div>
     </div>
     
     <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; gap:12px; align-items:end;">
@@ -177,29 +180,41 @@
     </div>
 </div>
 
-<!-- Location Correction Modal -->
-<div id="locCorrectionModal" class="modal-backdrop">
-    <div class="modal" style="max-width: 600px;">
-        <h3>场地数据校正</h3>
-        <p style="margin-bottom:8px">将对场地 <strong id="correctLocName"></strong> 的历史数据进行校正。</p>
-        <p style="margin-bottom:16px">目标归属书院: <strong id="correctLocAca" style="color:var(--primary)"></strong></p>
+<!-- Batch Correction Modal -->
+<div id="batchCorrectionModal" class="modal-backdrop">
+    <div class="modal" style="width: 800px; max-width: 95vw;">
+        <h3>一键校正结果</h3>
         
-        <div id="similarLocsSection" style="display:none">
-            <hr style="border:0; border-top:1px solid #eee; margin:12px 0;">
-            <h5 style="font-size:14px; font-weight:bold; margin-bottom:8px;">发现相似的未归属场地</h5>
-            <p style="color:#666; font-size:12px; margin-bottom:8px;">勾选下列场地，将其历史数据合并到当前标准场地（重命名并统一归属）。</p>
-            <div id="similarLocsList" style="max-height: 200px; overflow-y: auto; border:1px solid #eee; padding:8px; border-radius:4px;">
-                <!-- Checkboxes go here -->
-            </div>
-        </div>
-        
-        <div id="correctLoading" style="text-align:center; margin:16px 0; display:none; color:#666;">
-            <div>正在查找相似场地...</div>
+        <div id="batchLoading" style="text-align:center; padding: 40px; display:none;">
+            <div style="font-size: 24px; margin-bottom: 10px;">🤖</div>
+            <p>正在智能分析场地数据，请稍候...</p>
         </div>
 
-        <div class="actions" style="margin-top:16px;">
-            <button class="btn" id="locCorrectCancel">取消</button>
-            <button class="btn btn-warning" id="locCorrectConfirm">确认校正</button>
+        <div id="batchContent" style="display:none">
+            <div id="batchReviewSection">
+                <div class="alert alert-warning mb-4" style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px; border-radius: 4px;">
+                    <strong>发现 <span id="reviewCount">0</span> 条数据需要人工确认</strong><br>
+                    <span style="font-size: 0.9em">以下数据置信度较低，请手动选择正确的标准场地。确认后系统将自动学习。</span>
+                </div>
+                
+                <div class="table-wrap" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                <th style="padding: 12px; text-align: left;">原始场地名称</th>
+                                <th style="padding: 12px; text-align: left;">AI 建议匹配</th>
+                                <th style="padding: 12px; text-align: left;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchReviewTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="actions mt-4" style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn" id="batchClose">取消</button>
+                <button class="btn btn-primary" id="batchConfirm">确认并校正</button>
+            </div>
         </div>
     </div>
 </div>
@@ -476,7 +491,6 @@
                         <div style="display:flex;gap:4px">
                             <button class="btn btn-sm btn-primary" onclick="openLocEdit('${safeL}', '${currentAca}')">修改</button>
                             <button class="btn btn-sm btn-danger" onclick="deleteLocMapping('${safeL}')">删除</button>
-                            <button class="btn btn-sm btn-warning" onclick="openLocCorrection('${safeL}', '${currentAca}')">校正</button>
                         </div>
                     </td>
                 </tr>
@@ -587,90 +601,146 @@
         }
     };
     
-    // Correction Logic
-    els.locCorrectModal = document.getElementById('locCorrectionModal');
-    els.locCorrectCancel = document.getElementById('locCorrectCancel');
-    els.locCorrectConfirm = document.getElementById('locCorrectConfirm');
-    
-    els.locCorrectCancel.addEventListener('click', () => {
-        els.locCorrectModal.classList.remove('show');
-    });
+    // --- One-Click Correction Logic ---
+    const batchEls = {
+        modal: document.getElementById('batchCorrectionModal'),
+        loading: document.getElementById('batchLoading'),
+        content: document.getElementById('batchContent'),
+        reviewCount: document.getElementById('reviewCount'),
+        tableBody: document.getElementById('batchReviewTable'),
+        close: document.getElementById('batchClose'),
+        confirm: document.getElementById('batchConfirm'),
+        btn: document.getElementById('autoCorrectBtn')
+    };
 
-    let currentCorrectionTarget = null;
-    let currentCorrectionAca = null;
+    let batchScanResult = null;
 
-    window.openLocCorrection = async (name, aca) => {
-        currentCorrectionTarget = name;
-        currentCorrectionAca = aca;
-        
-        document.getElementById('correctLocName').textContent = name;
-        document.getElementById('correctLocAca').textContent = aca;
-        document.getElementById('similarLocsSection').style.display = 'none';
-        document.getElementById('similarLocsList').innerHTML = '';
-        
-        els.locCorrectModal.classList.add('show');
-        
-        // Fetch candidates
-        document.getElementById('correctLoading').style.display = 'block';
-        try {
-            const res = await fetch(`/api/v1/locations/correction-candidates?location=${encodeURIComponent(name)}`);
-            const candidates = await res.json();
+    if(batchEls.btn) {
+        batchEls.btn.addEventListener('click', async () => {
+            batchEls.modal.classList.add('show');
+            batchEls.loading.style.display = 'block';
+            batchEls.content.style.display = 'none';
             
-            if (candidates && candidates.length > 0) {
-                const listHtml = candidates.map(c => {
-                    const safeC = c.replace(/"/g, '&quot;');
-                    return `
-                    <div style="margin-bottom:4px">
-                        <label style="display:flex;align-items:center;cursor:pointer">
-                            <input type="checkbox" value="${safeC}" style="margin-right:8px">
-                            <span>${c}</span>
-                        </label>
-                    </div>
-                `}).join('');
-                document.getElementById('similarLocsList').innerHTML = listHtml;
-                document.getElementById('similarLocsSection').style.display = 'block';
+            try {
+                const res = await fetch('/api/v1/locations/auto-correct-scan', { method: 'POST' });
+                if(!res.ok) throw new Error('Scan failed');
+                
+                batchScanResult = await res.json();
+                const { high_confidence, manual_review } = batchScanResult;
+                
+                // If nothing to correct
+                if (manual_review.length === 0 && high_confidence.length === 0) {
+                    await showAlert('🎉 当前没有发现需要校正的场地数据。所有场地均已匹配或无数据。');
+                    batchEls.modal.classList.remove('show');
+                    return;
+                }
+                
+                // If only high confidence matches, ask to auto apply
+                if (manual_review.length === 0 && high_confidence.length > 0) {
+                    batchEls.loading.style.display = 'none';
+                    // Delay slightly to let loading hide
+                    setTimeout(async () => {
+                        if(await showConfirm(`发现 ${high_confidence.length} 条高置信度匹配数据，是否立即自动校正？`)) {
+                            await applyBatchCorrection([], high_confidence);
+                        } else {
+                            batchEls.modal.classList.remove('show');
+                        }
+                    }, 100);
+                    return;
+                }
+                
+                // Show Manual Review UI
+                batchEls.loading.style.display = 'none';
+                batchEls.content.style.display = 'block';
+                batchEls.reviewCount.textContent = manual_review.length;
+                
+                renderBatchTable(manual_review);
+                
+            } catch(e) {
+                console.error(e);
+                showToast('扫描失败');
+                batchEls.modal.classList.remove('show');
+            }
+        });
+    }
+
+    function renderBatchTable(items) {
+        batchEls.tableBody.innerHTML = items.map((item, idx) => {
+            const safeSource = item.source.replace(/"/g, '&quot;');
+            return `
+            <tr data-idx="${idx}">
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.source}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <div style="font-weight:bold; color:var(--primary)">${item.target}</div>
+                    <div style="font-size:12px;color:#666">置信度: ${Math.round(item.score)}% | 归属: ${item.academy}</div>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                    <input type="checkbox" class="batch-check" checked style="transform: scale(1.5);">
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    async function applyBatchCorrection(manualCorrections, highConfCorrections) {
+        const map = {}; // target -> { academy, sources: [] }
+        
+        const add = (item) => {
+            if(!map[item.target]) {
+                map[item.target] = { target: item.target, academy: item.academy, sources: [] };
+            }
+            map[item.target].sources.push(item.source);
+        };
+        
+        if(highConfCorrections) highConfCorrections.forEach(add);
+        if(manualCorrections) manualCorrections.forEach(add);
+        
+        const payload = {
+            corrections: Object.values(map)
+        };
+        
+        // Show loading state again
+        batchEls.content.style.display = 'none';
+        batchEls.loading.style.display = 'block';
+        batchEls.loading.querySelector('p').textContent = '正在应用校正并更新历史数据...';
+
+        try {
+            const res = await fetch('/api/v1/locations/batch-correct', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await res.json();
+            if(res.ok) {
+                await showAlert(`✅ 成功校正了 ${result.count} 条数据！`);
+                batchEls.modal.classList.remove('show');
+                loadLocationMapping(); // Refresh table
             } else {
-                 document.getElementById('similarLocsSection').style.display = 'none';
+                throw new Error('Update failed');
             }
         } catch(e) {
             console.error(e);
-        } finally {
-            document.getElementById('correctLoading').style.display = 'none';
+            await showAlert('校正应用失败，请重试');
+            batchEls.modal.classList.remove('show');
         }
-    };
-    
-    els.locCorrectConfirm.addEventListener('click', async () => {
-        const mergeLocs = [];
-        const checkboxes = document.querySelectorAll('#similarLocsList input[type="checkbox"]:checked');
-        checkboxes.forEach(chk => mergeLocs.push(chk.value));
-        
-        const msg = `确定要校正 ${currentCorrectionTarget} 的数据吗？` + 
-                    (mergeLocs.length ? `\n将合并 ${mergeLocs.length} 个相似场地。` : '') + 
-                    `\n这将更新相关的历史活动记录。`;
+    }
 
-        if(!await showConfirm(msg)) return;
-        
-        try {
-            const res = await fetch('/api/v1/locations/correct', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    location: currentCorrectionTarget,
-                    academy: currentCorrectionAca,
-                    merge_locations: mergeLocs
-                })
-            });
-            const data = await res.json();
-            if(res.ok) {
-                showToast(`校正完成，更新了 ${data.count} 条记录`);
-                els.locCorrectModal.classList.remove('show');
-                loadLocationMapping();
-            } else {
-                throw new Error();
+    batchEls.close.addEventListener('click', () => batchEls.modal.classList.remove('show'));
+    
+    batchEls.confirm.addEventListener('click', async () => {
+        // Gather checked items from manual review
+        const checkboxes = batchEls.tableBody.querySelectorAll('.batch-check:checked');
+        const manualItems = [];
+        checkboxes.forEach(cb => {
+            const tr = cb.closest('tr');
+            const idx = parseInt(tr.dataset.idx);
+            if (batchScanResult && batchScanResult.manual_review[idx]) {
+                manualItems.push(batchScanResult.manual_review[idx]);
             }
-        } catch(e) {
-            showToast('校正失败');
-        }
+        });
+        
+        await applyBatchCorrection(manualItems, batchScanResult.high_confidence);
     });
     
     if(els.refreshLoc) els.refreshLoc.addEventListener('click', loadLocationMapping);

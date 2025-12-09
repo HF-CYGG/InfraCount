@@ -738,3 +738,45 @@ async def get_correction_candidates(location: str = Query(...)):
 async def execute_correction(payload: CorrectionPayload):
     count = await db.correct_location_data(payload.location, payload.academy, payload.merge_locations)
     return {"count": count}
+
+@app.post("/api/v1/locations/auto-correct-scan")
+async def auto_correct_scan():
+    all_locs = await db.get_all_activity_locations()
+    mapping = await db.get_location_academy_mapping()
+    standards = list(mapping.keys())
+    matcher.set_standards(standards)
+    
+    mapped_locs = set(standards)
+    unmapped = [l for l in all_locs if l not in mapped_locs]
+    
+    high_conf = [] 
+    manual = []
+    
+    # Group by target for better UI/Processing
+    # But for scan, flat list is fine, frontend can group.
+    # Actually, let's group by target here to make frontend easier?
+    # No, flat list is more flexible.
+    
+    for loc in unmapped:
+        match, score = matcher.match(loc)
+        if score >= 90:
+            high_conf.append({"target": match, "source": loc, "score": score, "academy": mapping.get(match)})
+        elif score >= 60:
+            manual.append({"target": match, "source": loc, "score": score, "academy": mapping.get(match)})
+            
+    return {
+        "high_confidence": high_conf,
+        "manual_review": manual
+    }
+
+@app.post("/api/v1/locations/batch-correct")
+async def batch_correct(payload: Dict[str, Any] = Body(...)):
+    corrections = payload.get("corrections", [])
+    total = 0
+    for item in corrections:
+        t = item.get("target")
+        a = item.get("academy")
+        s = item.get("sources", [])
+        if t and a and s:
+            total += await db.correct_location_data(t, a, s)
+    return {"count": total}

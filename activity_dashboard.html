@@ -455,26 +455,16 @@ async function loadOptions() {
     const locMapData = await locMapRes.json();
     state.locMapping = locMapData.mapping || {};
     
-    // 2. Fetch Device Mapping for Locations
-    let deviceMap = {};
-    try {
-        const mapRes = await fetch('/api/v1/devices/mapping');
-        if(mapRes.ok) {
-            const mapData = await mapRes.json();
-            deviceMap = mapData.mapping || {};
-        }
-    } catch(e) { console.error("Load Mapping Error", e); }
+    // 2. Fetch Device Mapping (Removed as we use Standard Venue Config now)
+    // let deviceMap = {}; 
+
     
-    // Render Locations with Custom Names if available
-    els.locationFilter.innerHTML = data.locations.map(l => {
-        // Try to match location 'l' with device map
-        // 'l' might be a UUID or a name. If it's a UUID, we show custom name.
-        // If 'l' is a custom name already (from CSV), we just show it.
-        const entry = deviceMap[l];
-        const name = entry ? (entry.name || l) : l;
-        const display = name === l ? l : `${name} (${l})`;
+    // Render Locations: Use Standard Venue Configuration (from devices page)
+    const standardLocations = Object.keys(state.locMapping).sort();
+    
+    els.locationFilter.innerHTML = standardLocations.map(l => {
         const assignedAca = state.locMapping[l] || '';
-        return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${l}" data-aca="${assignedAca}">${display}</div>`;
+        return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${l}" data-aca="${assignedAca}">${l}</div>`;
     }).join('');
 
     // Render Academies (Use Registry + Existing Data)

@@ -321,3 +321,14 @@ OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 808
 2025-12-09 18:14:52,903 INFO root TCP Server listening on 0.0.0.0:8085
 2025-12-09 19:04:17,876 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-09 19:04:17,877 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 19:26:43,153 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\ÏîÄ¿\InfraCount\tcp_server.py", line 148, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+2025-12-09 19:27:01,042 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 19:27:01,042 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 19:41:37,649 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 19:41:37,650 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 19:42:45,682 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 19:42:45,683 INFO root TCP Server listening on 0.0.0.0:8085
