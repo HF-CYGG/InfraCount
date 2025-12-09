@@ -278,3 +278,8 @@ Traceback (most recent call last):
 KeyboardInterrupt
 2025-12-09 13:53:08,316 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-09 13:53:08,317 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 13:58:13,178 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\ÏîÄ¿\InfraCount\tcp_server.py", line 148, in <module>
+2025-12-09 13:58:15,215 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 13:58:15,216 INFO root TCP Server listening on 0.0.0.0:8085

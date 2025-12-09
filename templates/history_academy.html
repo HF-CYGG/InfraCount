@@ -740,9 +740,9 @@
                 reader.onload = (e) => {
                     try {
                         const data = e.target.result;
-                        const workbook = XLSX.read(data, {type: 'binary'});
+                        const workbook = XLSX.read(data, {type: 'binary', cellDates: true});
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: ""});
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: "", cellDates: true});
                         this.processData(jsonData);
                         resolve();
                     } catch(err) {
@@ -761,11 +761,62 @@
                     return '';
                 };
 
-                const dateStr = String(getVal(['年/月/日', 'Date', '日期'])).split(' ')[0];
-                const startTime = String(getVal(['起始时间', 'Start']) || '');
-                const endTime = String(getVal(['结束时间', 'End']) || '');
+                // Date Parsing
+                let rawDate = getVal(['年/月/日', 'Date', '日期']);
+                let dateStr = '';
                 
-                let duration = 0;
+                if (rawDate instanceof Date) {
+                    const y = rawDate.getFullYear();
+                    const m = String(rawDate.getMonth() + 1).padStart(2, '0');
+                    const d = String(rawDate.getDate()).padStart(2, '0');
+                    dateStr = `${y}-${m}-${d}`;
+                } else if (typeof rawDate === 'number') {
+                    // Excel Serial Date (approximate)
+                    // Excel base date: Dec 30, 1899
+                    const d = new Date(1899, 11, 30);
+                    d.setDate(d.getDate() + Math.floor(rawDate));
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    dateStr = `${y}-${m}-${day}`;
+                } else if (rawDate) {
+                    const str = String(rawDate).trim();
+                    if (/^\d{5}(\.\d+)?$/.test(str)) {
+                        // Handle stringified serial number
+                        const num = parseFloat(str);
+                        const d = new Date(1899, 11, 30);
+                        d.setDate(d.getDate() + Math.floor(num));
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        dateStr = `${y}-${m}-${day}`;
+                    } else {
+                        // Standard string
+                        dateStr = str.split(' ')[0].replace(/\//g, '-');
+                     }
+                 }
+
+                 const formatTime = (val) => {
+                    if(!val) return '';
+                    if(val instanceof Date) {
+                        const h = String(val.getHours()).padStart(2, '0');
+                        const m = String(val.getMinutes()).padStart(2, '0');
+                        return `${h}:${m}`;
+                    }
+                    if(typeof val === 'number') {
+                        // Excel fractional day
+                        const totalSeconds = Math.round(val * 86400);
+                        const h = Math.floor(totalSeconds / 3600) % 24;
+                        const m = Math.floor((totalSeconds % 3600) / 60);
+                        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                    }
+                    return String(val).trim();
+                 };
+
+                 const startTime = formatTime(getVal(['起始时间', 'Start']));
+                 const endTime = formatTime(getVal(['结束时间', 'End']));
+                 
+                 let duration = 0;
                 const durRaw = String(getVal(['时长', 'Duration']) || '');
                 if(durRaw.includes('时')) {
                     const parts = durRaw.split('时');
