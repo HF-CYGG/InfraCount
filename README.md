@@ -178,7 +178,23 @@ graph TD
 ## 🌳 功能树状图
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'darkMode': true, 
+      'background': '#111111', 
+      'primaryColor': '#2980b9', 
+      'primaryTextColor': '#ffffff',
+      'secondaryColor': '#27ae60', 
+      'secondaryTextColor': '#ffffff',
+      'tertiaryColor': '#8e44ad', 
+      'tertiaryTextColor': '#ffffff', 
+      'lineColor': '#ffffff',
+      'fontFamily': 'Microsoft YaHei'
+    }
+  }
+}%%
 mindmap
   root((InfraCount))
     后端核心
