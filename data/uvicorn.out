@@ -5207,3 +5207,22 @@ INFO:     127.0.0.1:1244 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
 INFO:     127.0.0.1:1244 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:14837 - "GET /api/v1/users HTTP/1.1" 404 Not Found
 INFO:     127.0.0.1:1244 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:14945 - "GET /api/v1/users HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:1365 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /activity-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /static/layout.js?v=auth_v2 HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:1365 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1105 - "GET /api/v1/academies HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3605 - "GET /api/v1/locations/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /api/v1/activity/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /api/v1/devices/mapping HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /api/v1/activity/aggregations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /api/v1/activity/events?page=1&page_size=50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /account HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1365 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3605 - "GET /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:8192 - "GET /api/v1/users HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:5906 - "PUT /api/v1/users/1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:5906 - "GET /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3655 - "POST /api/v1/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3655 - "GET /api/v1/users HTTP/1.1" 200 OK

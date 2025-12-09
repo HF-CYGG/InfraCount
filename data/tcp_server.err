@@ -313,3 +313,5 @@ Traceback (most recent call last):
   File "E:\python310\lib\asyncio\base_events.py", line 1493, in create_server
     raise OSError(err.errno, 'error while attempting '
 OSError: [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8085): 通常每个套接字地址(协议/网络地址/端口)只允许使用一次。
+2025-12-09 17:33:07,267 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 17:33:07,268 INFO root TCP Server listening on 0.0.0.0:8085
