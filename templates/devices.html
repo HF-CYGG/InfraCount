@@ -69,6 +69,25 @@
     </div>
 </div>
 
+<div class="card" style="margin-top: 20px;">
+    <div class="flex justify-between items-center mb-4">
+        <h3>场地-书院 归属配置</h3>
+        <button class="btn" id="refreshLocBtn">刷新</button>
+    </div>
+    <div class="table-wrap" style="max-height: 500px; overflow-y: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>场地名称 (Excel数据)</th>
+                    <th>归属书院</th>
+                    <th style="width:100px">操作</th>
+                </tr>
+            </thead>
+            <tbody id="locationTable"></tbody>
+        </table>
+    </div>
+</div>
+
 <!-- Edit Modal -->
 <div id="editModal" class="modal-backdrop">
     <div class="modal">
@@ -119,13 +138,12 @@
 
 <div id="toast" class="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="/static/layout.js"></script>
 <script>
     // Ensure Sortable is loaded if not present
     if (typeof Sortable === 'undefined') {
         const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js";
+        script.src = "/static/lib/Sortable.min.js";
         script.onload = () => console.log("Sortable loaded manually");
         document.body.appendChild(script);
     }
@@ -321,6 +339,80 @@
     loadAcademies();
     loadDevices();
     els.refresh.addEventListener('click', loadDevices);
+
+    // --- Location Mapping Logic ---
+    els.locationTable = document.getElementById('locationTable');
+    els.refreshLoc = document.getElementById('refreshLocBtn');
+
+    async function loadLocationMapping() {
+        try {
+            const [locsRes, mapRes, acaRes] = await Promise.all([
+                fetch('/api/v1/locations/all'),
+                fetch('/api/v1/locations/mapping'),
+                fetch('/api/v1/academies')
+            ]);
+            
+            const locs = await locsRes.json();
+            const mapping = (await mapRes.json()).mapping || {};
+            const academies = await acaRes.json();
+            
+            els.locationTable.innerHTML = locs.map((l, index) => {
+                const currentAca = mapping[l] || '';
+                // Escape string for ID and JS params
+                const safeL = l.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                const statusId = `status-${index}`;
+                
+                return `
+                <tr>
+                    <td>${l}</td>
+                    <td>
+                        <select class="select" onchange="updateLocMapping('${safeL}', this.value, '${statusId}')">
+                            <option value="">未指定</option>
+                            ${academies.map(a => `<option value="${a.name}" ${a.name === currentAca ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <span class="text-muted" id="${statusId}"></span>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+            
+        } catch(e) {
+            console.error(e);
+            showToast('加载场地配置失败');
+        }
+    }
+
+    window.updateLocMapping = async (loc, aca, statusId) => {
+        const statusEl = document.getElementById(statusId);
+        if(statusEl) statusEl.textContent = '保存中...';
+        
+        try {
+            const res = await fetch('/api/v1/locations/mapping', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({location: loc, academy: aca})
+            });
+            if(res.ok) {
+                if(statusEl) {
+                    statusEl.textContent = '已保存';
+                    statusEl.style.color = 'green';
+                    setTimeout(() => statusEl.textContent = '', 2000);
+                }
+            } else {
+                throw new Error();
+            }
+        } catch(e) {
+            if(statusEl) {
+                statusEl.textContent = '失败';
+                statusEl.style.color = 'red';
+            }
+        }
+    };
+    
+    if(els.refreshLoc) els.refreshLoc.addEventListener('click', loadLocationMapping);
+    loadLocationMapping();
 
 </script>
 </body>

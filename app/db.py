@@ -121,6 +121,12 @@ async def init_sqlite():
             time DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS location_academy (
+            location_name TEXT PRIMARY KEY,
+            academy_name TEXT
+        )
+    """)
     await _sqlite.commit()
 
 async def init_pool():
@@ -231,6 +237,12 @@ async def init_pool():
                         level INT,
                         info TEXT,
                         time DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS location_academy (
+                        location_name VARCHAR(128) PRIMARY KEY,
+                        academy_name VARCHAR(64)
                     )
                 """)
     except Exception as e:
@@ -1503,3 +1515,54 @@ async def walkin_preview(devices: list, start: str, end: str):
     # Sort by date, time
     events.sort(key=lambda x: (x['date'], x['start_time']))
     return events
+
+# --- Location-Academy Mapping ---
+
+async def get_location_academy_mapping():
+    """Returns {location_name: academy_name}"""
+    sql = "SELECT location_name, academy_name FROM location_academy"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return {row[0]: row[1] for row in rows}
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return {row[0]: row[1] for row in rows}
+
+async def update_location_academy_mapping(location_name: str, academy_name: str):
+    """Updates or inserts a mapping"""
+    # Upsert logic
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute("INSERT OR REPLACE INTO location_academy (location_name, academy_name) VALUES (?, ?)", (location_name, academy_name))
+        await _sqlite.commit()
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("""
+                    INSERT INTO location_academy (location_name, academy_name) 
+                    VALUES (%s, %s) 
+                    ON DUPLICATE KEY UPDATE academy_name=%s
+                """, (location_name, academy_name, academy_name))
+
+async def get_all_activity_locations():
+    """Returns list of distinct locations from activity_events"""
+    sql = "SELECT DISTINCT location FROM activity_events ORDER BY location"
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql) as cur:
+            rows = await cur.fetchall()
+            return [row[0] for row in rows if row[0]]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(sql)
+                rows = await cur.fetchall()
+                return [row[0] for row in rows if row[0]]

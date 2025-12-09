@@ -216,10 +216,6 @@
 <div class="header-bar">
     <div style="display:flex;align-items:center;gap:16px">
         <button class="btn" id="toggleSidebar">☰</button>
-        <div style="display:flex;align-items:center;gap:8px;margin-left:16px">
-            <label style="font-size:14px;color:var(--text-secondary)">统计月份</label>
-            <input type="month" id="statsMonth" class="input" style="height:32px;padding:0 8px">
-        </div>
     </div>
     <div style="display:flex;gap:12px">
         <!-- Buttons removed -->
@@ -234,6 +230,11 @@
         </div>
         
         <div class="sidebar-content">
+            <div class="filter-group">
+                <label>统计月份</label>
+                <input type="month" id="statsMonth" class="input" style="width:100%;padding:8px">
+            </div>
+
             <div class="filter-group">
                 <label>周次 / 日期范围</label>
                 <div id="weekList" class="week-list"></div>
@@ -443,13 +444,16 @@ function initCharts() {
 
 // Fetch Options
 async function loadOptions() {
-    // 1. Fetch options and academies in parallel
-    const [res, acaRes] = await Promise.all([
+    // 1. Fetch options, academies, mapping in parallel
+    const [res, acaRes, locMapRes] = await Promise.all([
         fetch('/api/v1/activity/options'),
-        fetch('/api/v1/academies')
+        fetch('/api/v1/academies'),
+        fetch('/api/v1/locations/mapping')
     ]);
     const data = await res.json();
     const acaList = await acaRes.json();
+    const locMapData = await locMapRes.json();
+    state.locMapping = locMapData.mapping || {};
     
     // 2. Fetch Device Mapping for Locations
     let deviceMap = {};
@@ -469,7 +473,8 @@ async function loadOptions() {
         const entry = deviceMap[l];
         const name = entry ? (entry.name || l) : l;
         const display = name === l ? l : `${name} (${l})`;
-        return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${l}">${display}</div>`;
+        const assignedAca = state.locMapping[l] || '';
+        return `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${l}" data-aca="${assignedAca}">${display}</div>`;
     }).join('');
 
     // Render Academies (Use Registry + Existing Data)
@@ -478,7 +483,7 @@ async function loadOptions() {
     if(data.academies) data.academies.forEach(a => academyNames.add(a));
     
     els.academyFilter.innerHTML = Array.from(academyNames).sort().map(a => 
-        `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${a}">${a}</div>`
+        `<div class="checkbox-tag" onclick="toggleAcademy(this)" data-val="${a}">${a}</div>`
     ).join('');
     
     // Render Weekdays (Fixed Mon-Sun)
@@ -512,6 +517,24 @@ async function loadOptions() {
     els.startTimeFilter.innerHTML = fixedTimes.map(t => 
         `<div class="checkbox-tag" onclick="this.classList.toggle('checked')" data-val="${t}">${t}</div>`
     ).join('');
+}
+
+// Toggle Academy and Filter Locations
+function toggleAcademy(el) {
+    el.classList.toggle('checked');
+    
+    const selectedAcademies = Array.from(document.querySelectorAll('#academyFilter .checkbox-tag.checked'))
+        .map(e => e.dataset.val);
+        
+    const locBtns = document.querySelectorAll('#locationFilter .checkbox-tag');
+    locBtns.forEach(btn => {
+        const assignedAca = btn.dataset.aca;
+        let visible = true;
+        if (selectedAcademies.length > 0) {
+            visible = selectedAcademies.includes(assignedAca);
+        }
+        btn.style.display = visible ? 'inline-flex' : 'none';
+    });
 }
 
 // Build Query
@@ -726,7 +749,10 @@ els.resetFilters.addEventListener('click', () => {
     
     // Reset others
     document.querySelectorAll('#academyFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
-    document.querySelectorAll('#locationFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
+    document.querySelectorAll('#locationFilter .checkbox-tag').forEach(e => {
+        e.classList.remove('checked');
+        e.style.display = 'inline-flex';
+    });
     document.querySelectorAll('#weekdayFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
     document.querySelectorAll('#typeFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
     document.querySelectorAll('#startTimeFilter .checkbox-tag').forEach(e => e.classList.remove('checked'));
@@ -739,45 +765,6 @@ els.nextPage.addEventListener('click', () => { state.page++; loadData(); });
 // Init
 async function init() {
     initLayout('书院空间使用数据看板');
-    
-    // Move Stats Month to App Header
-    const headerRight = document.querySelector('.app-header .flex.items-center.gap-4');
-    if (headerRight && els.statsMonth) {
-        // Create container for month selector
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.marginRight = '16px';
-        container.innerHTML = `<span style="font-size:12px;margin-right:8px;color:var(--text-secondary)">统计月份</span>`;
-        
-        // We clone the input to avoid event listener issues if we just move it?
-        // No, moving preserves listeners usually.
-        container.appendChild(els.statsMonth);
-        
-        // Insert before the time display (first child of headerRight)
-        headerRight.insertBefore(container, headerRight.firstChild);
-        
-        // Hide the original label in .header-bar
-        const oldLabel = document.querySelector('.header-bar label');
-        if(oldLabel) oldLabel.style.display = 'none';
-    } else {
-        // Fallback: If header not found, maybe initLayout failed?
-        console.warn('App Header not found, ensuring layout...');
-        initLayout('书院空间使用数据看板');
-        // Try again
-        const retryHeader = document.querySelector('.app-header .flex.items-center.gap-4');
-        if(retryHeader && els.statsMonth) {
-             const container = document.createElement('div');
-             container.style.display = 'flex';
-             container.style.alignItems = 'center';
-             container.style.marginRight = '16px';
-             container.innerHTML = `<span style="font-size:12px;margin-right:8px;color:var(--text-secondary)">统计月份</span>`;
-             container.appendChild(els.statsMonth);
-             retryHeader.insertBefore(container, retryHeader.firstChild);
-             const oldLabel = document.querySelector('.header-bar label');
-             if(oldLabel) oldLabel.style.display = 'none';
-        }
-    }
 
     initCharts();
     els.statsMonth.value = state.month;

@@ -529,6 +529,31 @@ async def api_activity_import_excel(file: UploadFile = File(...)):
         
     count = 0
     if events:
-        count = await db.activity_bulk_insert(events)
+        res = await db.activity_bulk_insert(events)
+        if isinstance(res, dict):
+             count = res.get("inserted", 0) + res.get("updated", 0)
+        else:
+             count = res
         
     return {"count": count}
+
+# --- Location Mapping API ---
+
+@app.get("/api/v1/locations/mapping")
+async def get_location_mapping():
+    mapping = await db.get_location_academy_mapping()
+    return {"mapping": mapping}
+
+@app.post("/api/v1/locations/mapping")
+async def update_location_mapping(payload: Dict[str, str] = Body(...)):
+    location = payload.get("location")
+    academy = payload.get("academy")
+    if not location or not academy:
+        raise HTTPException(status_code=400, detail="Missing location or academy")
+    await db.update_location_academy_mapping(location, academy)
+    return {"status": "ok"}
+
+@app.get("/api/v1/locations/all")
+async def get_all_locations():
+    locs = await db.get_all_activity_locations()
+    return locs

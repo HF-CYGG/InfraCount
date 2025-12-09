@@ -292,3 +292,6 @@ Traceback (most recent call last):
 Traceback (most recent call last):
 2025-12-09 14:22:01,963 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-09 14:22:01,963 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-09 14:57:25,858 INFO root TCP Server stopped by signal.
+2025-12-09 14:57:27,499 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-09 14:57:27,504 INFO root TCP Server listening on 0.0.0.0:8085
