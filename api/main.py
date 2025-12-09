@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
 from app import config
+from app.matcher import matcher
 
 app = FastAPI(title="InfraCount API", version="1.0.0")
 
@@ -162,6 +163,17 @@ async def activity_upload(file: UploadFile = File(...)):
     
     if not lines:
         return {"imported": 0}
+
+    # Load Standard Locations for AI Matching
+    # Source 1: Location-Academy Mapping (High confidence standards)
+    mapping = await db.get_location_academy_mapping()
+    standards = list(mapping.keys())
+    
+    # Source 2: Existing Locations in DB (if we want to converge to existing ones)
+    # But usually mapping keys are the 'configured' ones.
+    # If mapping is empty, we might want to fetch distinct locations from activity_events too?
+    # For now, let's rely on mapping. If mapping is empty, no correction happens.
+    matcher.set_standards(standards)
         
     # Headers: 日期,起始时间,结束时间,书院,具体地点,活动名称,活动类型,受众学生数
     # Map to: date, start_time, end_time, academy, location, activity_name, activity_type, audience_count
@@ -193,6 +205,12 @@ async def activity_upload(file: UploadFile = File(...)):
             t2 = datetime.datetime.strptime(f"{d_str} {e_time}", "%Y-%m-%d %H:%M")
             duration = int((t2 - t1).total_seconds() / 60)
             
+            # AI Match Location
+            raw_loc = parts[4].strip()
+            best_loc, score = matcher.match(raw_loc)
+            # If score is high, use best_loc. Otherwise raw_loc (normalized).
+            final_loc = best_loc if score >= 90 else matcher.normalize(raw_loc)
+
             events.append({
                 "date": d_str,
                 "weekday": weekday,
@@ -200,7 +218,7 @@ async def activity_upload(file: UploadFile = File(...)):
                 "end_time": e_time,
                 "duration_minutes": duration,
                 "academy": parts[3].strip(),
-                "location": parts[4].strip(),
+                "location": final_loc,
                 "activity_name": parts[5].strip(),
                 "activity_type": parts[6].strip(),
                 "audience_count": int(parts[7].strip() or 0),
