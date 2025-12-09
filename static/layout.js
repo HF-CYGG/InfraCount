@@ -130,7 +130,13 @@ function initLayout(title, customContentId) {
     if (window.location.pathname !== '/login') {
         fetch('/api/v1/auth/me').then(r => {
             if (r.status === 401) window.location.href = '/login';
-        });
+            return r.json();
+        }).then(data => {
+            if (data && data.user) {
+                const uEl = document.getElementById('headerUsername');
+                if(uEl) uEl.textContent = data.user.username;
+            }
+        }).catch(e => console.error(e));
     }
 
     // Idempotency Check
@@ -172,16 +178,31 @@ function initLayout(title, customContentId) {
             <button id="themeToggle" class="btn btn-sm">
                 ${body.classList.contains('dark-mode') ? '亮色模式' : '暗色模式'}
             </button>
-            <div style="position:relative;">
-                <div id="userAvatar" style="width:32px;height:32px;background:#e9ecef;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;">
-                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                     </svg>
+            
+            <div class="user-menu">
+                <div id="userMenuTrigger" class="user-menu-trigger">
+                    <div class="user-menu-avatar">
+                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                         </svg>
+                    </div>
+                    <span id="headerUsername" class="user-menu-name">加载中...</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                 </div>
-                <div id="userDropdown" style="display:none; position:absolute; top:45px; right:0; background:white; border:1px solid #e9ecef; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); width:160px; z-index:1000;">
-                    <div id="openProfileBtn" style="padding:12px 16px; cursor:pointer; border-bottom:1px solid #f1f3f5; font-size:14px; color:#333;">个人账户</div>
-                    <div id="doLogoutBtn" style="padding:12px 16px; cursor:pointer; color:#dc3545; font-size:14px;">退出登录</div>
+                
+                <div id="userDropdown" class="user-menu-dropdown">
+                    <div id="openProfileBtn" class="user-menu-item">
+                        <i class="fas fa-user-circle" style="width:16px;text-align:center"></i>
+                        个人账户
+                    </div>
+                    <div style="height:1px; background:var(--border); margin:4px 8px;"></div>
+                    <div id="doLogoutBtn" class="user-menu-item danger">
+                        <i class="fas fa-sign-out-alt" style="width:16px;text-align:center"></i>
+                        退出登录
+                    </div>
                 </div>
             </div>
         </div>
@@ -301,7 +322,7 @@ function initLayout(title, customContentId) {
     profileContainer.innerHTML = PROFILE_MODAL_HTML;
     document.body.appendChild(profileContainer);
     
-    const userAvatar = document.getElementById('userAvatar');
+    const userMenuTrigger = document.getElementById('userMenuTrigger');
     const userDropdown = document.getElementById('userDropdown');
     const openProfileBtn = document.getElementById('openProfileBtn');
     const doLogoutBtn = document.getElementById('doLogoutBtn');
@@ -310,15 +331,18 @@ function initLayout(title, customContentId) {
     const closeProfileModal = document.getElementById('closeProfileModal');
     
     // Toggle Dropdown
-    userAvatar.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = userDropdown.style.display === 'none';
-        userDropdown.style.display = isHidden ? 'block' : 'none';
-    });
+    if (userMenuTrigger) {
+        userMenuTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+            userMenuTrigger.classList.toggle('active');
+        });
+    }
     
     // Close dropdown on outside click
     document.addEventListener('click', () => {
-        if(userDropdown) userDropdown.style.display = 'none';
+        if(userDropdown) userDropdown.classList.remove('show');
+        if(userMenuTrigger) userMenuTrigger.classList.remove('active');
     });
     
     // Open Profile Modal

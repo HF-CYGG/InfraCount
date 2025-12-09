@@ -319,3 +319,102 @@ tr:hover {
 .badge-danger { background: var(--danger); color: #fff; }
 .badge-warning { background: var(--warning); color: #fff; }
 .badge-success { background: var(--success); color: #fff; }
+
+/* User Menu */
+.user-menu {
+    position: relative;
+}
+
+.user-menu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    color: var(--text);
+}
+
+.user-menu-trigger:hover, .user-menu-trigger.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.user-menu-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: var(--text-secondary);
+}
+
+.user-menu-name {
+    font-size: 14px;
+    font-weight: 500;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 220px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 8px;
+    z-index: 1000;
+    display: none;
+    animation: slideDown 0.2s ease-out;
+}
+
+.user-menu-dropdown.show {
+    display: block;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.1s;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.user-menu-item:hover {
+    background: var(--bg);
+}
+
+.user-menu-item.danger {
+    color: var(--danger);
+}
+
+.user-menu-item.danger:hover {
+    background: #fff5f5;
+}
+
+body.dark-mode .user-menu-item.danger:hover {
+    background: rgba(250, 82, 82, 0.1);
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
