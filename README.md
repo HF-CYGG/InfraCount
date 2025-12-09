@@ -133,7 +133,7 @@ timeline
 ### 开发路线图 (Roadmap)
 ```mermaid
 gantt
-    title InfraCount 开发里程碑 (2024-2025)
+    title InfraCount 开发里程碑 (2025-2026)
     dateFormat  YYYY-MM-DD
     axisFormat  %m-%d
     
