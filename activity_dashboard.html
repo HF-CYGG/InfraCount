@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>书院空间使用数据看板</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         /* Dashboard layout overrides */
         :root {
@@ -208,6 +209,251 @@
             color: var(--primary);
             border-color: var(--primary);
         }
+/* Wizard Styles */
+        .wizard-modal {
+            max-width: 800px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .wizard-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: #f8f9fa;
+        }
+
+        .wizard-header h3 {
+            margin: 0 0 24px 0;
+            font-size: 20px;
+        }
+
+        .wizard-steps {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+        }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-item.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active .step-icon {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 4px var(--primary-light);
+        }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: #e9ecef;
+            margin: 0 16px;
+            margin-bottom: 24px; /* Align with icon center approx */
+        }
+
+        .wizard-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .step-pane {
+            display: none;
+            animation: fadeIn 0.3s ease;
+            height: 100%;
+        }
+
+        .step-pane.active {
+            display: block;
+        }
+
+        /* Step 1: Drag Drop */
+        .drag-drop-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 60px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #fafbfc;
+        }
+
+        .drag-drop-zone:hover, .drag-drop-zone.dragover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .drag-drop-zone .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-body);
+            border-radius: var(--radius-sm);
+            margin-top: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Step 2: Preview */
+        .data-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-item {
+            background: var(--bg-body);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .summary-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .summary-item span {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .table-preview-wrap {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            overflow-x: auto;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .preview-table th, .preview-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .preview-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Step 3: Progress */
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 24px;
+        }
+
+        .progress-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .progress-ring svg {
+            width: 120px;
+            height: 120px;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke: var(--border-color);
+            stroke-width: 8;
+        }
+
+        .progress-ring circle:last-child {
+            stroke: var(--primary);
+            stroke-dasharray: 314; /* 2 * PI * r */
+            stroke-dashoffset: calc(314 - (314 * var(--percent)) / 100);
+            transition: stroke-dashoffset 0.3s ease;
+        }
+
+        .progress-ring span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .progress-info {
+            text-align: center;
+        }
+
+        .wizard-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+
+        .step-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .hidden { display: none !important; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
 </head>
 <body>
@@ -335,15 +581,94 @@
     </div>
 </div>
 
-<!-- Upload Modal -->
+<!-- Upload Wizard Modal -->
 <div id="uploadModal" class="modal-backdrop">
-    <div class="modal">
-        <h3>上传活动数据</h3>
-        <p style="color:var(--text-secondary)">请上传 CSV 文件，包含字段：日期,起始时间,结束时间,书院,具体地点,活动名称,活动类型,受众学生数</p>
-        <input type="file" id="fileInput" accept=".csv" style="margin:16px 0;display:block;width:100%">
-        <div class="actions">
-            <button class="btn" id="closeUpload">取消</button>
-            <button class="btn btn-primary" id="doUpload">确认上传</button>
+    <div class="modal wizard-modal">
+        <div class="wizard-header">
+            <h3>导入数据</h3>
+            <div class="wizard-steps">
+                <div class="step-item active" data-step="1">
+                    <div class="step-icon">1</div>
+                    <span>导入文件</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="2">
+                    <div class="step-icon">2</div>
+                    <span>确定数据</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="3">
+                    <div class="step-icon">3</div>
+                    <span>导入数据</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Step 1: Upload -->
+            <div class="step-pane active" id="step1">
+                <div class="drag-drop-zone" id="dropZone">
+                    <div class="icon">📂</div>
+                    <p>拖拽文件至此 或 点击选择</p>
+                    <p class="sub-text" style="color:var(--text-secondary); font-size:12px; margin-top:4px">支持 .xlsx, .xls, .csv</p>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+                </div>
+                <div id="fileInfo" class="file-info hidden">
+                    <span class="file-icon" style="font-size:20px">📄</span>
+                    <div style="flex:1">
+                        <div id="fileName" style="font-weight:500">example.xlsx</div>
+                        <div id="fileSize" style="font-size:12px;color:var(--text-secondary)">12KB</div>
+                    </div>
+                    <div class="text-success">✓</div>
+                </div>
+            </div>
+
+            <!-- Step 2: Preview -->
+            <div class="step-pane" id="step2">
+                <div class="data-summary">
+                    <div class="summary-item">
+                        <label>总记录数</label>
+                        <span id="previewTotal">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>日期范围</label>
+                        <span id="previewDateRange">-</span>
+                    </div>
+                </div>
+                <div class="table-preview-wrap">
+                    <table class="preview-table">
+                        <thead>
+                            <tr id="previewHeader"></tr>
+                        </thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">仅显示前 5 条数据用于预览</p>
+            </div>
+
+            <!-- Step 3: Progress -->
+            <div class="step-pane" id="step3">
+                <div class="progress-container">
+                    <div class="progress-ring" style="--percent:0">
+                        <svg><circle r="50" cx="60" cy="60" pathLength="100" /></svg>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-info">
+                        <h4 id="progressStatus" style="margin:0 0 8px 0">准备导入...</h4>
+                        <p id="progressCount" style="margin:0;color:var(--text-secondary)">已导入 0 / 0</p>
+                        <p id="progressTime" style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary)">预计剩余时间: --</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-footer">
+            <button class="btn" id="btnCancel">取消</button>
+            <div class="step-actions">
+                <button class="btn hidden" id="btnPrev">上一步</button>
+                <button class="btn btn-primary" id="btnNext" disabled>下一步</button>
+                <button class="btn btn-primary hidden" id="btnFinish">完成</button>
+            </div>
         </div>
     </div>
 </div>
@@ -942,44 +1267,308 @@ els.toggleSidebar.addEventListener('click', () => {
     setTimeout(() => Object.values(state.charts).forEach(c => c.resize()), 300);
 });
 
-els.uploadBtn.addEventListener('click', () => els.uploadModal.classList.add('show'));
-els.closeUpload.addEventListener('click', () => els.uploadModal.classList.remove('show'));
+// --- Wizard Logic ---
+const wizard = {
+    step: 1,
+    file: null,
+    data: [],
+    CHUNK_SIZE: 500,
+    
+    // Elements
+    el: {
+        modal: document.getElementById('uploadModal'),
+        steps: document.querySelectorAll('.step-item'),
+        panes: document.querySelectorAll('.step-pane'),
+        dropZone: document.getElementById('dropZone'),
+        fileInput: document.getElementById('fileInput'),
+        fileInfo: document.getElementById('fileInfo'),
+        btnCancel: document.getElementById('btnCancel'),
+        btnPrev: document.getElementById('btnPrev'),
+        btnNext: document.getElementById('btnNext'),
+        btnFinish: document.getElementById('btnFinish'),
+        // Preview
+        previewTotal: document.getElementById('previewTotal'),
+        previewDateRange: document.getElementById('previewDateRange'),
+        previewHeader: document.getElementById('previewHeader'),
+        previewBody: document.getElementById('previewBody'),
+        // Progress
+        progressRing: document.querySelector('.progress-ring'),
+        progressPercent: document.getElementById('progressPercent'),
+        progressStatus: document.getElementById('progressStatus'),
+        progressCount: document.getElementById('progressCount'),
+        progressTime: document.getElementById('progressTime')
+    },
 
-els.doUpload.addEventListener('click', async () => {
-    const file = els.fileInput.files[0];
-    if(!file) return showAlert('请选择文件');
-    
-    // const token = els.adminToken.value;
-    // if(!token) return showAlert('请输入 Admin Token');
-    
-    const fd = new FormData();
-    fd.append('file', file);
-    
-    els.doUpload.disabled = true;
-    els.doUpload.textContent = '上传中...';
-    
-    try {
-        const res = await fetch('/api/v1/activity/upload', {
-            method: 'POST',
-            // headers: { 'X-Admin-Token': token },
-            body: fd
-        });
-        const json = await res.json();
-        if(res.ok) {
-            await showAlert(`导入成功: ${json.imported} 条`);
-            els.uploadModal.classList.remove('show');
-            loadOptions();
-            loadData();
-        } else {
-            await showAlert('导入失败: ' + (await res.text()));
+    init() {
+        if(!window.XLSX) {
+            console.error('SheetJS not loaded');
         }
-    } catch(e) {
-        await showAlert('Error: ' + e.message);
-    } finally {
-        els.doUpload.disabled = false;
-        els.doUpload.textContent = '确认上传';
+
+        // Open/Close
+        els.uploadBtn.addEventListener('click', () => this.open());
+        this.el.btnCancel.addEventListener('click', () => this.close());
+        
+        // Navigation
+        this.el.btnNext.addEventListener('click', () => this.next());
+        this.el.btnPrev.addEventListener('click', () => this.prev());
+        this.el.btnFinish.addEventListener('click', () => this.close());
+
+        // File Input
+        this.el.dropZone.addEventListener('click', () => this.el.fileInput.click());
+        this.el.fileInput.addEventListener('change', (e) => this.handleFile(e.target.files[0]));
+        
+        // Drag & Drop
+        this.el.dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            this.el.dropZone.classList.add('dragover');
+        });
+        this.el.dropZone.addEventListener('dragleave', () => {
+            this.el.dropZone.classList.remove('dragover');
+        });
+        this.el.dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            this.el.dropZone.classList.remove('dragover');
+            if(e.dataTransfer.files.length) this.handleFile(e.dataTransfer.files[0]);
+        });
+    },
+
+    open() {
+        this.reset();
+        this.el.modal.classList.add('show');
+    },
+
+    close() {
+        this.el.modal.classList.remove('show');
+        if(this.step === 3 && this.data.length > 0) {
+            loadData();
+            loadOptions();
+        }
+    },
+
+    reset() {
+        this.step = 1;
+        this.file = null;
+        this.data = [];
+        this.el.fileInput.value = '';
+        this.el.fileInfo.classList.add('hidden');
+        this.el.dropZone.classList.remove('hidden');
+        this.el.btnNext.disabled = true;
+        this.renderStep();
+    },
+
+    renderStep() {
+        // Update Steps UI
+        this.el.steps.forEach(s => {
+            const sNum = parseInt(s.dataset.step);
+            s.classList.toggle('active', sNum <= this.step);
+        });
+
+        // Show Pane
+        this.el.panes.forEach(p => p.classList.remove('active'));
+        document.getElementById(`step${this.step}`).classList.add('active');
+
+        // Buttons
+        this.el.btnPrev.classList.toggle('hidden', this.step === 1 || this.step === 3);
+        this.el.btnNext.classList.toggle('hidden', this.step === 3);
+        this.el.btnFinish.classList.toggle('hidden', this.step !== 3); 
+        this.el.btnCancel.classList.toggle('hidden', this.step === 3);
+
+        if (this.step === 1) {
+             this.el.btnNext.disabled = !this.file;
+        } else if (this.step === 2) {
+             this.el.btnNext.disabled = false;
+        } else if (this.step === 3) {
+             this.startImport();
+        }
+    },
+
+    handleFile(file) {
+        if(!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        if(!['xlsx', 'xls', 'csv'].includes(ext)) {
+            showAlert('不支持的文件格式');
+            return;
+        }
+
+        this.file = file;
+        this.el.dropZone.classList.add('hidden');
+        this.el.fileInfo.classList.remove('hidden');
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+        this.el.btnNext.disabled = false;
+    },
+
+    async next() {
+        if(this.step === 1) {
+            try {
+                this.el.btnNext.disabled = true;
+                this.el.btnNext.textContent = "解析中...";
+                await this.parseFile();
+                this.el.btnNext.textContent = "下一步";
+            } catch(e) {
+                this.el.btnNext.disabled = false;
+                this.el.btnNext.textContent = "下一步";
+                return;
+            }
+        }
+        this.step++;
+        this.renderStep();
+    },
+
+    prev() {
+        this.step--;
+        this.renderStep();
+    },
+
+    async parseFile() {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = e.target.result;
+                    const workbook = XLSX.read(data, {type: 'binary'});
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, {defval: ""});
+                    this.processData(jsonData);
+                    resolve();
+                } catch(err) {
+                    showAlert('解析失败: ' + err.message);
+                    reject(err);
+                }
+            };
+            reader.readAsBinaryString(this.file);
+        });
+    },
+
+    processData(rows) {
+        this.data = rows.map(row => {
+            const getVal = (keys) => {
+                for(let k of keys) if(row[k] !== undefined) return row[k];
+                return '';
+            };
+
+            const dateStr = String(getVal(['年/月/日', 'Date', '日期'])).split(' ')[0];
+            const startTime = String(getVal(['起始时间', 'Start']) || '');
+            const endTime = String(getVal(['结束时间', 'End']) || '');
+            
+            // Duration
+            let duration = 0;
+            const durRaw = String(getVal(['时长', 'Duration']) || '');
+            if(durRaw.includes('时')) {
+                 const parts = durRaw.split('时');
+                 const h = parseInt(parts[0]) || 0;
+                 const m = parseInt(parts[1]?.replace('分','')) || 0;
+                 duration = h*60 + m;
+            } else if(durRaw.includes('分')) {
+                 duration = parseInt(durRaw.replace('分','')) || 0;
+            } else if(durRaw.match(/^\d+$/)) {
+                 duration = parseInt(durRaw);
+            } else {
+                // Try calc from start/end
+                if(startTime && endTime && dateStr) {
+                    try {
+                        const t1 = new Date(`2000/01/01 ${startTime}`);
+                        const t2 = new Date(`2000/01/01 ${endTime}`);
+                        duration = (t2 - t1) / 1000 / 60;
+                    } catch(e){}
+                }
+            }
+
+            return {
+                date: dateStr,
+                weekday: String(getVal(['周几', 'Weekday']) || ''),
+                start_time: startTime,
+                end_time: endTime,
+                duration_minutes: duration || 0,
+                academy: String(getVal(['书院', 'Academy']) || ''),
+                location: String(getVal(['具体地点', 'Location']) || ''),
+                activity_name: String(getVal(['活动名称', 'Activity Name']) || ''),
+                activity_type: String(getVal(['活动类型', 'Activity Type']) || ''),
+                audience_count: parseInt(getVal(['受众学生数', 'Audience']) || 0),
+                notes: String(getVal(['备注', 'Remarks']) || '')
+            };
+        }).filter(d => d.date && d.date !== 'undefined');
+
+        // Render Preview
+        this.el.previewTotal.textContent = this.data.length;
+        if(this.data.length > 0) {
+            const dates = this.data.map(d => d.date).sort();
+            this.el.previewDateRange.textContent = `${dates[0]} - ${dates[dates.length-1]}`;
+        }
+        
+        // Render Table Headers
+        const headers = ['日期', '书院', '地点', '活动', '人数'];
+        this.el.previewHeader.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+        
+        // Render Body
+        this.el.previewBody.innerHTML = this.data.slice(0, 5).map(d => `
+            <tr>
+                <td>${d.date}</td>
+                <td>${d.academy}</td>
+                <td>${d.location}</td>
+                <td>${d.activity_name}</td>
+                <td>${d.audience_count}</td>
+            </tr>
+        `).join('');
+    },
+
+    async startImport() {
+        const total = this.data.length;
+        let imported = 0;
+        const startTime = Date.now();
+
+        this.el.progressStatus.textContent = "正在导入...";
+        this.el.progressStatus.style.color = "var(--text-main)";
+
+        for(let i=0; i<total; i+=this.CHUNK_SIZE) {
+            const chunk = this.data.slice(i, i+this.CHUNK_SIZE);
+            try {
+                const res = await fetch('/api/v1/activity/walkin/sync', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({items: chunk})
+                });
+                
+                if(!res.ok) throw new Error(await res.text());
+                
+                imported += chunk.length;
+                
+                // Update Progress
+                const percent = Math.min(100, Math.round((imported / total) * 100));
+                this.el.progressRing.style.setProperty('--percent', percent);
+                this.el.progressPercent.textContent = percent + '%';
+                this.el.progressCount.textContent = `已导入 ${imported} / ${total}`;
+                
+                // Est Time
+                const elapsed = Date.now() - startTime;
+                if(imported > 0) {
+                    const speed = imported / elapsed; 
+                    const remaining = total - imported;
+                    const etaMs = remaining / speed;
+                    this.el.progressTime.textContent = `预计剩余时间: ${(etaMs/1000).toFixed(1)}s`;
+                }
+                
+                await new Promise(r => setTimeout(r, 100)); // Visual delay
+            } catch(err) {
+                this.el.progressStatus.textContent = "导入出错: " + err.message;
+                this.el.progressStatus.style.color = "var(--danger)";
+                this.el.btnCancel.classList.remove('hidden');
+                this.el.btnCancel.textContent = "关闭";
+                return;
+            }
+        }
+
+        this.el.progressStatus.textContent = "导入完成!";
+        this.el.progressStatus.style.color = "var(--success)";
+        this.el.btnFinish.classList.remove('hidden');
+        this.el.btnCancel.classList.add('hidden');
+        
+        loadData();
+        loadOptions();
     }
-});
+};
+
+wizard.init();
 
 els.applyFilters.addEventListener('click', () => {
     // start/end already set by week selection
