@@ -112,6 +112,24 @@ InfraCount/
 
 ## 项目进度与规划
 
+### 项目发展历程 (History)
+```mermaid
+timeline
+    title InfraCount 演进时间轴
+    2023 Q4 : 项目立项
+            : TCP 核心框架搭建
+            : 基础协议定义
+    2024 Q1 : 数据库架构设计
+            : 数据清洗引擎
+            : Web 看板 V1.0 上线
+    2024 Q2 : 多租户权限体系
+            : Docker 容器化支持
+            : 稳定性压测优化
+    2024 Q3 : 智能归属算法 (Beta)
+            : 移动端适配调研
+            : 开放 API 初版
+```
+
 ### 开发路线图 (Roadmap)
 ```mermaid
 gantt
@@ -148,6 +166,11 @@ gantt
     钉钉/飞书集成      :         eco2,  after eco1, 10d
     移动端App (Beta)   :         eco3,  2024-06-01, 60d
     OpenAPI V2.0      :         eco4,  2024-08-01, 30d
+
+    section 2025 架构演进
+    微服务拆分        :         arch1, 2025-01-01, 60d
+    边缘计算节点      :         arch2, after arch1, 45d
+    云原生部署        :         arch3, 2025-04-01, 30d
 ```
 
 ### 功能完成度
@@ -186,6 +209,31 @@ gantt
   - 支持钉钉/飞书/企业微信的 Webhook 机器人，实时推送设备离线、低电量及流量阈值告警。
 - **OpenAPI V2.0**：
   - 开放更加标准化的 RESTful 接口，支持 OAuth2.0 认证，方便第三方系统（如教务系统、楼宇自控系统）集成数据。
+
+### 战略规划脑图 (Strategic Map)
+```mermaid
+mindmap
+  root((InfraCount 2025))
+    AI 智能化
+      LSTM 客流预测
+      异常行为检测
+      热力图深度分析
+    移动端生态
+      微信小程序
+      运维 APP
+      蓝牙现场配置
+    企业级集成
+      消息推送
+        钉钉
+        飞书
+        企业微信
+      OpenAPI V2.0
+      OAuth2.0 认证
+    系统架构
+      微服务拆分
+      云原生部署
+      边缘计算节点
+```
 
 ### 技术栈构成
 ```mermaid
