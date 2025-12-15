@@ -154,7 +154,9 @@ function initLayout(title, customContentId) {
     
     // Restore theme
     const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
+    const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
         body.classList.add('dark-mode');
     }
 

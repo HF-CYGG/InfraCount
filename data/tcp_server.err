@@ -341,3 +341,8 @@ Traceback (most recent call last):
   File "E:\python310\lib\asyncio\base_events.py", line 628, in run_until_complete
 2025-12-09 20:27:11,803 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-09 20:27:11,803 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-10 20:09:27,313 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-10 20:09:27,315 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-10 20:59:03,623 INFO root TCP Server stopped by signal.
+2025-12-10 20:59:10,156 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-10 20:59:10,158 INFO root TCP Server listening on 0.0.0.0:8085

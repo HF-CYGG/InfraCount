@@ -1,19 +1,19 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# 确保脚本以 UTF-8 运行
+# Ensure script runs as UTF-8
 if ($PSVersionTable.PSVersion.Major -ge 6) {
     $null = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 }
 
 function Kill-Port-Process {
     param([int]$port)
-    Write-Host "正在检查端口 $port..." -ForegroundColor Cyan
+    Write-Host "Checking port $port..." -ForegroundColor Cyan
     
-    # 获取占用端口的 PID
+    # Get PIDs
     $pidsFound = @()
     
-    # 方法 1: 使用 netstat
+    # Method 1: netstat
     $netstatLines = netstat.exe -ano | Select-String -Pattern ":$port\s"
     foreach ($line in $netstatLines) {
         $parts = $line.ToString().Trim() -split "\s+"
@@ -23,33 +23,33 @@ function Kill-Port-Process {
         }
     }
 
-    # 去重
+    # Unique
     $pidsFound = $pidsFound | Select-Object -Unique
 
     if ($pidsFound) {
         foreach ($procId in $pidsFound) {
-            Write-Host "端口 $port 被进程 PID: $procId 占用"
-            Write-Host "尝试终止进程 $procId..."
+            Write-Host "Port $port is used by PID: $procId"
+            Write-Host "Attempting to kill process $procId..."
             try {
                 Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-                Write-Host "进程 $procId 已终止。" -ForegroundColor Green
+                Write-Host "Process $procId killed." -ForegroundColor Green
             } catch {
-                Write-Host "警告: 无法终止 PID $procId。可能需要手动处理或权限不足。" -ForegroundColor Yellow
+                Write-Host "Warning: Could not kill PID $procId. Manual intervention may be required." -ForegroundColor Yellow
             }
         }
     } else {
-        Write-Host "端口 $port 未被占用。" -ForegroundColor DarkGray
+        Write-Host "Port $port is free." -ForegroundColor DarkGray
     }
 }
 
 function Cleanup-Resources {
-    Write-Host "`n信息: 正在清理资源..." -ForegroundColor Yellow
+    Write-Host "`nInfo: Cleaning up resources..." -ForegroundColor Yellow
     
-    # 清理已知端口
+    # Kill known ports
     Kill-Port-Process 8085 # TCP Server
     Kill-Port-Process 8000 # Web Server
     
-    Write-Host "信息: 资源清理完成。" -ForegroundColor Green
+    Write-Host "Info: Cleanup complete." -ForegroundColor Green
 }
 
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -58,46 +58,43 @@ Set-Location $ROOT
 $VENV_PYTHON = "$ROOT\.venv\Scripts\python.exe"
 
 if (-not (Test-Path $VENV_PYTHON)) {
-    Write-Host "错误: 未找到虚拟环境！" -ForegroundColor Red
-    Write-Host "请先以管理员身份运行 'install.ps1' 来安装依赖。" -ForegroundColor Yellow
-    Write-Host "按回车键退出..."
+    Write-Host "Error: Virtual environment not found!" -ForegroundColor Red
+    Write-Host "Please run 'install.ps1' as Administrator first." -ForegroundColor Yellow
+    Write-Host "Press Enter to exit..."
     Read-Host
     exit
 }
 
-# --- 冲突解决开始 ---
+# --- Conflict Resolution ---
 $TaskName = "InfraCountService"
-# 简单检查任务是否存在并尝试停止
 try {
     $taskStatus = schtasks.exe /query /tn "$TaskName" /fo CSV 2>$null | ConvertFrom-Csv
     if ($taskStatus.Status -eq "Running") {
-        Write-Host "警告: 后台任务 '$TaskName' 正在运行，尝试停止..." -ForegroundColor Yellow
+        Write-Host "Warning: Background task '$TaskName' is running. Stopping..." -ForegroundColor Yellow
         schtasks.exe /end /tn "$TaskName" 2>$null | Out-Null
         Start-Sleep -Seconds 2
     }
 } catch {}
 
-# 初始端口检查
+# Initial port check
 Kill-Port-Process 8085
 Kill-Port-Process 8000
 
-# --- 启动服务 ---
+# --- Start Service ---
 
-Write-Host "信息: 正在启动 InfraCount 服务..." -ForegroundColor Green
-Write-Host "日志将写入 'data/' 目录。" -ForegroundColor Gray
-Write-Host "提示: 要停止服务，请在该窗口按 Ctrl+C，或直接关闭窗口。" -ForegroundColor Cyan
+Write-Host "Info: Starting InfraCount Service..." -ForegroundColor Green
+Write-Host "Logs will be written to 'data/' directory." -ForegroundColor Gray
+Write-Host "Tip: Press Ctrl+C to stop the service." -ForegroundColor Cyan
 
 try {
-    # 启动 Python 启动器
-    # 使用 try...finally 确保即使脚本中断也能清理
+    # Start Python launcher
     & $VENV_PYTHON "$ROOT\tools\launcher.py"
 } catch {
-    Write-Host "`n错误: 启动器意外退出或发生错误:" -ForegroundColor Red
+    Write-Host "`nError: Launcher exited unexpectedly:" -ForegroundColor Red
     Write-Host $_ -ForegroundColor Red
 } finally {
-    # 无论如何都执行清理
     Cleanup-Resources
 }
 
-Write-Host "`n按回车键退出..." -NoNewline -ForegroundColor Cyan
+Write-Host "`nPress Enter to exit..." -NoNewline -ForegroundColor Cyan
 Read-Host

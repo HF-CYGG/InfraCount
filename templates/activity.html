@@ -8,23 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
-        :root {
-            --primary: #4361ee;
-            --primary-hover: #3a56d4;
-            --primary-light: #eef2ff;
-            --secondary: #3f37c9;
-            --success: #4cc9f0;
-            --danger: #f72585;
-            --text-main: #2b2d42;
-            --text-secondary: #8d99ae;
-            --bg-body: #f8f9fa;
-            --bg-card: #ffffff;
-            --border-color: #edf2f4;
-            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
+        /* :root variables removed to use global style.css variables for consistency and dark mode support */
 
         body {
             background-color: var(--bg-body);
@@ -170,7 +154,7 @@
         }
 
         .week-item:hover {
-            background: #fff;
+            background: var(--card);
             border-color: var(--primary);
             color: var(--primary);
         }
@@ -204,7 +188,7 @@
         .time-item:hover {
             border-color: var(--primary);
             color: var(--primary);
-            background: #fff;
+            background: var(--card);
         }
 
         .time-item.active {
@@ -234,7 +218,7 @@
         .tag:hover {
             border-color: var(--primary);
             color: var(--primary);
-            background: #fff;
+            background: var(--card);
         }
 
         .tag.active {
@@ -269,7 +253,7 @@
         .location-item:hover {
             border-color: var(--primary);
             color: var(--primary);
-            background: #fff;
+            background: var(--card);
         }
 
         .location-item.active {
@@ -296,7 +280,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #fff;
+            background: var(--card);
         }
 
         .results-title {
@@ -327,7 +311,7 @@
         }
 
         .activity-table th {
-            background: #f8f9fa;
+            background: var(--bg-subtle);
             color: var(--text-secondary);
             font-weight: 600;
             padding: 16px 24px;
@@ -350,7 +334,7 @@
         }
 
         .activity-table tr:hover td {
-            background: #f8f9fa;
+            background: var(--bg-subtle);
         }
 
         /* Status Badges in Table */
@@ -363,13 +347,13 @@
         }
 
         .badge-academy {
-            background: #e3f2fd;
-            color: #1976d2;
+            background: var(--primary-light);
+            color: var(--primary);
         }
 
         .badge-type {
-            background: #fff3e0;
-            color: #f57c00;
+            background: rgba(250, 176, 5, 0.1);
+            color: var(--warning);
         }
 
         /* Inputs */
@@ -380,6 +364,8 @@
             font-size: 14px;
             outline: none;
             transition: border-color 0.2s;
+            background: var(--card);
+            color: var(--text-main);
         }
 
         .input-control:focus {
@@ -389,7 +375,7 @@
         .btn-load {
             display: inline-block;
             padding: 10px 30px;
-            background: #fff;
+            background: var(--card);
             border: 1px solid var(--border-color);
             border-radius: 20px;
             color: var(--text-secondary);
@@ -420,7 +406,7 @@
         .wizard-header {
             padding: 24px;
             border-bottom: 1px solid var(--border-color);
-            background: #f8f9fa;
+            background: var(--bg-subtle);
         }
 
         .wizard-header h3 {

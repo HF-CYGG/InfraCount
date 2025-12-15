@@ -8,8 +8,8 @@
     <script src="/static/lib/Sortable.min.js"></script>
     <style>
         .sortable-item {
-            background: #fff;
-            border: 1px solid #e9ecef;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 6px;
             padding: 12px 16px;
             margin-bottom: 8px;
@@ -28,17 +28,17 @@
         }
         .sortable-item.sortable-ghost {
             opacity: 0.4;
-            background: #f1f3f5;
+            background: var(--bg-subtle);
         }
         .sortable-handle {
-            color: #adb5bd;
+            color: var(--text-secondary);
             margin-right: 12px;
             cursor: grab;
             font-size: 18px;
         }
         .academy-name {
             font-weight: 500;
-            color: var(--text);
+            color: var(--text-main);
             flex: 1;
         }
     </style>
@@ -58,7 +58,7 @@
             <thead>
                 <tr>
                     <th>UUID</th>
-                    <th>显示名称</th>
+                    <th>场地名称</th>
                     <th>书院/分类</th>
                     <th>注册时间</th>
                     <th style="width:120px">操作</th>
@@ -78,13 +78,13 @@
         </div>
     </div>
     
-    <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; gap:12px; align-items:end;">
+    <div style="background:var(--bg-subtle); padding:12px; border-radius:8px; margin-bottom:12px; display:flex; gap:12px; align-items:end;">
         <div style="flex:1">
-            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">标准场地名称</label>
+            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">标准场地名称</label>
             <input id="newLocName" class="input" placeholder="例如：Hello会客厅(Y1-103)" style="width:100%">
         </div>
         <div style="width:200px">
-            <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">归属书院</label>
+            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">归属书院</label>
             <select id="newLocAca" class="select" style="width:100%"></select>
         </div>
         <button class="btn btn-primary" id="addLocBtn">添加</button>
@@ -118,11 +118,11 @@
         <h3>编辑设备信息</h3>
         <div class="mb-4">
             <label style="display:block;margin-bottom:4px">UUID</label>
-            <input id="editUuid" class="input" disabled style="background:#f1f3f5">
+            <input id="editUuid" class="input" disabled style="background:var(--bg-subtle)">
         </div>
         <div class="mb-4">
-            <label style="display:block;margin-bottom:4px">显示名称</label>
-            <input id="editName" class="input" placeholder="例如：正心楼101">
+            <label style="display:block;margin-bottom:4px">场地名称</label>
+            <select id="editName" class="select" style="width:100%"></select>
         </div>
         <div class="mb-4">
             <label style="display:block;margin-bottom:4px">所属书院</label>
@@ -148,13 +148,13 @@
             <button class="btn btn-primary" id="addAcademy">添加</button>
         </div>
         
-        <div style="background:#f8f9fa; border:1px solid var(--border); border-radius:8px; padding:12px; max-height:400px; overflow-y:auto;">
+        <div style="background:var(--bg-subtle); border:1px solid var(--border); border-radius:8px; padding:12px; max-height:400px; overflow-y:auto;">
             <div id="academyList" class="sortable-list">
                 <!-- Items injected here -->
             </div>
         </div>
         
-        <div style="margin-top:12px; text-align:center; font-size:12px; color:#adb5bd;">
+        <div style="margin-top:12px; text-align:center; font-size:12px; color:var(--text-secondary);">
             💡 拖动列表项即可调整顺序
         </div>
     </div>
@@ -192,7 +192,7 @@
 
         <div id="batchContent" style="display:none">
             <div id="batchReviewSection">
-                <div class="alert alert-warning mb-4" style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 12px; border-radius: 4px;">
+                <div class="alert alert-warning mb-4" style="background: rgba(250, 176, 5, 0.1); border: 1px solid var(--warning); color: var(--warning); padding: 12px; border-radius: 4px;">
                     <strong>发现 <span id="reviewCount">0</span> 条数据需要人工确认</strong><br>
                     <span style="font-size: 0.9em">以下数据置信度较低，请手动选择正确的标准场地。确认后系统将自动学习。</span>
                 </div>
@@ -200,7 +200,7 @@
                 <div class="table-wrap" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
-                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <tr style="background: var(--bg-subtle); border-bottom: 2px solid var(--border);">
                                 <th style="padding: 12px; text-align: left;">原始场地名称</th>
                                 <th style="padding: 12px; text-align: left;">AI 建议匹配</th>
                                 <th style="padding: 12px; text-align: left;">操作</th>
@@ -369,10 +369,38 @@
 
     window.openEdit = (uuid, name, cat) => {
         els.editUuid.value = uuid;
+        
+        // Populate Venue Select
+        const locs = Object.keys(g_locationMapping).sort();
+        let html = '<option value="">-- 选择场地 --</option>';
+        locs.forEach(loc => {
+            html += `<option value="${loc}">${loc}</option>`;
+        });
+        els.editName.innerHTML = html;
+
+        // Select current value
         els.editName.value = name;
+        
+        // If current name is not in mapping, add it as option
+        if (name && !g_locationMapping[name]) {
+             const opt = document.createElement('option');
+             opt.value = name;
+             opt.textContent = `${name} (未录入标准库)`;
+             els.editName.appendChild(opt);
+             els.editName.value = name;
+        }
+
         els.editCategory.value = cat;
         els.editModal.classList.add('show');
     };
+
+    // Auto-associate Academy
+    els.editName.addEventListener('change', () => {
+        const val = els.editName.value;
+        if(val && g_locationMapping[val]) {
+            els.editCategory.value = g_locationMapping[val];
+        }
+    });
     
     els.closeEdit.addEventListener('click', () => els.editModal.classList.remove('show'));
     
@@ -442,6 +470,8 @@
     els.newLocAca = document.getElementById('newLocAca');
     els.addLocBtn = document.getElementById('addLocBtn');
 
+    let g_locationMapping = {};
+
     async function loadLocationMapping() {
         try {
             const [mapRes, acaRes] = await Promise.all([
@@ -450,6 +480,7 @@
             ]);
             
             const mapping = (await mapRes.json()).mapping || {};
+            g_locationMapping = mapping; // Update global cache
             const academies = await acaRes.json();
             
             // Populate New Loc Academy Select
@@ -669,12 +700,12 @@
             const safeSource = item.source.replace(/"/g, '&quot;');
             return `
             <tr data-idx="${idx}">
-                <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.source}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; border-bottom: 1px solid var(--border);">${item.source}</td>
+                <td style="padding: 12px; border-bottom: 1px solid var(--border);">
                     <div style="font-weight:bold; color:var(--primary)">${item.target}</div>
-                    <div style="font-size:12px;color:#666">置信度: ${Math.round(item.score)}% | 归属: ${item.academy}</div>
+                    <div style="font-size:12px;color:var(--text-secondary)">置信度: ${Math.round(item.score)}% | 归属: ${item.academy}</div>
                 </td>
-                <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                <td style="padding: 12px; border-bottom: 1px solid var(--border);">
                     <input type="checkbox" class="batch-check" checked style="transform: scale(1.5);">
                 </td>
             </tr>
