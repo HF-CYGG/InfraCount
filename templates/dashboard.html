@@ -251,7 +251,7 @@
     </div>
     <div class="card">
         <div class="section-header">
-            <h3 class="section-title">每小时流量分布 (截止日期)</h3>
+            <h3 class="section-title" id="hourChartTitle">每小时流量分布</h3>
         </div>
         <div class="chart-container">
             <canvas id="hourChart"></canvas>
@@ -309,6 +309,8 @@
     
     let charts = {};
     let timer = null;
+    let selectedDailyDate = '';
+    let lastDailyData = [];
 
     const datePicker = {
         btn: document.getElementById('dateRangeBtn'),
@@ -520,12 +522,20 @@
         
         // Fetch Data
         try {
-            const [daily, hourly, summary, history] = await Promise.all([
+            const [daily, summary, history] = await Promise.all([
                 fetch(`/api/v1/stats/daily?${q}`).then(r=>r.json()),
-                fetch(`/api/v1/stats/hourly?uuid=${uuid}&date=${endForHourly}`).then(r=>r.json()),
                 fetch(`/api/v1/stats/summary?uuid=${uuid}`).then(r=>r.json()),
                 fetch(`/api/v1/records/history?uuid=${uuid}&limit=10`).then(r=>r.json())
             ]);
+
+            const dailyDates = Array.isArray(daily) ? daily.map(d => d && d.date ? String(d.date) : '').filter(Boolean) : [];
+            let targetDate = selectedDailyDate;
+            if (!targetDate || !dailyDates.includes(targetDate)) {
+                targetDate = dailyDates.includes(endForHourly) ? endForHourly : (dailyDates[dailyDates.length - 1] || endForHourly);
+            }
+            selectedDailyDate = targetDate;
+            const hourlyRes = await fetch(`/api/v1/stats/hourly?uuid=${encodeURIComponent(uuid)}&date=${encodeURIComponent(targetDate)}`);
+            const hourly = hourlyRes.ok ? await hourlyRes.json() : [];
             
             // Update KPIs
             els.s_in.textContent = (summary.in || 0).toLocaleString();
@@ -534,8 +544,8 @@
             els.s_last.textContent = summary.last_time || '-';
             
             // Render Charts
-            renderDaily(daily);
-            renderHourly(hourly);
+            renderDaily(daily, selectedDailyDate);
+            renderHourly(hourly, selectedDailyDate);
             
             // Render Table
             els.tbl.innerHTML = history.map(r => `
@@ -553,17 +563,51 @@
         }
     }
     
-    function renderDaily(data) {
+    function setHourlyTitle(date) {
+        const title = document.getElementById('hourChartTitle');
+        if (!title) return;
+        const ds = String(date || '').trim();
+        title.textContent = ds ? `每小时流量分布（${ds}）` : '每小时流量分布';
+    }
+
+    async function selectDailyDate(date) {
+        const uuid = els.device.value;
+        const ds = String(date || '').trim();
+        if (!uuid || !ds) return;
+        selectedDailyDate = ds;
+        if (Array.isArray(lastDailyData) && lastDailyData.length) {
+            renderDaily(lastDailyData, selectedDailyDate);
+        }
+        try {
+            const res = await fetch(`/api/v1/stats/hourly?uuid=${encodeURIComponent(uuid)}&date=${encodeURIComponent(ds)}`);
+            if (!res.ok) throw new Error(await res.text());
+            const hourly = await res.json();
+            renderHourly(hourly, selectedDailyDate);
+        } catch (e) {
+            console.error('Failed to load hourly', e);
+            renderHourly([], selectedDailyDate);
+        }
+    }
+
+    function renderDaily(data, selectedDate) {
+        lastDailyData = Array.isArray(data) ? data : [];
         const ctx = document.getElementById('dailyChart');
         if(charts.daily) charts.daily.destroy();
-        
+
+        const labels = lastDailyData.map(d => d.date);
+        const selectedIdx = selectedDate ? labels.indexOf(selectedDate) : -1;
+        const inBg = labels.map((_, i) => i === selectedIdx ? '#4dabf7' : '#228be6');
+        const outBg = labels.map((_, i) => i === selectedIdx ? '#ffd43b' : '#fab005');
+        const borderW = labels.map((_, i) => i === selectedIdx ? 2 : 0);
+        const borderC = labels.map((_, i) => i === selectedIdx ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0)');
+
         charts.daily = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: data.map(d => d.date),
+                labels,
                 datasets: [
-                    { label: 'IN', data: data.map(d=>d.in), backgroundColor: '#228be6', borderRadius: 4 },
-                    { label: 'OUT', data: data.map(d=>d.out), backgroundColor: '#fab005', borderRadius: 4 }
+                    { label: 'IN', data: lastDailyData.map(d=>d.in), backgroundColor: inBg, borderColor: borderC, borderWidth: borderW, borderRadius: 4, borderSkipped: false },
+                    { label: 'OUT', data: lastDailyData.map(d=>d.out), backgroundColor: outBg, borderColor: borderC, borderWidth: borderW, borderRadius: 4, borderSkipped: false }
                 ]
             },
             options: { 
@@ -573,6 +617,12 @@
                     legend: { position: 'top' },
                     tooltip: { mode: 'index', intersect: false }
                 },
+                onClick: (_evt, elements) => {
+                    if (!elements || !elements.length) return;
+                    const idx = elements[0].index;
+                    const ds = labels[idx];
+                    selectDailyDate(ds);
+                },
                 scales: {
                     x: { grid: { display: false } },
                     y: { beginAtZero: true, grid: { borderDash: [2, 4] } }
@@ -581,7 +631,8 @@
         });
     }
     
-    function renderHourly(data) {
+    function renderHourly(data, date) {
+        setHourlyTitle(date);
         const ctx = document.getElementById('hourChart');
         if(charts.hourly) charts.hourly.destroy();
         
