@@ -64,6 +64,65 @@
             color: var(--text);
             margin: 0;
         }
+
+        .date-range-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 240px;
+            cursor: pointer;
+        }
+        .cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .cal-month {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .cal-wd {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 4px 0;
+        }
+        .cal-day {
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 0;
+            transition: all 0.15s ease;
+        }
+        .cal-day:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+        .cal-day:active {
+            transform: scale(0.98);
+        }
+        .cal-day.in-range {
+            background: var(--primary-light);
+            border-color: var(--primary-light);
+        }
+        .cal-day.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -76,16 +135,46 @@
                 <select id="device" class="select" style="min-width:200px"></select>
             </div>
             
-            <div class="flex items-center gap-2 bg-gray-100 p-1 rounded">
-                <input type="date" id="start" class="input">
-                <span class="text-muted">至</span>
-                <input type="date" id="end" class="input">
+            <div class="relative">
+                <button id="dateRangeBtn" class="input date-range-btn" type="button">
+                    <span id="dateRangeLabel" class="text-muted">选择日期范围</span>
+                    <span style="opacity:.7">📅</span>
+                </button>
+                <div id="dateRangePopup" class="popup-card" style="left:0;top:120%;min-width:360px">
+                    <div class="flex gap-2 mb-2" style="flex-wrap:wrap">
+                        <button class="btn btn-sm" id="quickToday" type="button">今天</button>
+                        <button class="btn btn-sm" id="quickLast7" type="button">近7天</button>
+                        <button class="btn btn-sm" id="quickWeek" type="button">本周</button>
+                        <button class="btn btn-sm" id="quickMonth" type="button">本月</button>
+                    </div>
+
+                    <div class="cal-header">
+                        <button class="btn btn-sm" id="calPrev" type="button">‹</button>
+                        <div class="flex items-center gap-2" style="flex:1;justify-content:center">
+                            <select id="calYear" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                            <select id="calMonth" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                        </div>
+                        <button class="btn btn-sm" id="calNext" type="button">›</button>
+                    </div>
+
+                    <div class="cal-grid" id="calGrid"></div>
+
+                    <div class="flex gap-2" style="justify-content:flex-end;margin-top:12px">
+                        <button class="btn btn-sm" id="dateRangeClear" type="button">清空</button>
+                        <button class="btn btn-primary btn-sm" id="dateRangeApply" type="button">应用</button>
+                    </div>
+                </div>
+
+                <input type="date" id="start" style="display:none">
+                <input type="date" id="end" style="display:none">
             </div>
 
             <div class="flex gap-2">
                 <button class="btn btn-primary" id="load">查询</button>
                 <button class="btn" id="today">今天</button>
                 <button class="btn" id="last7">近7天</button>
+                <button class="btn" id="thisWeek">本周</button>
+                <button class="btn" id="thisMonth">本月</button>
             </div>
         </div>
 
@@ -221,6 +310,140 @@
     let charts = {};
     let timer = null;
 
+    const datePicker = {
+        btn: document.getElementById('dateRangeBtn'),
+        label: document.getElementById('dateRangeLabel'),
+        popup: document.getElementById('dateRangePopup'),
+        grid: document.getElementById('calGrid'),
+        yearSel: document.getElementById('calYear'),
+        monthSel: document.getElementById('calMonth'),
+        prev: document.getElementById('calPrev'),
+        next: document.getElementById('calNext'),
+        apply: document.getElementById('dateRangeApply'),
+        clear: document.getElementById('dateRangeClear'),
+        quickToday: document.getElementById('quickToday'),
+        quickLast7: document.getElementById('quickLast7'),
+        quickWeek: document.getElementById('quickWeek'),
+        quickMonth: document.getElementById('quickMonth')
+    };
+
+    let calViewYear = new Date().getFullYear();
+    let calViewMonth = new Date().getMonth();
+    let calPickStart = '';
+    let calPickEnd = '';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function localYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+    function parseYmd(s) {
+        const parts = String(s || '').split('-').map(x => parseInt(x, 10));
+        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    function daysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
+    function mondayIndex(jsDay) { return (jsDay + 6) % 7; }
+    function clampRange(a, b) {
+        const s = a || '';
+        const e = b || '';
+        if (s && e && e < s) return [e, s];
+        return [s, e];
+    }
+    function setRange(start, end) {
+        const [s, e] = clampRange(start, end);
+        els.start.value = s;
+        els.end.value = e;
+        updateDateLabel();
+        renderCalendar();
+    }
+    function getRange() {
+        const [s, e] = clampRange(els.start.value, els.end.value);
+        return { start: s, end: e };
+    }
+    function updateDateLabel() {
+        const { start, end } = getRange();
+        if (start && end) {
+            datePicker.label.textContent = `${start} 至 ${end}`;
+            datePicker.label.classList.remove('text-muted');
+        } else if (start) {
+            datePicker.label.textContent = start;
+            datePicker.label.classList.remove('text-muted');
+        } else {
+            datePicker.label.textContent = '选择日期范围';
+            datePicker.label.classList.add('text-muted');
+        }
+    }
+    function syncCalViewFromSelection() {
+        const { end, start } = getRange();
+        const base = parseYmd(end || start) || new Date();
+        calViewYear = base.getFullYear();
+        calViewMonth = base.getMonth();
+    }
+    function ensureCalSelectors() {
+        const nowY = new Date().getFullYear();
+        const minY = nowY - 5;
+        const maxY = nowY + 2;
+        const years = [];
+        for (let y = minY; y <= maxY; y++) years.push(y);
+        if (datePicker.yearSel) {
+            datePicker.yearSel.innerHTML = years.map(y => `<option value="${y}">${y}年</option>`).join('');
+        }
+        if (datePicker.monthSel) {
+            datePicker.monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join('');
+        }
+    }
+    function renderCalendar() {
+        const wds = ['一','二','三','四','五','六','日'];
+        const { start, end } = getRange();
+        if (datePicker.yearSel && datePicker.monthSel) {
+            if (!datePicker.yearSel.options.length || !datePicker.monthSel.options.length) ensureCalSelectors();
+            datePicker.yearSel.value = String(calViewYear);
+            datePicker.monthSel.value = String(calViewMonth);
+        }
+        datePicker.grid.innerHTML = '';
+
+        for (const wd of wds) {
+            const el = document.createElement('div');
+            el.className = 'cal-wd';
+            el.textContent = wd;
+            datePicker.grid.appendChild(el);
+        }
+
+        const first = new Date(calViewYear, calViewMonth, 1);
+        const lead = mondayIndex(first.getDay());
+        for (let i = 0; i < lead; i++) {
+            const el = document.createElement('div');
+            datePicker.grid.appendChild(el);
+        }
+
+        const dim = daysInMonth(calViewYear, calViewMonth);
+        for (let day = 1; day <= dim; day++) {
+            const d = new Date(calViewYear, calViewMonth, day);
+            const ds = localYmd(d);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-day';
+            btn.textContent = String(day);
+
+            const inRange = start && end && ds >= start && ds <= end;
+            const isSelected = (start && ds === start) || (end && ds === end);
+            if (inRange) btn.classList.add('in-range');
+            if (isSelected) btn.classList.add('selected');
+
+            btn.addEventListener('click', async () => {
+                if (!calPickStart || (calPickStart && calPickEnd)) {
+                    calPickStart = ds;
+                    calPickEnd = '';
+                    setRange(calPickStart, '');
+                    return;
+                }
+                calPickEnd = ds;
+                const [s, e] = clampRange(calPickStart, calPickEnd);
+                setRange(s, e);
+            });
+
+            datePicker.grid.appendChild(btn);
+        }
+    }
+
     async function init() {
         // Fetch Mapping
         let deviceMap = {};
@@ -251,8 +474,7 @@
                 const summary = await sumRes.json();
                 if (summary.last_time) {
                     const lastDate = summary.last_time.split(' ')[0];
-                    els.start.value = lastDate;
-                    els.end.value = lastDate;
+                    setRange(lastDate, lastDate);
                 } else {
                     throw new Error('No data');
                 }
@@ -261,9 +483,8 @@
             }
         } catch(e) {
             const now = new Date();
-            const ymd = now.toISOString().split('T')[0];
-            els.start.value = ymd;
-            els.end.value = ymd;
+            const ymd = localYmd(now);
+            setRange(ymd, ymd);
         }
         
         loadData();
@@ -273,19 +494,21 @@
         const uuid = els.device.value;
         if(!uuid) return;
         
-        const start = els.start.value;
-        const end = els.end.value;
+        const { start, end } = getRange();
+        const endForHourly = end || start || localYmd(new Date());
+        const startTs = start ? `${start} 00:00:00` : '';
+        const endTs = end ? `${end} 23:59:59` : '';
         
         // Query Params
         const q = new URLSearchParams({ uuid });
-        if(start) q.append('start', start);
-        if(end) q.append('end', end);
+        if(startTs) q.append('start', startTs);
+        if(endTs) q.append('end', endTs);
         
         // Fetch Data
         try {
             const [daily, hourly, summary, history] = await Promise.all([
                 fetch(`/api/v1/stats/daily?${q}`).then(r=>r.json()),
-                fetch(`/api/v1/stats/hourly?uuid=${uuid}&date=${end}`).then(r=>r.json()),
+                fetch(`/api/v1/stats/hourly?uuid=${uuid}&date=${endForHourly}`).then(r=>r.json()),
                 fetch(`/api/v1/stats/summary?uuid=${uuid}`).then(r=>r.json()),
                 fetch(`/api/v1/records/history?uuid=${uuid}&limit=10`).then(r=>r.json())
             ]);
@@ -395,16 +618,33 @@
     els.load.addEventListener('click', loadData);
     
     document.getElementById('today').addEventListener('click', () => {
-        const ymd = new Date().toISOString().split('T')[0];
-        els.start.value = ymd; els.end.value = ymd;
+        const ymd = localYmd(new Date());
+        setRange(ymd, ymd);
         loadData();
     });
     
     document.getElementById('last7').addEventListener('click', () => {
         const now = new Date();
-        const end = now.toISOString().split('T')[0];
-        const start = new Date(now.getTime() - 6*86400000).toISOString().split('T')[0];
-        els.start.value = start; els.end.value = end;
+        const end = localYmd(now);
+        const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        setRange(start, end);
+        loadData();
+    });
+
+    document.getElementById('thisWeek').addEventListener('click', () => {
+        const now = new Date();
+        const day = mondayIndex(now.getDay());
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+        const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+        setRange(localYmd(start), localYmd(end));
+        loadData();
+    });
+
+    document.getElementById('thisMonth').addEventListener('click', () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
+        setRange(localYmd(start), localYmd(end));
         loadData();
     });
     
@@ -429,16 +669,20 @@
     }
     setupPopup('toggleAdvanced', 'advancedPopup');
     setupPopup('toggleActions', 'actionsPopup');
+    setupPopup('dateRangeBtn', 'dateRangePopup');
     document.addEventListener('click', () => {
         document.querySelectorAll('.popup-card').forEach(p => p.classList.remove('show'));
     });
     
     // Exports
     function getExportQuery() {
+        const { start, end } = getRange();
+        const startTs = start ? `${start} 00:00:00` : '';
+        const endTs = end ? `${end} 23:59:59` : '';
         const q = new URLSearchParams({
             uuid: els.device.value,
-            start: els.start.value,
-            end: els.end.value
+            start: startTs,
+            end: endTs
         });
         return q.toString();
     }
@@ -447,9 +691,11 @@
         window.open(`/api/v1/export/daily?${getExportQuery()}`, '_blank');
     });
     document.getElementById('exportHourly').addEventListener('click', () => {
+        const { start, end } = getRange();
+        const date = end || start || localYmd(new Date());
         const q = new URLSearchParams({
             uuid: els.device.value,
-            date: els.end.value
+            date
         });
         window.open(`/api/v1/export/hourly?${q}`, '_blank');
     });
@@ -457,6 +703,104 @@
         window.open(`/api/v1/export/history?${getExportQuery()}`, '_blank');
     });
     
+    datePicker.prev.addEventListener('click', () => {
+        if (calViewMonth === 0) {
+            calViewMonth = 11;
+            calViewYear -= 1;
+        } else {
+            calViewMonth -= 1;
+        }
+        renderCalendar();
+    });
+    datePicker.next.addEventListener('click', () => {
+        if (calViewMonth === 11) {
+            calViewMonth = 0;
+            calViewYear += 1;
+        } else {
+            calViewMonth += 1;
+        }
+        renderCalendar();
+    });
+    datePicker.clear.addEventListener('click', () => {
+        calPickStart = '';
+        calPickEnd = '';
+        setRange('', '');
+    });
+    if (datePicker.yearSel) {
+        datePicker.yearSel.addEventListener('change', () => {
+            calViewYear = parseInt(datePicker.yearSel.value, 10);
+            renderCalendar();
+        });
+    }
+    if (datePicker.monthSel) {
+        datePicker.monthSel.addEventListener('change', () => {
+            calViewMonth = parseInt(datePicker.monthSel.value, 10);
+            renderCalendar();
+        });
+    }
+    datePicker.apply.addEventListener('click', async () => {
+        const { start, end } = getRange();
+        if (start && !end) setRange(start, start);
+        datePicker.popup.classList.remove('show');
+        await loadData();
+    });
+    datePicker.quickToday.addEventListener('click', async () => {
+        const d = localYmd(new Date());
+        calPickStart = d;
+        calPickEnd = d;
+        setRange(d, d);
+        datePicker.popup.classList.remove('show');
+        await loadData();
+    });
+    datePicker.quickLast7.addEventListener('click', async () => {
+        const now = new Date();
+        const end = localYmd(now);
+        const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+        await loadData();
+    });
+    datePicker.quickWeek.addEventListener('click', async () => {
+        const now = new Date();
+        const day = mondayIndex(now.getDay());
+        const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+        const endD = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + 6);
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+        await loadData();
+    });
+    datePicker.quickMonth.addEventListener('click', async () => {
+        const now = new Date();
+        const startD = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+        await loadData();
+    });
+
+    datePicker.btn.addEventListener('click', () => {
+        const { start, end } = getRange();
+        calPickStart = start;
+        calPickEnd = end;
+        syncCalViewFromSelection();
+        ensureCalSelectors();
+        renderCalendar();
+    });
+
+    updateDateLabel();
+    syncCalViewFromSelection();
+    renderCalendar();
+
     init();
 
 </script>

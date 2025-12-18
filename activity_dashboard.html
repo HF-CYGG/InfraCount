@@ -338,42 +338,11 @@
 
 <!-- Upload Wizard Modal Removed -->
 
-<div id="appAlertModal" class="modal-backdrop" style="z-index:9999">
-    <div class="modal" style="width:400px">
-        <h3 id="appAlertTitle">提示</h3>
-        <p id="appAlertMsg"></p>
-        <div class="actions">
-            <button class="btn btn-primary" id="appAlertOk">确定</button>
-        </div>
-    </div>
-</div>
-
 <script src="/static/layout.js?v=auth_v4"></script>
 <!-- 引入 ECharts -->
 <script src="/static/lib/echarts.min.js"></script>
 
 <script>
-// Popup Logic
-const alertModal = document.getElementById('appAlertModal');
-const alertTitle = document.getElementById('appAlertTitle');
-const alertMsg = document.getElementById('appAlertMsg');
-const alertOk = document.getElementById('appAlertOk');
-let alertResolve = null;
-
-window.showAlert = (msg, title='提示') => {
-    return new Promise(resolve => {
-        alertTitle.textContent = title;
-        alertMsg.textContent = msg;
-        alertModal.classList.add('show');
-        alertResolve = resolve;
-    });
-};
-
-alertOk.addEventListener('click', () => {
-    alertModal.classList.remove('show');
-    if(alertResolve) alertResolve();
-});
-
 // State
 let state = {
     page: 1,

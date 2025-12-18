@@ -107,6 +107,126 @@ const _pageIntervals = new Set();
 const _nativeSetInterval = window.setInterval;
 const _nativeClearInterval = window.clearInterval;
 
+const _SPA_MANAGED_ATTR = 'data-spa-managed';
+const _SPA_GLOBAL_ATTR = 'data-spa-global';
+
+function _isGlobalStylesheetHref(href) {
+    if (!href) return false;
+    const h = String(href);
+    return h.includes('/static/style.css') || h.includes('/static/lib/fontawesome') || h.includes('/static/fonts/');
+}
+
+function _isGlobalScriptSrc(src) {
+    if (!src) return false;
+    const s = String(src);
+    return s.includes('/static/layout.js');
+}
+
+function _markInitialHeadForSpa() {
+    if (window.__spaHeadMarked) return;
+    window.__spaHeadMarked = true;
+
+    Array.from(document.head.querySelectorAll('style')).forEach(el => {
+        el.setAttribute(_SPA_MANAGED_ATTR, '1');
+    });
+
+    Array.from(document.head.querySelectorAll('link[rel="stylesheet"]')).forEach(el => {
+        const href = el.getAttribute('href') || '';
+        if (_isGlobalStylesheetHref(href)) {
+            el.setAttribute(_SPA_GLOBAL_ATTR, '1');
+        } else {
+            el.setAttribute(_SPA_MANAGED_ATTR, '1');
+        }
+    });
+
+    Array.from(document.head.querySelectorAll('script[src]')).forEach(el => {
+        const src = el.getAttribute('src') || '';
+        if (_isGlobalScriptSrc(src)) {
+            el.setAttribute(_SPA_GLOBAL_ATTR, '1');
+        } else {
+            el.setAttribute(_SPA_MANAGED_ATTR, '1');
+        }
+    });
+}
+
+function _replacePageHeadStyles(newDoc) {
+    const head = document.head;
+    Array.from(head.querySelectorAll('style')).forEach(el => {
+        if (el.getAttribute(_SPA_GLOBAL_ATTR) === '1') return;
+        el.remove();
+    });
+    Array.from(head.querySelectorAll('link[rel="stylesheet"]')).forEach(el => {
+        const href = el.getAttribute('href') || '';
+        if (_isGlobalStylesheetHref(href)) return;
+        el.remove();
+    });
+
+    const newHead = newDoc.head;
+    Array.from(newHead.querySelectorAll('link[rel="stylesheet"], style')).forEach(node => {
+        if (node.tagName === 'LINK') {
+            const href = node.getAttribute('href') || '';
+            const exists = !!head.querySelector(`link[rel="stylesheet"][href="${href}"]`);
+            if (exists) return;
+            const clone = node.cloneNode(true);
+            if (_isGlobalStylesheetHref(href)) {
+                clone.setAttribute(_SPA_GLOBAL_ATTR, '1');
+            } else {
+                clone.setAttribute(_SPA_MANAGED_ATTR, '1');
+            }
+            head.appendChild(clone);
+            return;
+        }
+
+        if (node.tagName === 'STYLE') {
+            const clone = node.cloneNode(true);
+            clone.setAttribute(_SPA_MANAGED_ATTR, '1');
+            head.appendChild(clone);
+        }
+    });
+}
+
+function _replacePageHeadScripts(newDoc) {
+    const head = document.head;
+    Array.from(head.querySelectorAll('script')).forEach(el => {
+        const src = el.getAttribute('src') || '';
+        if (src && _isGlobalScriptSrc(src)) return;
+        if (el.getAttribute(_SPA_GLOBAL_ATTR) === '1') return;
+        el.remove();
+    });
+
+    const newHead = newDoc.head;
+    const scripts = Array.from(newHead.querySelectorAll('script'));
+
+    const tasks = [];
+    for (const node of scripts) {
+        const src = node.getAttribute('src') || '';
+        if (src) {
+            if (_isGlobalScriptSrc(src)) continue;
+            const exists = !!head.querySelector(`script[src="${src}"]`);
+            if (exists) continue;
+
+            const scriptEl = document.createElement('script');
+            scriptEl.src = src;
+            scriptEl.setAttribute(_SPA_MANAGED_ATTR, '1');
+            tasks.push(new Promise(resolve => {
+                scriptEl.onload = () => resolve();
+                scriptEl.onerror = () => resolve();
+                head.appendChild(scriptEl);
+            }));
+            continue;
+        }
+
+        const inlineText = (node.textContent || '').trim();
+        if (!inlineText) continue;
+        const scriptEl = document.createElement('script');
+        scriptEl.setAttribute(_SPA_MANAGED_ATTR, '1');
+        scriptEl.textContent = inlineText;
+        head.appendChild(scriptEl);
+    }
+
+    return Promise.all(tasks);
+}
+
 window.setInterval = function(fn, delay, ...args) {
     const id = _nativeSetInterval(fn, delay, ...args);
     _pageIntervals.add(id);
@@ -126,6 +246,8 @@ function clearPageIntervals() {
 }
 
 function initLayout(title, customContentId) {
+    _markInitialHeadForSpa();
+
     // Auth Check
     if (window.location.pathname !== '/login') {
         fetch('/api/v1/auth/me').then(r => {
@@ -473,10 +595,19 @@ async function navigateTo(url, push = true) {
         clearPageIntervals();
 
         // Update Title
-        document.title = doc.title;
+        document.title = doc.title
+
+        _markInitialHeadForSpa();
+        _replacePageHeadStyles(doc);
+        await _replacePageHeadScripts(doc);
         
         // Update Content
         const content = document.querySelector('.app-content');
+        const prevTransition = content.style.transition;
+        const prevOpacity = content.style.opacity;
+        content.style.transition = prevTransition || 'opacity 0.08s ease';
+        content.style.opacity = '0';
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         content.innerHTML = ''; // Clear current content
 
         // Extract body children from fetched doc
@@ -497,26 +628,14 @@ async function navigateTo(url, push = true) {
 
         // Run scripts sequentially
         await runScriptsSequentially(scriptsToRun, content);
-        
-        // Update Styles (Head)
-        // This is a simple merge: add any link/style from new doc that isn't in current doc
-        const currentHead = document.head;
-        const newHead = doc.head;
-        
-        Array.from(newHead.querySelectorAll('link[rel="stylesheet"], style')).forEach(node => {
-            let exists = false;
-            if (node.tagName === 'LINK') {
-                exists = !!currentHead.querySelector(`link[href="${node.getAttribute('href')}"]`);
-            }
-            // For style tags, it's hard to check equality, we might just append. 
-            // Warning: duplicated styles possible.
-            
-            if (!exists) {
-                currentHead.appendChild(node.cloneNode(true));
-            }
-        });
 
         updateActiveLink();
+        await new Promise(r => requestAnimationFrame(r));
+        content.style.opacity = '1';
+        setTimeout(() => {
+            content.style.transition = prevTransition;
+            content.style.opacity = prevOpacity;
+        }, 200);
 
     } catch (err) {
         console.error('Navigation failed:', err);

@@ -806,7 +806,11 @@ async def get_stats_hourly(
     uuid: Optional[str] = None, 
     date: Optional[str] = None
 ):
-    return await db.stats_hourly(uuid, date)
+    if date:
+        d = str(date).split(" ")[0].strip()
+        if d:
+            return await db.stats_hourly(uuid, f"{d} 00:00:00", f"{d} 23:59:59")
+    return await db.stats_hourly(uuid, None, None)
 
 # --- Devices ---
 

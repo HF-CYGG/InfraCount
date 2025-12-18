@@ -1,7 +1,7 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Ensure script runs as UTF-8
+# Ensure UTF-8 output when possible (PowerShell 5.1 may still read scripts as ANSI without BOM)
 if ($PSVersionTable.PSVersion.Major -ge 6) {
     $null = [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 }
@@ -10,10 +10,10 @@ function Kill-Port-Process {
     param([int]$port)
     Write-Host "Checking port $port..." -ForegroundColor Cyan
     
-    # Get PIDs
+    # Find PIDs using the port
     $pidsFound = @()
     
-    # Method 1: netstat
+    # Use netstat
     $netstatLines = netstat.exe -ano | Select-String -Pattern ":$port\s"
     foreach ($line in $netstatLines) {
         $parts = $line.ToString().Trim() -split "\s+"
@@ -29,12 +29,12 @@ function Kill-Port-Process {
     if ($pidsFound) {
         foreach ($procId in $pidsFound) {
             Write-Host "Port $port is used by PID: $procId"
-            Write-Host "Attempting to kill process $procId..."
+            Write-Host "Stopping PID $procId..."
             try {
                 Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-                Write-Host "Process $procId killed." -ForegroundColor Green
+                Write-Host "PID $procId stopped." -ForegroundColor Green
             } catch {
-                Write-Host "Warning: Could not kill PID $procId. Manual intervention may be required." -ForegroundColor Yellow
+                Write-Host "Warning: failed to stop PID $procId (permission?)" -ForegroundColor Yellow
             }
         }
     } else {
@@ -43,13 +43,13 @@ function Kill-Port-Process {
 }
 
 function Cleanup-Resources {
-    Write-Host "`nInfo: Cleaning up resources..." -ForegroundColor Yellow
+    Write-Host "`nCleaning up..." -ForegroundColor Yellow
     
-    # Kill known ports
-    Kill-Port-Process 8085 # TCP Server
-    Kill-Port-Process 8000 # Web Server
+    # Known ports
+    Kill-Port-Process 8085
+    Kill-Port-Process 8000
     
-    Write-Host "Info: Cleanup complete." -ForegroundColor Green
+    Write-Host "Cleanup done." -ForegroundColor Green
 }
 
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -58,19 +58,19 @@ Set-Location $ROOT
 $VENV_PYTHON = "$ROOT\.venv\Scripts\python.exe"
 
 if (-not (Test-Path $VENV_PYTHON)) {
-    Write-Host "Error: Virtual environment not found!" -ForegroundColor Red
-    Write-Host "Please run 'install.ps1' as Administrator first." -ForegroundColor Yellow
+    Write-Host "Error: virtual environment not found." -ForegroundColor Red
+    Write-Host "Run install.ps1 first to install dependencies." -ForegroundColor Yellow
     Write-Host "Press Enter to exit..."
     Read-Host
     exit
 }
 
-# --- Conflict Resolution ---
+# --- Optional: stop scheduled task if running ---
 $TaskName = "InfraCountService"
 try {
     $taskStatus = schtasks.exe /query /tn "$TaskName" /fo CSV 2>$null | ConvertFrom-Csv
     if ($taskStatus.Status -eq "Running") {
-        Write-Host "Warning: Background task '$TaskName' is running. Stopping..." -ForegroundColor Yellow
+        Write-Host "Warning: scheduled task '$TaskName' is running, stopping..." -ForegroundColor Yellow
         schtasks.exe /end /tn "$TaskName" 2>$null | Out-Null
         Start-Sleep -Seconds 2
     }
@@ -80,17 +80,15 @@ try {
 Kill-Port-Process 8085
 Kill-Port-Process 8000
 
-# --- Start Service ---
-
-Write-Host "Info: Starting InfraCount Service..." -ForegroundColor Green
-Write-Host "Logs will be written to 'data/' directory." -ForegroundColor Gray
-Write-Host "Tip: Press Ctrl+C to stop the service." -ForegroundColor Cyan
+# --- Start services ---
+Write-Host "Starting InfraCount..." -ForegroundColor Green
+Write-Host "Logs: data/ directory." -ForegroundColor Gray
+Write-Host "To stop: press Ctrl+C or close this window." -ForegroundColor Cyan
 
 try {
-    # Start Python launcher
     & $VENV_PYTHON "$ROOT\tools\launcher.py"
 } catch {
-    Write-Host "`nError: Launcher exited unexpectedly:" -ForegroundColor Red
+    Write-Host "`nError: launcher exited unexpectedly:" -ForegroundColor Red
     Write-Host $_ -ForegroundColor Red
 } finally {
     Cleanup-Resources
