@@ -167,6 +167,8 @@
 
                 <input type="date" id="start" style="display:none">
                 <input type="date" id="end" style="display:none">
+                <input type="hidden" id="allDates" value="">
+                <input type="hidden" id="selectedDailyDate" value="">
             </div>
 
             <div class="flex gap-2">
@@ -304,7 +306,9 @@
         warn: document.getElementById('filterWarn'),
         recType: document.getElementById('filterRecType'),
         btxMin: document.getElementById('filterBtxMin'),
-        btxMax: document.getElementById('filterBtxMax')
+        btxMax: document.getElementById('filterBtxMax'),
+        allDates: document.getElementById('allDates'),
+        selectedDailyDate: document.getElementById('selectedDailyDate')
     };
     
     let charts = {};
@@ -349,12 +353,27 @@
         if (s && e && e < s) return [e, s];
         return [s, e];
     }
+    function requestPersistSave() {
+        if (typeof window.__spaRequestSave === 'function') window.__spaRequestSave();
+    }
+    function persistSelectedDailyDate(ds) {
+        if (!els.selectedDailyDate) return;
+        const v = String(ds || '').trim();
+        if (els.selectedDailyDate.value === v) return;
+        els.selectedDailyDate.value = v;
+        requestPersistSave();
+    }
+    function isAllDates() {
+        return !!(els.allDates && els.allDates.value === '1');
+    }
     function setRange(start, end) {
         const [s, e] = clampRange(start, end);
         els.start.value = s;
         els.end.value = e;
+        if ((s || e) && els.allDates) els.allDates.value = '';
         updateDateLabel();
         renderCalendar();
+        requestPersistSave();
     }
     function getRange() {
         const [s, e] = clampRange(els.start.value, els.end.value);
@@ -362,7 +381,10 @@
     }
     function updateDateLabel() {
         const { start, end } = getRange();
-        if (start && end) {
+        if (!start && !end && isAllDates()) {
+            datePicker.label.textContent = '所有日期';
+            datePicker.label.classList.remove('text-muted');
+        } else if (start && end) {
             datePicker.label.textContent = `${start} 至 ${end}`;
             datePicker.label.classList.remove('text-muted');
         } else if (start) {
@@ -447,6 +469,10 @@
     }
 
     async function init() {
+        if (els.selectedDailyDate && els.selectedDailyDate.value) {
+            selectedDailyDate = String(els.selectedDailyDate.value || '').trim();
+        }
+
         // Fetch Mapping
         let deviceMap = {};
         try {
@@ -478,7 +504,7 @@
         }
         
         const existing = getRange();
-        if (existing.start || existing.end) {
+        if (existing.start || existing.end || isAllDates()) {
             updateDateLabel();
             syncCalViewFromSelection();
             renderCalendar();
@@ -534,6 +560,7 @@
                 targetDate = dailyDates.includes(endForHourly) ? endForHourly : (dailyDates[dailyDates.length - 1] || endForHourly);
             }
             selectedDailyDate = targetDate;
+            persistSelectedDailyDate(selectedDailyDate);
             const hourlyRes = await fetch(`/api/v1/stats/hourly?uuid=${encodeURIComponent(uuid)}&date=${encodeURIComponent(targetDate)}`);
             const hourly = hourlyRes.ok ? await hourlyRes.json() : [];
             
@@ -575,6 +602,7 @@
         const ds = String(date || '').trim();
         if (!uuid || !ds) return;
         selectedDailyDate = ds;
+        persistSelectedDailyDate(selectedDailyDate);
         if (Array.isArray(lastDailyData) && lastDailyData.length) {
             renderDaily(lastDailyData, selectedDailyDate);
         }
@@ -785,6 +813,7 @@
     datePicker.clear.addEventListener('click', () => {
         calPickStart = '';
         calPickEnd = '';
+        if (els.allDates) els.allDates.value = '1';
         setRange('', '');
     });
     if (datePicker.yearSel) {
