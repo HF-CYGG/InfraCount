@@ -245,8 +245,265 @@ function clearPageIntervals() {
     _pageIntervals.clear();
 }
 
+let _statePersistenceReady = false;
+let _stateSaveTimer = null;
+
+function _pageStateKey(pathname) {
+    return `pageState:${pathname || ''}`;
+}
+
+function _getPersistKey(el) {
+    if (!el || el.nodeType !== 1) return null;
+    if (el.getAttribute('data-persist') === 'off') return null;
+    const id = el.getAttribute('id');
+    if (id) return `#${id}`;
+    const name = el.getAttribute('name');
+    if (name) return `name:${name}`;
+    const k = el.getAttribute('data-persist-key');
+    if (k) return `key:${k}`;
+    return null;
+}
+
+function _isPersistableControl(el) {
+    if (!el || el.nodeType !== 1) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag !== 'input' && tag !== 'select' && tag !== 'textarea') return false;
+    if (el.disabled) return false;
+    if (el.getAttribute('data-persist') === 'off') return false;
+    if (tag === 'input') {
+        const type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (type === 'password' || type === 'file' || type === 'button' || type === 'submit' || type === 'reset') return false;
+    }
+    return true;
+}
+
+function _serializeControl(el) {
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input') {
+        const type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (type === 'checkbox') return { type: 'checkbox', value: !!el.checked };
+        if (type === 'radio') return { type: 'radio', value: el.checked ? String(el.value ?? '') : '' };
+        return { type: 'input', value: String(el.value ?? '') };
+    }
+    if (tag === 'select') return { type: 'select', value: String(el.value ?? '') };
+    return { type: 'textarea', value: String(el.value ?? '') };
+}
+
+function _applyControl(el, data) {
+    if (!data) return;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input') {
+        const type = (el.getAttribute('type') || 'text').toLowerCase();
+        if (type === 'checkbox') {
+            el.checked = !!data.value;
+            return;
+        }
+        if (type === 'radio') {
+            if (String(el.value ?? '') === String(data.value ?? '')) el.checked = true;
+            return;
+        }
+        el.value = data.value ?? '';
+        return;
+    }
+    if (tag === 'select') {
+        const v = String(data.value ?? '');
+        el.value = v;
+        if (el.value !== v) {
+            el.setAttribute('data-persist-wanted', v);
+        } else {
+            el.removeAttribute('data-persist-wanted');
+        }
+        return;
+    }
+    if (tag === 'textarea') el.value = data.value ?? '';
+}
+
+function _watchSelectUntilApplied(selectEl) {
+    if (!selectEl) return;
+    const wanted = selectEl.getAttribute('data-persist-wanted');
+    if (!wanted) return;
+    let done = false;
+
+    const tryApply = () => {
+        if (done) return;
+        const w = selectEl.getAttribute('data-persist-wanted');
+        if (!w) {
+            done = true;
+            return;
+        }
+        selectEl.value = w;
+        if (selectEl.value === w) {
+            selectEl.removeAttribute('data-persist-wanted');
+            done = true;
+        }
+    };
+
+    tryApply();
+    if (done) return;
+
+    const obs = new MutationObserver(() => tryApply());
+    obs.observe(selectEl, { childList: true, subtree: true });
+    setTimeout(() => {
+        tryApply();
+        obs.disconnect();
+    }, 6000);
+}
+
+function _getPersistRoots(contentEl) {
+    const content = contentEl || document.querySelector('.app-content');
+    if (!content) return [];
+    const roots = [];
+    content.querySelectorAll('.filter-bar').forEach(el => roots.push(el));
+    content.querySelectorAll('[data-persist-scope]').forEach(el => roots.push(el));
+    return Array.from(new Set(roots));
+}
+
+function _savePageStateForPath(pathname) {
+    const content = document.querySelector('.app-content');
+    if (!content) return;
+    const values = {};
+    const radios = {};
+
+    const roots = _getPersistRoots(content);
+    const controls = [];
+    for (const root of roots) {
+        root.querySelectorAll('input, select, textarea').forEach(el => controls.push(el));
+    }
+    for (const el of controls) {
+        if (!_isPersistableControl(el)) continue;
+        const key = _getPersistKey(el);
+        if (!key) continue;
+        const data = _serializeControl(el);
+        if (data.type === 'radio') {
+            if (!radios[key]) radios[key] = '';
+            if (data.value) radios[key] = data.value;
+        } else {
+            values[key] = data;
+        }
+    }
+
+    for (const k of Object.keys(radios)) {
+        values[k] = { type: 'radio', value: radios[k] };
+    }
+
+    const state = {
+        values,
+        contentScrollTop: content.scrollTop || 0
+    };
+    if (typeof window.__spaGetCustomState === 'function') {
+        try {
+            const custom = window.__spaGetCustomState({ pathname, content });
+            if (custom !== undefined) state.custom = custom;
+        } catch (e) {}
+    }
+
+    try {
+        localStorage.setItem(_pageStateKey(pathname), JSON.stringify(state));
+    } catch (e) {}
+}
+
+function _restoreCustomStateForPath(pathname, contentEl) {
+    const content = contentEl || document.querySelector('.app-content');
+    if (!content) return;
+    let raw = '';
+    try {
+        raw = localStorage.getItem(_pageStateKey(pathname)) || '';
+    } catch (e) {
+        raw = '';
+    }
+    if (!raw) return;
+
+    let state = null;
+    try {
+        state = JSON.parse(raw);
+    } catch (e) {
+        state = null;
+    }
+    if (!state || !state.custom) return;
+    if (typeof window.__spaApplyCustomState !== 'function') return;
+    try {
+        window.__spaApplyCustomState(state.custom, { pathname, content });
+    } catch (e) {}
+}
+
+function _restorePageStateForPath(pathname, contentEl) {
+    const content = contentEl || document.querySelector('.app-content');
+    if (!content) return;
+    let raw = '';
+    try {
+        raw = localStorage.getItem(_pageStateKey(pathname)) || '';
+    } catch (e) {
+        raw = '';
+    }
+    if (!raw) return;
+
+    let state = null;
+    try {
+        state = JSON.parse(raw);
+    } catch (e) {
+        state = null;
+    }
+    if (!state || !state.values) return;
+
+    const roots = _getPersistRoots(content);
+    const controls = [];
+    for (const root of roots) {
+        root.querySelectorAll('input, select, textarea').forEach(el => controls.push(el));
+    }
+    for (const el of controls) {
+        if (!_isPersistableControl(el)) continue;
+        const key = _getPersistKey(el);
+        if (!key) continue;
+        const data = state.values[key];
+        if (!data) continue;
+        _applyControl(el, data);
+        if ((el.tagName || '').toLowerCase() === 'select') _watchSelectUntilApplied(el);
+    }
+
+    if (typeof state.contentScrollTop === 'number') {
+        content.scrollTop = state.contentScrollTop;
+    }
+
+    if (state.custom && typeof window.__spaApplyCustomState === 'function') {
+        try {
+            window.__spaApplyCustomState(state.custom, { pathname, content });
+        } catch (e) {}
+    }
+}
+
+function _queueSaveCurrentPage() {
+    if (_stateSaveTimer) clearTimeout(_stateSaveTimer);
+    _stateSaveTimer = setTimeout(() => {
+        _savePageStateForPath(location.pathname);
+    }, 120);
+}
+
+function _setupStatePersistence() {
+    if (_statePersistenceReady) return;
+    _statePersistenceReady = true;
+    if (!window.__spaRequestSave) {
+        window.__spaRequestSave = () => _queueSaveCurrentPage();
+    }
+
+    document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!_isPersistableControl(el)) return;
+        _queueSaveCurrentPage();
+    }, true);
+    document.addEventListener('change', (e) => {
+        const el = e.target;
+        if (!_isPersistableControl(el)) return;
+        _queueSaveCurrentPage();
+    }, true);
+
+    window.addEventListener('beforeunload', () => {
+        _savePageStateForPath(location.pathname);
+    });
+}
+
 function initLayout(title, customContentId) {
     _markInitialHeadForSpa();
+    _setupStatePersistence();
 
     // Auth Check
     if (window.location.pathname !== '/login') {
@@ -346,6 +603,11 @@ function initLayout(title, customContentId) {
     layout.appendChild(sidebar);
     layout.appendChild(main);
     body.appendChild(layout);
+
+    _restorePageStateForPath(location.pathname, content);
+    setTimeout(() => {
+        _restoreCustomStateForPath(location.pathname, content);
+    }, 0);
     
     // Theme Toggle Logic
     const themeBtn = document.getElementById('themeToggle');
@@ -582,6 +844,9 @@ function setupSpaNavigation() {
 
 async function navigateTo(url, push = true) {
     if (push) {
+        _savePageStateForPath(location.pathname);
+    }
+    if (push) {
         history.pushState(null, '', url);
     }
 
@@ -626,8 +891,16 @@ async function navigateTo(url, push = true) {
             }
         });
 
+        try {
+            const newPath = new URL(url, location.origin).pathname;
+            _restorePageStateForPath(newPath, content);
+        } catch (e) {}
+
         // Run scripts sequentially
         await runScriptsSequentially(scriptsToRun, content);
+        try {
+            _restoreCustomStateForPath(newPath, content);
+        } catch (e) {}
 
         updateActiveLink();
         await new Promise(r => requestAnimationFrame(r));

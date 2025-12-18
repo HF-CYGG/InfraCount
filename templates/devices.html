@@ -91,7 +91,7 @@
     </div>
     
     <!-- Filter Bar -->
-    <div style="margin-bottom:12px; display:flex; gap:12px; align-items:center;">
+    <div data-persist-scope="filters" style="margin-bottom:12px; display:flex; gap:12px; align-items:center;">
         <input id="searchLoc" class="input" placeholder="搜索场地..." style="width:200px">
         <select id="filterLocAca" class="select" style="width:150px">
             <option value="">所有书院</option>
@@ -492,7 +492,15 @@
             const currentFilterAca = els.filterLocAca.value;
             els.filterLocAca.innerHTML = `<option value="">所有书院</option>` + 
                 academies.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
-            els.filterLocAca.value = currentFilterAca;
+            const wantedFilterAca = els.filterLocAca.getAttribute('data-persist-wanted');
+            if (wantedFilterAca) {
+                els.filterLocAca.value = wantedFilterAca;
+                if (els.filterLocAca.value === wantedFilterAca) {
+                    els.filterLocAca.removeAttribute('data-persist-wanted');
+                }
+            } else {
+                els.filterLocAca.value = currentFilterAca;
+            }
 
             // Render Table (Sorted by name)
             const locs = Object.keys(mapping).sort();

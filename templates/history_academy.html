@@ -394,17 +394,11 @@
 </head>
 <body>
 
-<div class="page-header">
-    <h1 class="page-title">
-        <span>📚</span> 书院数据管理
-    </h1>
-    <div style="display:flex; gap:10px">
+<div class="card">
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:12px">
         <button class="btn btn-primary" id="btnImport">📥 导入表格</button>
         <button class="btn" id="btnSync" style="background:#4cc9f0; color:#fff; border:none">🔄 同步散客数据</button>
     </div>
-</div>
-
-<div class="card">
     <div class="filter-bar" style="margin-bottom:0;border:none;box-shadow:none;padding:0">
         <div class="flex items-center gap-2">
             <label>日期范围</label>
@@ -629,9 +623,18 @@
     // Init Date
     const now = new Date();
     const ymd = now.toISOString().split('T')[0];
-    els.start.value = ymd.slice(0, 8) + '01'; // First day
-    els.end.value = ymd;
-    els.syncDate.value = ymd;
+    if (els.start.value && !els.end.value) {
+        els.end.value = els.start.value;
+    } else if (!els.start.value && els.end.value) {
+        els.start.value = els.end.value;
+    } else if (els.start.value && els.end.value && els.end.value < els.start.value) {
+        const tmp = els.start.value;
+        els.start.value = els.end.value;
+        els.end.value = tmp;
+    }
+    if (els.syncDate && !els.syncDate.value) {
+        els.syncDate.value = ymd;
+    }
     
     const datePicker = {
         btn: document.getElementById('dateRangeBtn'),
@@ -817,23 +820,19 @@
             renderCalendar();
         });
     }
-    datePicker.apply.addEventListener('click', async () => {
+    datePicker.apply.addEventListener('click', () => {
         const { start, end } = getRange();
         if (start && !end) setRange(start, start);
         datePicker.popup.classList.remove('show');
-        state.page = 1;
-        await loadData();
     });
-    datePicker.quickToday.addEventListener('click', async () => {
+    datePicker.quickToday.addEventListener('click', () => {
         const d = localYmd(new Date());
         calPickStart = d;
         calPickEnd = d;
         setRange(d, d);
         datePicker.popup.classList.remove('show');
-        state.page = 1;
-        await loadData();
     });
-    datePicker.quickLast7.addEventListener('click', async () => {
+    datePicker.quickLast7.addEventListener('click', () => {
         const now = new Date();
         const end = localYmd(now);
         const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
@@ -841,10 +840,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        state.page = 1;
-        await loadData();
     });
-    datePicker.quickWeek.addEventListener('click', async () => {
+    datePicker.quickWeek.addEventListener('click', () => {
         const now = new Date();
         const day = mondayIndex(now.getDay());
         const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
@@ -855,10 +852,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        state.page = 1;
-        await loadData();
     });
-    datePicker.quickMonth.addEventListener('click', async () => {
+    datePicker.quickMonth.addEventListener('click', () => {
         const now = new Date();
         const startD = new Date(now.getFullYear(), now.getMonth(), 1);
         const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
@@ -868,8 +863,6 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        state.page = 1;
-        await loadData();
     });
 
     updateDateLabel();
@@ -879,15 +872,30 @@
     setupDatePopup();
 
     async function loadData() {
+        if (els.start.value && !els.end.value) {
+            els.end.value = els.start.value;
+        } else if (!els.start.value && els.end.value) {
+            els.start.value = els.end.value;
+        } else if (els.start.value && els.end.value && els.end.value < els.start.value) {
+            const tmp = els.start.value;
+            els.start.value = els.end.value;
+            els.end.value = tmp;
+        }
+        updateDateLabel();
+
         const q = new URLSearchParams({
-            start: els.start.value,
-            end: els.end.value,
-            page: state.page,
-            page_size: state.pageSize
+            page: String(state.page),
+            page_size: String(state.pageSize)
         });
+        if (els.start.value) q.append('start_date', els.start.value);
+        if (els.end.value) q.append('end_date', els.end.value);
         
         try {
             const res = await fetch('/api/v1/activity/list?' + q);
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || `HTTP ${res.status}`);
+            }
             const data = await res.json();
             
             renderTable(data.items);
@@ -944,7 +952,17 @@
         state.page++; loadData();
     });
     document.getElementById('query').addEventListener('click', () => {
-        state.page = 1; loadData();
+        state.page = 1;
+        if (els.start.value && !els.end.value) {
+            els.end.value = els.start.value;
+        } else if (!els.start.value && els.end.value) {
+            els.start.value = els.end.value;
+        } else if (els.start.value && els.end.value && els.end.value < els.start.value) {
+            const tmp = els.start.value;
+            els.start.value = els.end.value;
+            els.end.value = tmp;
+        }
+        loadData();
     });
     
     // Import Logic (Wizard)

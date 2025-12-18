@@ -133,7 +133,7 @@
     </div>
 
     <!-- Advanced Filters -->
-    <div id="advancedPopup" class="card" style="display:none;margin-top:16px;margin-bottom:16px;background:#f8f9fa">
+    <div id="advancedPopup" class="card" data-persist-scope="filters" style="display:none;margin-top:16px;margin-bottom:16px;background:#f8f9fa">
         <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
             <div>
                 <label class="text-sm">告警状态 (0/1)</label>
@@ -690,6 +690,14 @@
             const display = name === uuid ? uuid : `${name} (${uuid})`;
             return `<option value="${uuid}">${display}</option>`;
         }).join('');
+
+        const wantedDevice = els.device.getAttribute('data-persist-wanted');
+        if (wantedDevice) {
+            els.device.value = wantedDevice;
+            if (els.device.value === wantedDevice) {
+                els.device.removeAttribute('data-persist-wanted');
+            }
+        }
     }
 
     function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
@@ -880,21 +888,19 @@
             renderCalendar();
         });
     }
-    datePicker.apply.addEventListener('click', async () => {
+    datePicker.apply.addEventListener('click', () => {
         const { start, end } = getRange();
         if (start && !end) setRange(start, start);
         datePicker.popup.classList.remove('show');
-        await loadHistory();
     });
-    datePicker.quickToday.addEventListener('click', async () => {
+    datePicker.quickToday.addEventListener('click', () => {
         const d = localYmd(new Date());
         calPickStart = d;
         calPickEnd = d;
         setRange(d, d);
         datePicker.popup.classList.remove('show');
-        await loadHistory();
     });
-    datePicker.quickLast7.addEventListener('click', async () => {
+    datePicker.quickLast7.addEventListener('click', () => {
         const now = new Date();
         const end = localYmd(now);
         const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
@@ -902,9 +908,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadHistory();
     });
-    datePicker.quickWeek.addEventListener('click', async () => {
+    datePicker.quickWeek.addEventListener('click', () => {
         const now = new Date();
         const day = mondayIndex(now.getDay());
         const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
@@ -915,9 +920,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadHistory();
     });
-    datePicker.quickMonth.addEventListener('click', async () => {
+    datePicker.quickMonth.addEventListener('click', () => {
         const now = new Date();
         const startD = new Date(now.getFullYear(), now.getMonth(), 1);
         const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
@@ -927,7 +931,6 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadHistory();
     });
 
     updateDateLabel();

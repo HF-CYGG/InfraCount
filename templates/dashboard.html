@@ -466,25 +466,39 @@
             const display = name === uuid ? uuid : `${name} (${uuid})`;
             return `<option value="${uuid}">${display}</option>`;
         }).join('');
-        
-        // Default Date (Auto-detect from data)
-        try {
-            const sumRes = await fetch('/api/v1/stats/summary');
-            if (sumRes.ok) {
-                const summary = await sumRes.json();
-                if (summary.last_time) {
-                    const lastDate = summary.last_time.split(' ')[0];
-                    setRange(lastDate, lastDate);
-                } else {
-                    throw new Error('No data');
-                }
-            } else {
-                throw new Error('API Error');
+
+        const wantedDevice = els.device.getAttribute('data-persist-wanted');
+        if (wantedDevice) {
+            els.device.value = wantedDevice;
+            if (els.device.value === wantedDevice) {
+                els.device.removeAttribute('data-persist-wanted');
             }
-        } catch(e) {
-            const now = new Date();
-            const ymd = localYmd(now);
-            setRange(ymd, ymd);
+        }
+        
+        const existing = getRange();
+        if (existing.start || existing.end) {
+            updateDateLabel();
+            syncCalViewFromSelection();
+            renderCalendar();
+        } else {
+            try {
+                const sumRes = await fetch('/api/v1/stats/summary');
+                if (sumRes.ok) {
+                    const summary = await sumRes.json();
+                    if (summary.last_time) {
+                        const lastDate = summary.last_time.split(' ')[0];
+                        setRange(lastDate, lastDate);
+                    } else {
+                        throw new Error('No data');
+                    }
+                } else {
+                    throw new Error('API Error');
+                }
+            } catch(e) {
+                const now = new Date();
+                const ymd = localYmd(now);
+                setRange(ymd, ymd);
+            }
         }
         
         loadData();
@@ -620,7 +634,6 @@
     document.getElementById('today').addEventListener('click', () => {
         const ymd = localYmd(new Date());
         setRange(ymd, ymd);
-        loadData();
     });
     
     document.getElementById('last7').addEventListener('click', () => {
@@ -628,7 +641,6 @@
         const end = localYmd(now);
         const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
         setRange(start, end);
-        loadData();
     });
 
     document.getElementById('thisWeek').addEventListener('click', () => {
@@ -637,7 +649,6 @@
         const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
         const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
         setRange(localYmd(start), localYmd(end));
-        loadData();
     });
 
     document.getElementById('thisMonth').addEventListener('click', () => {
@@ -645,7 +656,6 @@
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         const end = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
         setRange(localYmd(start), localYmd(end));
-        loadData();
     });
     
     // Auto Refresh
@@ -738,21 +748,19 @@
             renderCalendar();
         });
     }
-    datePicker.apply.addEventListener('click', async () => {
+    datePicker.apply.addEventListener('click', () => {
         const { start, end } = getRange();
         if (start && !end) setRange(start, start);
         datePicker.popup.classList.remove('show');
-        await loadData();
     });
-    datePicker.quickToday.addEventListener('click', async () => {
+    datePicker.quickToday.addEventListener('click', () => {
         const d = localYmd(new Date());
         calPickStart = d;
         calPickEnd = d;
         setRange(d, d);
         datePicker.popup.classList.remove('show');
-        await loadData();
     });
-    datePicker.quickLast7.addEventListener('click', async () => {
+    datePicker.quickLast7.addEventListener('click', () => {
         const now = new Date();
         const end = localYmd(now);
         const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
@@ -760,9 +768,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadData();
     });
-    datePicker.quickWeek.addEventListener('click', async () => {
+    datePicker.quickWeek.addEventListener('click', () => {
         const now = new Date();
         const day = mondayIndex(now.getDay());
         const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
@@ -773,9 +780,8 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadData();
     });
-    datePicker.quickMonth.addEventListener('click', async () => {
+    datePicker.quickMonth.addEventListener('click', () => {
         const now = new Date();
         const startD = new Date(now.getFullYear(), now.getMonth(), 1);
         const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
@@ -785,7 +791,6 @@
         calPickEnd = end;
         setRange(start, end);
         datePicker.popup.classList.remove('show');
-        await loadData();
     });
 
     datePicker.btn.addEventListener('click', () => {

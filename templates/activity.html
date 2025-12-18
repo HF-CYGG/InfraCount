@@ -645,7 +645,7 @@
     <h1 class="page-title">
         书院运行状态看板
     </h1>
-    <div style="display:flex;align-items:center;gap:16px">
+    <div data-persist-scope="filters" style="display:flex;align-items:center;gap:16px">
         <label style="font-weight:600; font-size:14px; color:var(--text-secondary)">统计月份</label>
         <input type="month" id="monthPicker" class="input-control" style="width:160px;">
         <button class="btn btn-secondary" id="syncWalkinBtn">🔄 同步散客数据</button>
@@ -1515,7 +1515,7 @@
             return;
         }
         container.innerHTML = items.map(item => `
-            <div class="${className}" data-val="${item}">${item}</div>
+            <div class="${className}${state.filters[filterKey] && state.filters[filterKey].has(item) ? ' active' : ''}" data-val="${item}">${item}</div>
         `).join('');
         
         container.querySelectorAll('.' + className.split(' ')[0]).forEach(el => {
@@ -1530,7 +1530,7 @@
     
     function renderWeekdays(container, items) {
         container.innerHTML = items.map(w => `
-            <div class="week-item" data-val="${w}"><span>${w}</span> <span style="opacity:0.3">→</span></div>
+            <div class="week-item${state.filters.weekdays.has(w) ? ' active' : ''}" data-val="${w}"><span>${w}</span> <span style="opacity:0.3">→</span></div>
         `).join('');
         
         container.querySelectorAll('.week-item').forEach(el => {
@@ -1549,7 +1549,7 @@
             return;
         }
         container.innerHTML = items.map(item => `
-            <div class="${className}" data-val="${item.val}">${item.display}</div>
+            <div class="${className}${state.filters[filterKey] && state.filters[filterKey].has(item.val) ? ' active' : ''}" data-val="${item.val}">${item.display}</div>
         `).join('');
         
         container.querySelectorAll('.' + className.split(' ')[0]).forEach(el => {
@@ -1571,7 +1571,7 @@
         ];
         
         els.timeList.innerHTML = fixedTimes.map(t => `
-            <div class="time-item" data-val="${t}">${t}</div>
+            <div class="time-item${state.filters.start_times.has(t) ? ' active' : ''}" data-val="${t}">${t}</div>
         `).join('');
         
         els.timeList.querySelectorAll('.time-item').forEach(el => {
@@ -1618,7 +1618,7 @@
         }
         
         els.dateRangeList.innerHTML = ranges.map(r => `
-            <div class="week-item" data-start="${r.start}" data-end="${r.end}">
+            <div class="week-item${state.filters.dateRange && state.filters.dateRange.start === r.start && state.filters.dateRange.end === r.end ? ' active' : ''}" data-start="${r.start}" data-end="${r.end}">
                 <span>${r.start} - ${r.end}</span>
                 <span style="opacity:0.3">→</span>
             </div>
@@ -1658,6 +1658,7 @@
     function reload() {
         state.page = 1;
         state.hasMore = true;
+        if (typeof window.__spaRequestSave === 'function') window.__spaRequestSave();
         loadData(false);
     }
 
@@ -1734,6 +1735,53 @@
         };
         return map[s] || s;
     }
+
+    window.__spaGetCustomState = () => {
+        return {
+            month: state.month,
+            filters: {
+                academies: Array.from(state.filters.academies),
+                weekdays: Array.from(state.filters.weekdays),
+                start_times: Array.from(state.filters.start_times),
+                dateRange: state.filters.dateRange ? { start: state.filters.dateRange.start, end: state.filters.dateRange.end } : null,
+                types: Array.from(state.filters.types),
+                locations: Array.from(state.filters.locations)
+            }
+        };
+    };
+
+    window.__spaApplyCustomState = (custom) => {
+        if (!custom || typeof custom !== 'object') return;
+        const nextMonth = typeof custom.month === 'string' ? custom.month : '';
+        if (nextMonth) state.month = nextMonth;
+        if (els.monthPicker) els.monthPicker.value = state.month;
+
+        const f = custom.filters && typeof custom.filters === 'object' ? custom.filters : {};
+        const setFrom = (arr) => new Set(Array.isArray(arr) ? arr.filter(v => v !== null && v !== undefined).map(v => String(v)) : []);
+
+        state.filters.academies = setFrom(f.academies);
+        state.filters.weekdays = setFrom(f.weekdays);
+        state.filters.start_times = setFrom(f.start_times);
+        state.filters.types = setFrom(f.types);
+        state.filters.locations = setFrom(f.locations);
+        state.filters.dateRange = (f.dateRange && f.dateRange.start && f.dateRange.end) ? { start: String(f.dateRange.start), end: String(f.dateRange.end) } : null;
+
+        renderDateRanges();
+        const applyActive = (container, set) => {
+            if (!container || !set) return;
+            container.querySelectorAll('[data-val]').forEach(el => {
+                const v = String(el.dataset.val || '');
+                el.classList.toggle('active', set.has(v));
+            });
+        };
+        applyActive(els.academyList, state.filters.academies);
+        applyActive(els.weekdayList, state.filters.weekdays);
+        applyActive(els.timeList, state.filters.start_times);
+        applyActive(els.typeList, state.filters.types);
+        applyActive(els.locationList, state.filters.locations);
+
+        reload();
+    };
 
     init();
 </script>

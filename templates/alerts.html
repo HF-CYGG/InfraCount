@@ -130,6 +130,14 @@
             });
         }
 
+        const wantedUuid = els.uuid.getAttribute('data-persist-wanted');
+        if (wantedUuid) {
+            els.uuid.value = wantedUuid;
+            if (els.uuid.value === wantedUuid) {
+                els.uuid.removeAttribute('data-persist-wanted');
+            }
+        }
+
         loadAlerts();
     }
 
