@@ -290,11 +290,16 @@ async def init_sqlite():
             category TEXT,
             description TEXT,
             last_seen DATETIME,
-            ip TEXT
+            ip TEXT,
+            bound_at DATETIME
         )
     """)
     try:
         await _sqlite.execute("ALTER TABLE registry ADD COLUMN ip TEXT")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE registry ADD COLUMN bound_at DATETIME")
     except Exception:
         pass
     
@@ -355,6 +360,16 @@ async def init_sqlite():
             academy_name TEXT
         )
     """)
+    try:
+        await _sqlite.execute("""
+            UPDATE registry
+            SET bound_at = COALESCE(bound_at, CURRENT_TIMESTAMP)
+            WHERE name IS NOT NULL
+              AND name != ''
+              AND name IN (SELECT location_name FROM location_academy)
+        """)
+    except Exception:
+        pass
     await _sqlite.commit()
 
 async def init_pool():
@@ -442,11 +457,16 @@ async def init_pool():
                         category VARCHAR(64),
                         description TEXT,
                         last_seen DATETIME,
-                        ip VARCHAR(64)
+                        ip VARCHAR(64),
+                        bound_at DATETIME
                     )
                 """)
                 try:
                     await cur.execute("ALTER TABLE registry ADD COLUMN ip VARCHAR(64)")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE registry ADD COLUMN bound_at DATETIME")
                 except Exception:
                     pass
                 await cur.execute("""
@@ -503,6 +523,15 @@ async def init_pool():
                         academy_name VARCHAR(64)
                     )
                 """)
+                try:
+                    await cur.execute("""
+                        UPDATE registry r
+                        JOIN location_academy la ON r.name = la.location_name
+                        SET r.bound_at = IFNULL(r.bound_at, NOW())
+                        WHERE r.name IS NOT NULL AND r.name != ''
+                    """)
+                except Exception:
+                    pass
     except Exception as e:
         logging.error(f"DB init failed: {e}")
 
@@ -1702,9 +1731,27 @@ async def walkin_preview(devices: list, start: str, end: str):
     rows = await run_query(sql, params)
     if not rows: return []
     
-    # Process
     import datetime
-    data_map = {} # (uuid, date, interval_idx) -> {min_in, max_in}
+
+    def to_dt(v):
+        if v is None:
+            return None
+        if isinstance(v, datetime.datetime):
+            return v
+        if isinstance(v, datetime.date):
+            return datetime.datetime(v.year, v.month, v.day, 0, 0, 0)
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace("T", " ")
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.datetime.strptime(s, fmt)
+            except Exception:
+                continue
+        return None
+
+    data_map = {}  # (uuid, date, interval_idx) -> {"sum": int}
     
     # 30 min intervals
     def get_interval(dt):
@@ -1713,39 +1760,34 @@ async def walkin_preview(devices: list, start: str, end: str):
         
     for r in rows:
         uuid = r[0]
-        t_str = str(r[1])
+        dt = to_dt(r[1])
         in_c = r[2]
-        if not t_str or in_c is None: continue
-        
-        try:
-            # Handle standard format
-            dt = datetime.datetime.strptime(t_str, "%Y-%m-%d %H:%M:%S")
-        except:
-            try:
-                 dt = datetime.datetime.strptime(t_str, "%Y-%m-%d %H:%M")
-            except:
-                 continue
+        if dt is None or in_c is None:
+            continue
             
         date = dt.strftime("%Y-%m-%d")
         idx = get_interval(dt)
         
         key = (uuid, date, idx)
         if key not in data_map:
-            data_map[key] = {"min": in_c, "max": in_c}
-        else:
-            data_map[key]["min"] = min(data_map[key]["min"], in_c)
-            data_map[key]["max"] = max(data_map[key]["max"], in_c)
+            data_map[key] = {"sum": 0}
+        try:
+            v = int(in_c)
+        except Exception:
+            continue
+        if v > 0:
+            data_map[key]["sum"] += v
             
     # Generate Events
     events = []
-    # Need device mapping for name
-    mapping = await get_device_mapping()
-    mapping = mapping.get("mapping", {})
+    mapping_res = await get_device_mapping()
+    mapping = (mapping_res or {}).get("mapping") or {}
+    loc_academy = await get_location_academy_mapping()
     
     wd_map = {1:"周一", 2:"周二", 3:"周三", 4:"周四", 5:"周五", 6:"周六", 7:"周日"}
     
     for (uuid, date, idx), val in data_map.items():
-        count = val["max"] - val["min"]
+        count = int(val.get("sum") or 0)
         if count <= 0: continue
         
         # Start Time
@@ -1764,8 +1806,9 @@ async def walkin_preview(devices: list, start: str, end: str):
              
         dt = datetime.datetime.strptime(date, "%Y-%m-%d")
         weekday = wd_map.get(dt.isoweekday(), "")
-        
-        loc_name = mapping.get(uuid, uuid)
+        dev = mapping.get(uuid) or {}
+        loc_name = str((dev.get("name") or "")).strip() or uuid
+        academy = str((loc_academy.get(loc_name) or dev.get("category") or "公共")).strip() or "公共"
         
         events.append({
             "date": date,
@@ -1773,7 +1816,7 @@ async def walkin_preview(devices: list, start: str, end: str):
             "start_time": s_time,
             "end_time": e_time,
             "duration_minutes": 30,
-            "academy": "公共", 
+            "academy": academy, 
             "location": loc_name, 
             "activity_name": "散客",
             "activity_type": "散客访问",
@@ -1784,6 +1827,236 @@ async def walkin_preview(devices: list, start: str, end: str):
     # Sort by date, time
     events.sort(key=lambda x: (x['date'], x['start_time']))
     return events
+
+
+async def walkin_available_dates(devices: list):
+    if not devices:
+        return {"dates": [], "min_date": None, "max_date": None}
+    placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(devices))
+    if use_sqlite():
+        d_expr = "strftime('%Y-%m-%d', time)"
+        sql = f"SELECT {d_expr} as d FROM records WHERE uuid IN ({placeholders}) AND time IS NOT NULL GROUP BY d ORDER BY d"
+    else:
+        d_expr = "DATE(time)"
+        sql = f"SELECT {d_expr} as d FROM records WHERE uuid IN ({placeholders}) AND time IS NOT NULL GROUP BY d ORDER BY d"
+    rows = await run_query(sql, devices)
+    dates = []
+    for r in rows or []:
+        if not r:
+            continue
+        v = r[0]
+        if v is None:
+            continue
+        s = str(v).split(" ")[0].strip()
+        if s:
+            dates.append(s)
+    dates = sorted(list(dict.fromkeys(dates)))
+    return {"dates": dates, "min_date": (dates[0] if dates else None), "max_date": (dates[-1] if dates else None)}
+
+
+async def walkin_preview_by_dates(devices: list, dates: list[str]):
+    if not devices or not dates:
+        return []
+    placeholders_u = ",".join(["?" if use_sqlite() else "%s"] * len(devices))
+    placeholders_d = ",".join(["?" if use_sqlite() else "%s"] * len(dates))
+    params = []
+    params.extend(devices)
+    params.extend(dates)
+    if use_sqlite():
+        d_expr = "strftime('%Y-%m-%d', time)"
+        sql = f"SELECT uuid, time, in_count FROM records WHERE uuid IN ({placeholders_u}) AND time IS NOT NULL AND {d_expr} IN ({placeholders_d}) ORDER BY uuid, time"
+    else:
+        d_expr = "DATE(time)"
+        sql = f"SELECT uuid, time, in_count FROM records WHERE uuid IN ({placeholders_u}) AND time IS NOT NULL AND {d_expr} IN ({placeholders_d}) ORDER BY uuid, time"
+    rows = await run_query(sql, params)
+    if not rows:
+        return []
+
+    import datetime
+
+    def to_dt(v):
+        if v is None:
+            return None
+        if isinstance(v, datetime.datetime):
+            return v
+        if isinstance(v, datetime.date):
+            return datetime.datetime(v.year, v.month, v.day, 0, 0, 0)
+        s = str(v).strip()
+        if not s:
+            return None
+        s = s.replace("T", " ")
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.datetime.strptime(s, fmt)
+            except Exception:
+                continue
+        return None
+
+    def get_interval(dt):
+        return dt.hour * 2 + (1 if dt.minute >= 30 else 0)
+
+    data_map = {}
+    for r in rows:
+        uuid = r[0]
+        dt = to_dt(r[1])
+        in_c = r[2]
+        if dt is None or in_c is None:
+            continue
+        date = dt.strftime("%Y-%m-%d")
+        idx = get_interval(dt)
+        key = (uuid, date, idx)
+        if key not in data_map:
+            data_map[key] = {"sum": 0}
+        try:
+            v = int(in_c)
+        except Exception:
+            continue
+        if v > 0:
+            data_map[key]["sum"] += v
+
+    events = []
+    mapping_res = await get_device_mapping()
+    mapping = (mapping_res or {}).get("mapping") or {}
+    loc_academy = await get_location_academy_mapping()
+
+    wd_map = {1: "周一", 2: "周二", 3: "周三", 4: "周四", 5: "周五", 6: "周六", 7: "周日"}
+
+    for (uuid, date, idx), val in data_map.items():
+        count = int(val.get("sum") or 0)
+        if count <= 0:
+            continue
+        h = idx // 2
+        m = (idx % 2) * 30
+        s_time = f"{h:02d}:{m:02d}"
+        end_idx = idx + 1
+        eh = end_idx // 2
+        em = (end_idx % 2) * 30
+        if eh >= 24:
+            e_time = "23:59"
+        else:
+            e_time = f"{eh:02d}:{em:02d}"
+
+        dt_d = datetime.datetime.strptime(date, "%Y-%m-%d").date()
+        weekday = wd_map.get(dt_d.isoweekday(), "")
+
+        dev = mapping.get(uuid) or {}
+        loc_name = str((dev.get("name") or "")).strip() or uuid
+        academy = str((loc_academy.get(loc_name) or dev.get("category") or "公共")).strip() or "公共"
+
+        events.append({
+            "date": date,
+            "weekday": weekday,
+            "start_time": s_time,
+            "end_time": e_time,
+            "duration_minutes": 30,
+            "academy": academy,
+            "location": loc_name,
+            "activity_name": "散客",
+            "activity_type": "散客访问",
+            "audience_count": count,
+            "notes": f"from device {uuid}"
+        })
+    events.sort(key=lambda x: (x.get("date") or "", x.get("start_time") or "", x.get("location") or ""))
+    return events
+
+async def _walkin_eligible_devices(devices: list | None = None):
+    mapping_res = await get_device_mapping()
+    mapping = (mapping_res or {}).get("mapping") or {}
+    loc_academy = await get_location_academy_mapping()
+    target = devices or list(mapping.keys())
+
+    eligible = []
+    skipped = []
+    for uuid in target:
+        dev = mapping.get(uuid) or {}
+        loc_name = str((dev.get("name") or "")).strip()
+        if not loc_name:
+            skipped.append({"uuid": uuid, "reason": "unbound"})
+            continue
+        if loc_name not in loc_academy:
+            skipped.append({"uuid": uuid, "reason": "not_in_standard_library", "location": loc_name})
+            continue
+        eligible.append(uuid)
+    return eligible, skipped
+
+async def activity_sync_visitors(date: str = None, devices: list = None, start: str = None, end: str = None, mode: str = "overwrite"):
+    if date:
+        d = str(date).split(" ")[0].strip()
+        if not d:
+            raise ValueError("date is required")
+        start = f"{d} 00:00:00"
+        end = f"{d} 23:59:59"
+
+    eligible_devices, skipped = await _walkin_eligible_devices(devices)
+    if not eligible_devices:
+        return {"count": 0, "skipped": skipped}
+
+    total = 0
+    if start or end:
+        if start and not end:
+            d = str(start).split(" ")[0].strip()
+            end = f"{d} 23:59:59"
+        if end and not start:
+            d = str(end).split(" ")[0].strip()
+            start = f"{d} 00:00:00"
+
+        items = await walkin_preview(eligible_devices, start, end)
+        res = await activity_bulk_insert(items, mode=mode)
+        if isinstance(res, dict):
+            total += int(res.get("inserted") or 0) + int(res.get("updated") or 0)
+        else:
+            total += int(res or 0)
+        return {"count": total, "skipped": skipped}
+
+    import datetime
+    placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(eligible_devices))
+    if use_sqlite():
+        d_expr = "strftime('%Y-%m-%d', time)"
+        range_sql = f"SELECT MIN({d_expr}) as min_d, MAX({d_expr}) as max_d FROM records WHERE uuid IN ({placeholders}) AND time IS NOT NULL"
+    else:
+        d_expr = "DATE(time)"
+        range_sql = f"SELECT MIN({d_expr}) as min_d, MAX({d_expr}) as max_d FROM records WHERE uuid IN ({placeholders}) AND time IS NOT NULL"
+
+    range_rows = await run_query(range_sql, eligible_devices)
+    min_d = None
+    max_d = None
+    if range_rows and range_rows[0]:
+        min_d = range_rows[0][0]
+        max_d = range_rows[0][1] if len(range_rows[0]) > 1 else None
+
+    def parse_date(v):
+        if v is None:
+            return None
+        s = str(v).split(" ")[0].strip()
+        if not s:
+            return None
+        try:
+            return datetime.datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    start_date = parse_date(min_d)
+    end_date = parse_date(max_d)
+    if not start_date or not end_date:
+        return {"count": 0, "skipped": skipped}
+    if end_date < start_date:
+        start_date, end_date = end_date, start_date
+
+    cur = start_date
+    while cur <= end_date:
+        d = cur.strftime("%Y-%m-%d")
+        day_start = f"{d} 00:00:00"
+        day_end = f"{d} 23:59:59"
+        items = await walkin_preview(eligible_devices, day_start, day_end)
+        if items:
+            res = await activity_bulk_insert(items, mode=mode)
+            if isinstance(res, dict):
+                total += int(res.get("inserted") or 0) + int(res.get("updated") or 0)
+            else:
+                total += int(res or 0)
+        cur = cur + datetime.timedelta(days=1)
+
+    return {"count": total, "skipped": skipped}
 
 # --- Location-Academy Mapping ---
 

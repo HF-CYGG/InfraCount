@@ -385,6 +385,18 @@
             border-color: var(--primary);
             color: #fff;
         }
+        .cal-day.other-month {
+            opacity: 0.55;
+        }
+        .cal-day.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        #syncCalGrid {
+            touch-action: none;
+            user-select: none;
+        }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateX(10px); }
@@ -428,7 +440,7 @@
 
                     <div class="flex gap-2" style="justify-content:flex-end;margin-top:12px">
                         <button class="btn btn-sm" id="dateRangeClear" type="button">清空</button>
-                        <button class="btn btn-primary btn-sm" id="dateRangeApply" type="button">应用</button>
+                        <button class="btn btn-primary btn-sm" id="dateRangeApply" type="button">确定</button>
                     </div>
                 </div>
 
@@ -570,19 +582,128 @@
 
 <!-- Sync Modal -->
 <div id="syncModal" class="modal-backdrop">
-    <div class="modal">
-        <h3>同步散客数据</h3>
-        <p style="color:#666; font-size:14px; margin-bottom:16px">
-            将从设备原始记录中生成“散客访问”数据。<br>
-            规则：每30分钟聚合一次，活动名称为“散客”，类型为“散客访问”。
-        </p>
-        <div style="margin-bottom:16px">
-            <label>选择日期</label>
-            <input type="date" id="syncDate" class="input" style="width:100%">
+    <div class="modal wizard-modal">
+        <div class="wizard-header">
+            <h3>同步散客数据</h3>
+            <div class="wizard-steps">
+                <div class="step-item active" data-step="1">
+                    <div class="step-icon">1</div>
+                    <span>选择设备</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="2">
+                    <div class="step-icon">2</div>
+                    <span>选择时段</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="3">
+                    <div class="step-icon">3</div>
+                    <span>确认数据</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step-item" data-step="4">
+                    <div class="step-icon">4</div>
+                    <span>开始同步</span>
+                </div>
+            </div>
         </div>
-        <div class="actions" style="display:flex; justify-content:flex-end; gap:10px">
+
+        <div class="wizard-content">
+            <div class="step-pane active" id="syncStep1">
+                <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px">
+                    将从设备原始记录中生成“散客访问”数据。规则：每30分钟聚合一次，活动名称为“散客”，类型为“散客访问”。
+                </p>
+                <div style="margin-bottom:16px">
+                    <label>选择设备</label>
+                    <select id="syncDevice" class="input" style="width:100%"></select>
+                </div>
+            </div>
+
+            <div class="step-pane" id="syncStep2">
+                <div style="display:flex;align-items:center;gap:8px;margin:0 0 12px 0">
+                    <input type="checkbox" id="syncAllHistory" checked>
+                    <label for="syncAllHistory" style="margin:0">同步全部历史（忽略日期）</label>
+                </div>
+
+                <div class="data-summary" style="margin-bottom:12px">
+                    <div class="summary-item">
+                        <label>有数据日期</label>
+                        <span id="syncAvailDays">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>已选日期</label>
+                        <span id="syncSelectedDays">0</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:12px">
+                    <button class="btn btn-secondary" id="syncPickAll" type="button">全选有数据日期</button>
+                    <button class="btn" id="syncClearDates" type="button">清空选择</button>
+                    <div style="margin-left:auto; font-size:12px; color:var(--text-secondary)" id="syncDateHint"></div>
+                </div>
+
+                <div class="card" style="padding:12px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                        <button class="btn" id="syncCalPrev" type="button">‹</button>
+                        <select id="syncCalYear" class="input-control" style="width:120px"></select>
+                        <select id="syncCalMonth" class="input-control" style="width:120px"></select>
+                        <button class="btn" id="syncCalNext" type="button">›</button>
+                        <div style="margin-left:auto; font-size:12px; color:var(--text-secondary)">支持非连续日期复合选择</div>
+                    </div>
+                    <div id="syncCalGrid" class="cal-grid"></div>
+                </div>
+            </div>
+
+            <div class="step-pane" id="syncStep3">
+                <div class="data-summary">
+                    <div class="summary-item">
+                        <label>总记录数</label>
+                        <span id="syncPreviewTotal">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>日期范围</label>
+                        <span id="syncPreviewDateRange">-</span>
+                    </div>
+                </div>
+                <div class="table-preview-wrap">
+                    <table class="preview-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th><th>时间</th><th>地点</th><th>人数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="syncPreviewBody"></tbody>
+                    </table>
+                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:8px">仅显示前 10 条数据用于预览</p>
+            </div>
+
+            <div class="step-pane" id="syncStep4">
+                <div class="progress-container">
+                    <div class="progress-ring" style="--percent:0" id="syncProgressRing">
+                        <svg><circle r="50" cx="60" cy="60" pathLength="100" /></svg>
+                        <span id="syncProgressPercent">0%</span>
+                    </div>
+                    <div class="progress-info">
+                        <h4 id="syncProgressStatus" style="margin:0 0 8px 0">准备同步...</h4>
+                        <p id="syncProgressCount" style="margin:0;color:var(--text-secondary)">已处理 0 / 0</p>
+                        <p id="syncProgressTime" style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary)">预计剩余时间: --</p>
+                        <p id="syncProgressResult" style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary)"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-footer">
             <button class="btn" id="syncCancel">取消</button>
-            <button class="btn btn-primary" id="syncConfirm">开始同步</button>
+            <div class="step-actions">
+                <button class="btn hidden" id="syncPrev">上一步</button>
+                <button class="btn btn-primary" id="syncNext" disabled>下一步</button>
+                <button class="btn btn-primary hidden" id="syncStart">开始同步</button>
+                <button class="btn hidden" id="syncSkip" type="button">跳过重复</button>
+                <button class="btn btn-primary hidden" id="syncOverwrite" type="button" style="background:#f57c00;border-color:#f57c00">覆盖重复</button>
+                <button class="btn btn-primary hidden" id="syncFinish" type="button">完成</button>
+            </div>
         </div>
     </div>
 </div>
@@ -617,7 +738,8 @@
         total: document.getElementById('totalCount'),
         pageInfo: document.getElementById('pageInfo'),
         fileInput: document.getElementById('fileInput'),
-        syncDate: document.getElementById('syncDate')
+        syncDevice: document.getElementById('syncDevice'),
+        syncAllHistory: document.getElementById('syncAllHistory')
     };
     
     // Init Date
@@ -632,8 +754,8 @@
         els.start.value = els.end.value;
         els.end.value = tmp;
     }
-    if (els.syncDate && !els.syncDate.value) {
-        els.syncDate.value = ymd;
+    if (els.syncAllHistory) {
+        els.syncAllHistory.checked = true;
     }
     
     const datePicker = {
@@ -1380,33 +1502,706 @@
         }
     };
     wizard.init();
-    
-    // Sync Logic
+
     const syncModal = document.getElementById('syncModal');
-    document.getElementById('btnSync').addEventListener('click', () => syncModal.classList.add('show'));
-    document.getElementById('syncCancel').addEventListener('click', () => syncModal.classList.remove('show'));
-    
-    document.getElementById('syncConfirm').addEventListener('click', async () => {
-        const date = els.syncDate.value;
-        if(!date) return showAlert('请选择日期');
-        
-        try {
-            const res = await fetch('/api/v1/activity/sync-visitors', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({date: date})
-            });
-            const json = await res.json();
-            if(res.ok) {
-                showAlert(`同步成功，生成 ${json.count} 条记录`);
-                syncModal.classList.remove('show');
-                loadData();
-            } else {
-                showAlert('同步失败: ' + json.detail);
-            }
-        } catch(e) {
-            showAlert('请求错误');
+    let _syncDevicesLoaded = false;
+
+    const syncEls = {
+        device: document.getElementById('syncDevice'),
+        allHistory: document.getElementById('syncAllHistory'),
+        availDays: document.getElementById('syncAvailDays'),
+        selectedDays: document.getElementById('syncSelectedDays'),
+        pickAll: document.getElementById('syncPickAll'),
+        clearDates: document.getElementById('syncClearDates'),
+        dateHint: document.getElementById('syncDateHint'),
+        calGrid: document.getElementById('syncCalGrid'),
+        calYear: document.getElementById('syncCalYear'),
+        calMonth: document.getElementById('syncCalMonth'),
+        calPrev: document.getElementById('syncCalPrev'),
+        calNext: document.getElementById('syncCalNext'),
+        previewTotal: document.getElementById('syncPreviewTotal'),
+        previewDateRange: document.getElementById('syncPreviewDateRange'),
+        previewBody: document.getElementById('syncPreviewBody'),
+        progressRing: document.getElementById('syncProgressRing'),
+        progressPercent: document.getElementById('syncProgressPercent'),
+        progressStatus: document.getElementById('syncProgressStatus'),
+        progressCount: document.getElementById('syncProgressCount'),
+        progressTime: document.getElementById('syncProgressTime'),
+        progressResult: document.getElementById('syncProgressResult'),
+        btnCancel: document.getElementById('syncCancel'),
+        btnPrev: document.getElementById('syncPrev'),
+        btnNext: document.getElementById('syncNext'),
+        btnStart: document.getElementById('syncStart'),
+        btnSkip: document.getElementById('syncSkip'),
+        btnOverwrite: document.getElementById('syncOverwrite'),
+        btnFinish: document.getElementById('syncFinish')
+    };
+
+    const syncState = {
+        step: 1,
+        availableDates: [],
+        availableSet: new Set(),
+        selectedSet: new Set(),
+        minDate: '',
+        maxDate: '',
+        calYear: new Date().getFullYear(),
+        calMonth: new Date().getMonth(),
+        previewData: [],
+        duplicates: [],
+        count: 0,
+        inserted: 0,
+        updated: 0,
+        syncing: false
+    };
+
+    function syncSetStep(n) {
+        syncState.step = n;
+        const panes = [
+            document.getElementById('syncStep1'),
+            document.getElementById('syncStep2'),
+            document.getElementById('syncStep3'),
+            document.getElementById('syncStep4')
+        ];
+        panes.forEach((p, i) => {
+            if (!p) return;
+            p.classList.toggle('active', i === (n - 1));
+        });
+        const stepItems = Array.from(syncModal.querySelectorAll('.wizard-steps .step-item'));
+        stepItems.forEach(it => {
+            const s = parseInt(it.getAttribute('data-step') || '0', 10);
+            it.classList.toggle('active', s === n);
+            it.classList.toggle('completed', s < n);
+        });
+
+        syncEls.btnPrev.classList.toggle('hidden', n === 1 || n === 4);
+        syncEls.btnNext.classList.toggle('hidden', n === 3 || n === 4);
+        syncEls.btnStart.classList.toggle('hidden', n !== 3);
+        syncEls.btnFinish.classList.toggle('hidden', true);
+        syncEls.btnSkip.classList.add('hidden');
+        syncEls.btnOverwrite.classList.add('hidden');
+
+        syncUpdateButtons();
+    }
+
+    function syncUpdateButtons() {
+        if (syncState.syncing) {
+            syncEls.btnPrev.disabled = true;
+            syncEls.btnNext.disabled = true;
+            syncEls.btnStart.disabled = true;
+            syncEls.btnCancel.disabled = true;
+            return;
         }
+        syncEls.btnCancel.disabled = false;
+        syncEls.btnPrev.disabled = false;
+
+        if (syncState.step === 1) {
+            syncEls.btnNext.disabled = !(syncEls.device && syncEls.device.value);
+        } else if (syncState.step === 2) {
+            const hasAvail = syncState.availableDates.length > 0;
+            const allHistory = !!(syncEls.allHistory && syncEls.allHistory.checked);
+            const hasSelected = syncState.selectedSet.size > 0;
+            syncEls.btnNext.disabled = !hasAvail || (!allHistory && !hasSelected);
+        } else if (syncState.step === 3) {
+            syncEls.btnStart.disabled = syncState.previewData.length === 0;
+        }
+    }
+
+    async function loadSyncDevices() {
+        const [regRes, mapRes] = await Promise.all([
+            fetch('/api/v1/admin/registry'),
+            fetch('/api/v1/locations/mapping')
+        ]);
+        if (!regRes.ok) throw new Error(await regRes.text());
+        if (!mapRes.ok) throw new Error(await mapRes.text());
+        const registry = await regRes.json();
+        const locMapJson = await mapRes.json();
+        const locMap = (locMapJson && locMapJson.mapping) ? locMapJson.mapping : {};
+
+        const items = (registry || []).map(d => {
+            const uuid = (d && d.uuid) ? String(d.uuid) : '';
+            const name = (d && d.name) ? String(d.name).trim() : '';
+            let disabled = false;
+            let reason = '';
+            if (!uuid) {
+                disabled = true;
+                reason = '无UUID';
+            } else if (!name) {
+                disabled = true;
+                reason = '未绑定场地';
+            } else if (!locMap[name]) {
+                disabled = true;
+                reason = '未录入标准库';
+            }
+            const label = name ? `${name} (${uuid})` : uuid;
+            return { uuid, label: reason ? `${label} - ${reason}` : label, disabled };
+        });
+
+        if (syncEls.device) {
+            syncEls.device.innerHTML = items.map(it =>
+                `<option value="${it.uuid}" ${it.disabled ? 'disabled' : ''}>${it.label}</option>`
+            ).join('');
+            const firstOk = items.find(it => !it.disabled && it.uuid);
+            if (firstOk) syncEls.device.value = firstOk.uuid;
+        }
+        _syncDevicesLoaded = true;
+    }
+
+    function syncEnsureCalSelectors() {
+        const nowY = new Date().getFullYear();
+        const minY = nowY - 8;
+        const maxY = nowY + 2;
+        const years = [];
+        for (let y = minY; y <= maxY; y++) years.push(y);
+        if (syncEls.calYear) {
+            syncEls.calYear.innerHTML = years.map(y => `<option value="${y}">${y}年</option>`).join('');
+        }
+        if (syncEls.calMonth) {
+            syncEls.calMonth.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join('');
+        }
+    }
+
+    function syncRenderCalendar() {
+        if (!syncEls.calGrid) return;
+        const wds = ['一','二','三','四','五','六','日'];
+        if (syncEls.calYear && syncEls.calMonth) {
+            if (!syncEls.calYear.options.length || !syncEls.calMonth.options.length) syncEnsureCalSelectors();
+            syncEls.calYear.value = String(syncState.calYear);
+            syncEls.calMonth.value = String(syncState.calMonth);
+        }
+        syncEls.calGrid.innerHTML = '';
+        for (const wd of wds) {
+            const el = document.createElement('div');
+            el.className = 'cal-wd';
+            el.textContent = wd;
+            syncEls.calGrid.appendChild(el);
+        }
+
+        const first = new Date(syncState.calYear, syncState.calMonth, 1);
+        const lead = mondayIndex(first.getDay());
+        const gridStart = new Date(syncState.calYear, syncState.calMonth, 1 - lead);
+        for (let i = 0; i < 42; i++) {
+            const d = new Date(gridStart);
+            d.setDate(gridStart.getDate() + i);
+            const ds = localYmd(d);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-day';
+            btn.textContent = String(d.getDate());
+            btn.dataset.ds = ds;
+
+            const inMonth = d.getMonth() === syncState.calMonth;
+            if (!inMonth) btn.classList.add('other-month');
+
+            const isAvailable = syncState.availableSet.has(ds);
+            if (!isAvailable) btn.classList.add('disabled');
+            if (syncState.selectedSet.has(ds)) btn.classList.add('selected');
+
+            syncEls.calGrid.appendChild(btn);
+        }
+    }
+
+    let _syncCalGestureBound = false;
+    const _syncCalGesture = {
+        pointerId: null,
+        downDs: '',
+        dragging: false,
+        baseSet: null,
+        op: '',
+        lastHover: '',
+        timer: null
+    };
+
+    function syncEnsureAllHistoryOff() {
+        if (syncEls.allHistory && syncEls.allHistory.checked) {
+            syncEls.allHistory.checked = false;
+        }
+    }
+
+    function syncSelectSingleDate(ds) {
+        if (!ds || !syncState.availableSet.has(ds)) return;
+        syncEnsureAllHistoryOff();
+        const next = new Set(syncState.selectedSet);
+        if (next.has(ds)) next.delete(ds);
+        else next.add(ds);
+        syncState.selectedSet = next;
+        syncUpdateDateStats();
+        syncRenderCalendar();
+        syncUpdateButtons();
+    }
+
+    function syncGetDateRange(a, b) {
+        const da = parseYmd(a);
+        const db = parseYmd(b);
+        if (!da || !db) return [];
+        const start = da <= db ? da : db;
+        const end = da <= db ? db : da;
+        const out = [];
+        const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+        while (cur <= endDay) {
+            out.push(localYmd(cur));
+            cur.setDate(cur.getDate() + 1);
+        }
+        return out;
+    }
+
+    function syncApplyDragTo(ds) {
+        if (!ds || !syncState.availableSet.has(ds)) return;
+        if (!_syncCalGesture.baseSet) return;
+        if (ds === _syncCalGesture.lastHover) return;
+        _syncCalGesture.lastHover = ds;
+
+        const range = syncGetDateRange(_syncCalGesture.downDs, ds).filter(x => syncState.availableSet.has(x));
+        const next = new Set(_syncCalGesture.baseSet);
+        if (_syncCalGesture.op === 'remove') {
+            for (const r of range) next.delete(r);
+        } else {
+            for (const r of range) next.add(r);
+        }
+        syncState.selectedSet = next;
+        syncUpdateDateStats();
+        syncRenderCalendar();
+        syncUpdateButtons();
+    }
+
+    function syncBindCalendarGestures() {
+        if (_syncCalGestureBound || !syncEls.calGrid) return;
+        _syncCalGestureBound = true;
+
+        const end = () => {
+            if (_syncCalGesture.timer) clearTimeout(_syncCalGesture.timer);
+            _syncCalGesture.timer = null;
+            _syncCalGesture.pointerId = null;
+            _syncCalGesture.downDs = '';
+            _syncCalGesture.dragging = false;
+            _syncCalGesture.baseSet = null;
+            _syncCalGesture.op = '';
+            _syncCalGesture.lastHover = '';
+        };
+
+        syncEls.calGrid.addEventListener('pointerdown', (e) => {
+            const btn = e.target && e.target.closest ? e.target.closest('.cal-day') : null;
+            if (!btn || btn.classList.contains('disabled')) return;
+            const ds = btn.dataset.ds || '';
+            if (!ds) return;
+
+            _syncCalGesture.pointerId = e.pointerId;
+            _syncCalGesture.downDs = ds;
+            _syncCalGesture.dragging = false;
+            _syncCalGesture.baseSet = null;
+            _syncCalGesture.op = '';
+            _syncCalGesture.lastHover = '';
+
+            if (_syncCalGesture.timer) clearTimeout(_syncCalGesture.timer);
+            _syncCalGesture.timer = setTimeout(() => {
+                if (_syncCalGesture.pointerId !== e.pointerId) return;
+                _syncCalGesture.dragging = true;
+                syncEnsureAllHistoryOff();
+                _syncCalGesture.baseSet = new Set(syncState.selectedSet);
+                _syncCalGesture.op = _syncCalGesture.baseSet.has(ds) ? 'remove' : 'add';
+                syncApplyDragTo(ds);
+            }, 260);
+
+            try { syncEls.calGrid.setPointerCapture(e.pointerId); } catch (err) {}
+        });
+
+        syncEls.calGrid.addEventListener('pointermove', (e) => {
+            if (_syncCalGesture.pointerId !== e.pointerId) return;
+            if (!_syncCalGesture.dragging) return;
+            const el = document.elementFromPoint(e.clientX, e.clientY);
+            const btn = el && el.closest ? el.closest('#syncCalGrid .cal-day') : null;
+            if (!btn || btn.classList.contains('disabled')) return;
+            const ds = btn.dataset.ds || '';
+            if (!ds) return;
+            syncApplyDragTo(ds);
+        });
+
+        syncEls.calGrid.addEventListener('pointerup', (e) => {
+            if (_syncCalGesture.pointerId !== e.pointerId) return;
+            const ds = _syncCalGesture.downDs;
+            const wasDragging = _syncCalGesture.dragging;
+            if (_syncCalGesture.timer) clearTimeout(_syncCalGesture.timer);
+            _syncCalGesture.timer = null;
+            if (!wasDragging) {
+                syncSelectSingleDate(ds);
+            }
+            end();
+        });
+
+        syncEls.calGrid.addEventListener('pointercancel', end);
+        syncEls.calGrid.addEventListener('lostpointercapture', end);
+    }
+
+    function syncUpdateDateStats() {
+        if (syncEls.availDays) syncEls.availDays.textContent = String(syncState.availableDates.length || 0);
+        const allHistory = !!(syncEls.allHistory && syncEls.allHistory.checked);
+        const selectedCount = allHistory ? (syncState.availableDates.length || 0) : syncState.selectedSet.size;
+        if (syncEls.selectedDays) syncEls.selectedDays.textContent = String(selectedCount || 0);
+        if (syncEls.dateHint) {
+            if (!syncState.minDate || !syncState.maxDate) syncEls.dateHint.textContent = '';
+            else if (allHistory) syncEls.dateHint.textContent = `日期范围：${syncState.minDate} - ${syncState.maxDate}`;
+            else syncEls.dateHint.textContent = selectedCount ? `已选 ${selectedCount} 天` : '请选择日期';
+        }
+    }
+
+    async function syncLoadAvailableDates() {
+        const uuid = syncEls.device ? String(syncEls.device.value || '') : '';
+        if (!uuid) throw new Error('请选择设备');
+        const res = await fetch(`/api/v1/activity/walkin/dates?uuid=${encodeURIComponent(uuid)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        const dates = (json && Array.isArray(json.dates)) ? json.dates.map(String) : [];
+        syncState.availableDates = dates;
+        syncState.availableSet = new Set(dates);
+        syncState.selectedSet = new Set();
+        syncState.minDate = json && json.min_date ? String(json.min_date) : (dates[0] || '');
+        syncState.maxDate = json && json.max_date ? String(json.max_date) : (dates[dates.length - 1] || '');
+
+        const base = parseYmd(syncState.maxDate) || new Date();
+        syncState.calYear = base.getFullYear();
+        syncState.calMonth = base.getMonth();
+
+        syncUpdateDateStats();
+        syncRenderCalendar();
+        syncUpdateButtons();
+    }
+
+    async function syncLoadPreview() {
+        const uuid = syncEls.device ? String(syncEls.device.value || '') : '';
+        if (!uuid) throw new Error('请选择设备');
+        const allHistory = !!(syncEls.allHistory && syncEls.allHistory.checked);
+
+        let payload = { devices: [uuid] };
+        let url = '';
+        if (allHistory) {
+            if (!syncState.minDate || !syncState.maxDate) return [];
+            payload.start = `${syncState.minDate} 00:00:00`;
+            payload.end = `${syncState.maxDate} 23:59:59`;
+            url = '/api/v1/activity/walkin/preview';
+        } else {
+            const dates = Array.from(syncState.selectedSet).sort();
+            payload.dates = dates;
+            url = '/api/v1/activity/walkin/preview-dates';
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        const items = (json && Array.isArray(json.items)) ? json.items : [];
+        syncState.previewData = items;
+
+        if (syncEls.previewTotal) syncEls.previewTotal.textContent = String(items.length || 0);
+        if (syncEls.previewDateRange) {
+            const ds = items.map(x => x && x.date ? String(x.date) : '').filter(Boolean).sort();
+            syncEls.previewDateRange.textContent = ds.length ? `${ds[0]} - ${ds[ds.length - 1]}` : '-';
+        }
+        if (syncEls.previewBody) {
+            if (items.length === 0) {
+                syncEls.previewBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-secondary)">无数据</td></tr>';
+            } else {
+                const rows = items.slice(0, 10).map(r => {
+                    const date = r.date || '';
+                    const time = `${r.start_time || ''}-${r.end_time || ''}`;
+                    const loc = r.location || '';
+                    const cnt = (r.audience_count ?? '');
+                    return `<tr><td>${date}</td><td>${time}</td><td>${loc}</td><td>${cnt}</td></tr>`;
+                }).join('');
+                syncEls.previewBody.innerHTML = rows;
+            }
+        }
+        syncUpdateButtons();
+        return items;
+    }
+
+    function syncResetProgress() {
+        syncState.duplicates = [];
+        syncState.count = 0;
+        syncState.inserted = 0;
+        syncState.updated = 0;
+        syncState.syncing = false;
+        if (syncEls.progressRing) syncEls.progressRing.style.setProperty('--percent', 0);
+        if (syncEls.progressPercent) syncEls.progressPercent.textContent = '0%';
+        if (syncEls.progressStatus) syncEls.progressStatus.textContent = '准备同步...';
+        if (syncEls.progressCount) syncEls.progressCount.textContent = '已处理 0 / 0';
+        if (syncEls.progressTime) syncEls.progressTime.textContent = '预计剩余时间: --';
+        if (syncEls.progressResult) syncEls.progressResult.textContent = '';
+    }
+
+    async function syncStartSync() {
+        const total = syncState.previewData.length;
+        if (total === 0) return;
+
+        syncState.syncing = true;
+        syncUpdateButtons();
+        if (syncEls.progressStatus) syncEls.progressStatus.textContent = '同步中...';
+        if (syncEls.btnCancel) syncEls.btnCancel.disabled = true;
+
+        const startTime = Date.now();
+        let processed = 0;
+        const CHUNK_SIZE = 500;
+
+        for (let i = 0; i < total; i += CHUNK_SIZE) {
+            const chunk = syncState.previewData.slice(i, i + CHUNK_SIZE);
+            const res = await fetch('/api/v1/activity/walkin/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: chunk, mode: 'skip' })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const json = await res.json();
+            const dupIdx = Array.isArray(json.duplicates) ? json.duplicates : [];
+            dupIdx.forEach(idx => {
+                if (idx >= 0 && idx < chunk.length) syncState.duplicates.push(chunk[idx]);
+            });
+            syncState.count += Number(json.count || 0);
+            syncState.inserted += Number(json.inserted || 0);
+            syncState.updated += Number(json.updated || 0);
+            processed += chunk.length;
+
+            const percent = Math.min(100, Math.round((processed / total) * 100));
+            if (syncEls.progressRing) syncEls.progressRing.style.setProperty('--percent', percent);
+            if (syncEls.progressPercent) syncEls.progressPercent.textContent = percent + '%';
+            if (syncEls.progressCount) syncEls.progressCount.textContent = `已处理 ${processed} / ${total}`;
+
+            const elapsed = Date.now() - startTime;
+            if (processed > 0 && syncEls.progressTime) {
+                const speed = processed / Math.max(1, elapsed);
+                const remaining = total - processed;
+                const etaMs = remaining / Math.max(1e-9, speed);
+                syncEls.progressTime.textContent = `预计剩余时间: ${(etaMs / 1000).toFixed(1)}s`;
+            }
+            await new Promise(r => setTimeout(r, 30));
+        }
+
+        syncState.syncing = false;
+
+        if (syncState.duplicates.length > 0) {
+            if (syncEls.progressStatus) syncEls.progressStatus.textContent = `发现 ${syncState.duplicates.length} 条重复数据`;
+            if (syncEls.progressTime) syncEls.progressTime.textContent = '请选择处理方式';
+            syncEls.btnSkip.classList.remove('hidden');
+            syncEls.btnOverwrite.classList.remove('hidden');
+            syncEls.btnCancel.disabled = false;
+            return;
+        }
+
+        syncFinish();
+    }
+
+    function syncFinish() {
+        if (syncEls.progressStatus) syncEls.progressStatus.textContent = '同步完成!';
+        if (syncEls.progressTime) syncEls.progressTime.textContent = '';
+        if (syncEls.progressResult) syncEls.progressResult.textContent = `成功同步 ${syncState.count} 条数据`;
+        syncEls.btnFinish.classList.remove('hidden');
+        syncEls.btnCancel.classList.add('hidden');
+        syncEls.btnPrev.classList.add('hidden');
+        syncEls.btnNext.classList.add('hidden');
+        syncEls.btnStart.classList.add('hidden');
+        syncEls.btnSkip.classList.add('hidden');
+        syncEls.btnOverwrite.classList.add('hidden');
+        loadData();
+    }
+
+    async function syncOverwriteDuplicates() {
+        const total = syncState.duplicates.length;
+        if (total === 0) return syncFinish();
+
+        syncState.syncing = true;
+        syncUpdateButtons();
+        if (syncEls.progressStatus) syncEls.progressStatus.textContent = '正在覆盖重复数据...';
+        syncEls.btnSkip.classList.add('hidden');
+        syncEls.btnOverwrite.classList.add('hidden');
+        syncEls.btnCancel.disabled = true;
+
+        let processed = 0;
+        const CHUNK_SIZE = 500;
+        const startTime = Date.now();
+
+        for (let i = 0; i < total; i += CHUNK_SIZE) {
+            const chunk = syncState.duplicates.slice(i, i + CHUNK_SIZE);
+            const res = await fetch('/api/v1/activity/walkin/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: chunk, mode: 'overwrite' })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const json = await res.json();
+            syncState.count += Number(json.count || 0);
+            syncState.inserted += Number(json.inserted || 0);
+            syncState.updated += Number(json.updated || 0);
+            processed += chunk.length;
+
+            const percent = Math.min(100, Math.round((processed / total) * 100));
+            if (syncEls.progressRing) syncEls.progressRing.style.setProperty('--percent', percent);
+            if (syncEls.progressPercent) syncEls.progressPercent.textContent = percent + '%';
+            if (syncEls.progressCount) syncEls.progressCount.textContent = `覆盖进度 ${processed} / ${total}`;
+
+            const elapsed = Date.now() - startTime;
+            if (processed > 0 && syncEls.progressTime) {
+                const speed = processed / Math.max(1, elapsed);
+                const remaining = total - processed;
+                const etaMs = remaining / Math.max(1e-9, speed);
+                syncEls.progressTime.textContent = `预计剩余时间: ${(etaMs / 1000).toFixed(1)}s`;
+            }
+            await new Promise(r => setTimeout(r, 30));
+        }
+
+        syncState.syncing = false;
+        syncFinish();
+    }
+
+    function syncOpen() {
+        syncState.step = 1;
+        syncState.availableDates = [];
+        syncState.availableSet = new Set();
+        syncState.selectedSet = new Set();
+        syncState.previewData = [];
+        syncState.duplicates = [];
+        syncResetProgress();
+        syncUpdateDateStats();
+        if (syncEls.previewTotal) syncEls.previewTotal.textContent = '0';
+        if (syncEls.previewDateRange) syncEls.previewDateRange.textContent = '-';
+        if (syncEls.previewBody) syncEls.previewBody.innerHTML = '';
+        if (syncEls.allHistory) syncEls.allHistory.checked = true;
+        syncSetStep(1);
+        syncModal.classList.add('show');
+    }
+
+    document.getElementById('btnSync').addEventListener('click', async () => {
+        try {
+            if (!_syncDevicesLoaded) await loadSyncDevices();
+            syncOpen();
+        } catch (e) {
+            showAlert('加载设备列表失败');
+        }
+    });
+
+    if (syncEls.device) {
+        syncEls.device.addEventListener('change', () => syncUpdateButtons());
+    }
+    if (syncEls.allHistory) {
+        syncEls.allHistory.addEventListener('change', () => {
+            if (syncEls.allHistory.checked) syncState.selectedSet = new Set();
+            syncUpdateDateStats();
+            syncRenderCalendar();
+            syncUpdateButtons();
+        });
+    }
+    if (syncEls.pickAll) {
+        syncEls.pickAll.addEventListener('click', () => {
+            if (syncEls.allHistory && syncEls.allHistory.checked) return;
+            syncState.selectedSet = new Set(syncState.availableDates);
+            syncUpdateDateStats();
+            syncRenderCalendar();
+            syncUpdateButtons();
+        });
+    }
+    if (syncEls.clearDates) {
+        syncEls.clearDates.addEventListener('click', () => {
+            if (syncEls.allHistory && syncEls.allHistory.checked) return;
+            syncState.selectedSet = new Set();
+            syncUpdateDateStats();
+            syncRenderCalendar();
+            syncUpdateButtons();
+        });
+    }
+    if (syncEls.calPrev) {
+        syncEls.calPrev.addEventListener('click', () => {
+            syncState.calMonth -= 1;
+            if (syncState.calMonth < 0) {
+                syncState.calMonth = 11;
+                syncState.calYear -= 1;
+            }
+            syncRenderCalendar();
+        });
+    }
+    if (syncEls.calNext) {
+        syncEls.calNext.addEventListener('click', () => {
+            syncState.calMonth += 1;
+            if (syncState.calMonth > 11) {
+                syncState.calMonth = 0;
+                syncState.calYear += 1;
+            }
+            syncRenderCalendar();
+        });
+    }
+    if (syncEls.calYear) {
+        syncEls.calYear.addEventListener('change', () => {
+            syncState.calYear = parseInt(syncEls.calYear.value, 10);
+            syncRenderCalendar();
+        });
+    }
+    if (syncEls.calMonth) {
+        syncEls.calMonth.addEventListener('change', () => {
+            syncState.calMonth = parseInt(syncEls.calMonth.value, 10);
+            syncRenderCalendar();
+        });
+    }
+
+    syncBindCalendarGestures();
+
+    syncEls.btnCancel.addEventListener('click', () => {
+        if (syncState.syncing) return;
+        syncModal.classList.remove('show');
+    });
+    syncEls.btnPrev.addEventListener('click', () => {
+        if (syncState.syncing) return;
+        if (syncState.step === 2) syncSetStep(1);
+        else if (syncState.step === 3) syncSetStep(2);
+    });
+    syncEls.btnNext.addEventListener('click', async () => {
+        if (syncState.syncing) return;
+        try {
+            if (syncState.step === 1) {
+                await syncLoadAvailableDates();
+                if (syncState.availableDates.length === 0) {
+                    await showAlert('该设备暂无可同步数据');
+                    return;
+                }
+                syncSetStep(2);
+                return;
+            }
+            if (syncState.step === 2) {
+                await syncLoadPreview();
+                syncSetStep(3);
+                return;
+            }
+        } catch (e) {
+            showAlert(String(e && e.message ? e.message : e));
+        }
+    });
+    syncEls.btnStart.addEventListener('click', async () => {
+        if (syncState.syncing) return;
+        try {
+            syncResetProgress();
+            syncSetStep(4);
+            await syncStartSync();
+        } catch (e) {
+            if (syncEls.progressStatus) syncEls.progressStatus.textContent = '同步出错: ' + String(e && e.message ? e.message : e);
+            syncState.syncing = false;
+            syncEls.btnCancel.disabled = false;
+        }
+    });
+    syncEls.btnSkip.addEventListener('click', () => {
+        syncFinish();
+    });
+    syncEls.btnOverwrite.addEventListener('click', async () => {
+        try {
+            await syncOverwriteDuplicates();
+        } catch (e) {
+            if (syncEls.progressStatus) syncEls.progressStatus.textContent = '覆盖出错: ' + String(e && e.message ? e.message : e);
+            syncState.syncing = false;
+            syncEls.btnCancel.disabled = false;
+        }
+    });
+    syncEls.btnFinish.addEventListener('click', () => {
+        syncModal.classList.remove('show');
+        syncEls.btnCancel.classList.remove('hidden');
+        syncEls.btnCancel.textContent = '取消';
+        loadData();
     });
     
     window.deleteItem = async (id) => {

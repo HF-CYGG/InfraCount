@@ -1,11 +1,12 @@
 import io
+import asyncio
 import logging
 import difflib
 import csv
 import json
 import re
 import uuid as uuidlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, Request, Response
@@ -21,6 +22,23 @@ from app.matcher import matcher
 app = FastAPI(title="InfraCount API", version="1.0.0")
 
 _LOG_IMPORT_CACHE: Dict[str, Dict[str, Any]] = {}
+_AUTO_SYNC_TASK: Optional[asyncio.Task] = None
+
+async def _auto_sync_walkin_loop():
+    while True:
+        try:
+            if config.AUTO_SYNC_WALKIN_BACKFILL_DAYS < 1:
+                days = 1
+            else:
+                days = config.AUTO_SYNC_WALKIN_BACKFILL_DAYS
+
+            today = datetime.now().date()
+            for i in range(days):
+                d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+                await db.activity_sync_visitors(date=d)
+        except Exception:
+            logging.exception("auto sync walkin failed")
+        await asyncio.sleep(max(5, int(config.AUTO_SYNC_WALKIN_INTERVAL_SEC)))
 
 def _log_import_cleanup(now_ts: float, max_age_sec: int = 3600) -> None:
     expired = []
@@ -436,9 +454,20 @@ async def startup_event():
         await db.init_sqlite()
     else:
         await db.init_pool()
+    global _AUTO_SYNC_TASK
+    if config.AUTO_SYNC_WALKIN_ENABLE and _AUTO_SYNC_TASK is None:
+        _AUTO_SYNC_TASK = asyncio.create_task(_auto_sync_walkin_loop())
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    global _AUTO_SYNC_TASK
+    if _AUTO_SYNC_TASK is not None:
+        _AUTO_SYNC_TASK.cancel()
+        try:
+            await _AUTO_SYNC_TASK
+        except BaseException:
+            pass
+        _AUTO_SYNC_TASK = None
     await db.close_pool()
 
 # --- Auth ---
@@ -780,12 +809,35 @@ async def walkin_preview(payload: Dict[str, Any] = Body(...)):
     items = await db.walkin_preview(devices, start, end)
     return {"items": items}
 
+@app.get("/api/v1/activity/walkin/dates")
+async def walkin_dates(
+    uuid: Optional[str] = None,
+    devices: Optional[str] = None
+):
+    devs = []
+    if uuid:
+        devs = [uuid]
+    elif devices:
+        devs = [d.strip() for d in str(devices).split(",") if d.strip()]
+    return await db.walkin_available_dates(devs)
+
+@app.post("/api/v1/activity/walkin/preview-dates")
+async def walkin_preview_dates(payload: Dict[str, Any] = Body(...)):
+    devices = payload.get("devices", [])
+    dates = payload.get("dates", [])
+    items = await db.walkin_preview_by_dates(devices, dates)
+    return {"items": items}
+
 @app.post("/api/v1/activity/walkin/sync")
 async def walkin_sync(payload: Dict[str, Any] = Body(...)):
     items = payload.get("items", [])
     mode = payload.get("mode", "skip")
     result = await db.activity_bulk_insert(items, mode=mode)
-    return result
+    if isinstance(result, dict):
+        inserted = int(result.get("inserted") or 0)
+        updated = int(result.get("updated") or 0)
+        return {**result, "count": inserted}
+    return {"count": int(result or 0), "inserted": int(result or 0), "updated": 0, "duplicates": []}
 
 # --- Stats ---
 
@@ -1128,9 +1180,16 @@ async def activity_stats(
 @app.post("/api/v1/activity/sync-visitors")
 async def api_activity_sync_visitors(payload: Dict[str, Any] = Body(...)):
     date = payload.get("date")
-    if not date: raise HTTPException(400, "Missing date")
-    count = await db.activity_sync_visitors(date)
-    return {"count": count}
+    devices = payload.get("devices")
+    start = payload.get("start")
+    end = payload.get("end")
+    mode = payload.get("mode") or "overwrite"
+    if not date and not start and not end and not devices:
+        raise HTTPException(400, "Missing date/devices/start/end")
+    res = await db.activity_sync_visitors(date=date, devices=devices, start=start, end=end, mode=mode)
+    if isinstance(res, dict):
+        return res
+    return {"count": int(res or 0), "skipped": []}
 
 @app.delete("/api/v1/activity/{id}")
 async def api_activity_delete(id: int):
