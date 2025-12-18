@@ -346,3 +346,26 @@ Traceback (most recent call last):
 2025-12-10 20:59:03,623 INFO root TCP Server stopped by signal.
 2025-12-10 20:59:10,156 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
 2025-12-10 20:59:10,158 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-16 17:28:48,620 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-16 17:28:48,622 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-17 22:43:52,186 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-17 22:43:52,186 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-19 00:24:57,744 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-19 00:24:57,744 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-19 00:47:46,989 INFO root TCP Server stopped by signal.
+2025-12-19 00:47:49,104 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-19 00:47:49,104 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-19 00:50:37,447 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 158, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+2025-12-19 00:50:40,491 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-19 00:50:40,491 INFO root TCP Server listening on 0.0.0.0:8085
+2025-12-19 01:15:45,564 INFO root TCP Server stopped by signal.
+Traceback (most recent call last):
+  File "E:\项目\InfraCount\tcp_server.py", line 158, in <module>
+    asyncio.run(main())
+  File "E:\python310\lib\asyncio\runners.py", line 44, in run
+2025-12-19 01:15:47,121 INFO root Migration: sort_order column might already exist or failed: duplicate column name: sort_order
+2025-12-19 01:15:47,137 INFO root TCP Server listening on 0.0.0.0:8085

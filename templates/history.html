@@ -265,6 +265,87 @@
     </div>
 </div>
 
+<div id="logImportModal" class="modal-backdrop" style="z-index:1200">
+    <div class="modal" style="width:900px;max-width:95vw">
+        <h3>导入设备返回数据日志</h3>
+
+        <div id="logImportStepSelect">
+            <div class="card" style="background:var(--bg-subtle); padding:12px; border-radius:8px; margin-bottom:12px; box-shadow:none; border:1px solid var(--border);">
+                <div class="flex items-center gap-2" style="flex-wrap:wrap">
+                    <input id="logImportFile" type="file" class="input" style="max-width:420px" accept=".log,.txt,.csv,.json">
+                    <span id="logImportHint" class="text-sm text-muted">支持 TXT/LOG/CSV/JSON</span>
+                </div>
+            </div>
+
+            <div id="logImportLoading" class="text-sm text-muted" style="display:none; margin-bottom:12px">正在解析日志文件...</div>
+
+            <div id="logImportPreview" style="display:none">
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">文件</div>
+                        <div id="logImportMetaFile" style="font-weight:600"></div>
+                    </div>
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">识别格式</div>
+                        <div id="logImportMetaFmt" style="font-weight:600"></div>
+                    </div>
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">可导入记录数</div>
+                        <div id="logImportMetaTotal" style="font-weight:600"></div>
+                    </div>
+                </div>
+
+                <h4 style="margin:8px 0 8px 0">包含设备与时间段</h4>
+                <div class="table-wrap scroll-y" style="max-height:220px;margin-bottom:12px">
+                    <table style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>设备</th>
+                                <th>条数</th>
+                                <th>起始时间</th>
+                                <th>结束时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logImportDeviceTable"></tbody>
+                    </table>
+                </div>
+
+                <h4 style="margin:8px 0 8px 0">样例数据</h4>
+                <div class="table-wrap scroll-y" style="max-height:260px">
+                    <table style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>UUID</th>
+                                <th>时间</th>
+                                <th>IN</th>
+                                <th>OUT</th>
+                                <th>电量</th>
+                                <th>Tx电量</th>
+                                <th>信号</th>
+                                <th>告警</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logImportSampleTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="logImportStepProgress" style="display:none">
+            <div class="text-sm text-muted" style="margin-bottom:12px">正在导入，请勿关闭页面</div>
+            <div style="height:10px;border-radius:999px;background:var(--bg-subtle);border:1px solid var(--border);overflow:hidden">
+                <div id="logImportProgressBar" style="height:100%;width:0%;background:var(--primary)"></div>
+            </div>
+            <div id="logImportProgressText" class="text-sm" style="margin-top:8px"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="logImportCancel">取消</button>
+            <button class="btn btn-primary" id="logImportStart" disabled>确定导入</button>
+        </div>
+    </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="/static/layout.js?v=auth_v4"></script>
@@ -327,9 +408,175 @@
         mergeConfirmBtn: document.getElementById('mergeConfirmBtn')
     };
 
+    const logImportEls = {
+        openBtn: document.getElementById('dataCompletion'),
+        modal: document.getElementById('logImportModal'),
+        file: document.getElementById('logImportFile'),
+        hint: document.getElementById('logImportHint'),
+        loading: document.getElementById('logImportLoading'),
+        preview: document.getElementById('logImportPreview'),
+        metaFile: document.getElementById('logImportMetaFile'),
+        metaFmt: document.getElementById('logImportMetaFmt'),
+        metaTotal: document.getElementById('logImportMetaTotal'),
+        deviceTable: document.getElementById('logImportDeviceTable'),
+        sampleTable: document.getElementById('logImportSampleTable'),
+        stepSelect: document.getElementById('logImportStepSelect'),
+        stepProgress: document.getElementById('logImportStepProgress'),
+        bar: document.getElementById('logImportProgressBar'),
+        progressText: document.getElementById('logImportProgressText'),
+        cancel: document.getElementById('logImportCancel'),
+        start: document.getElementById('logImportStart')
+    };
+
     let deviceMap = {};
     let currentEditId = null;
     let mergePlan = { creates: [], updates: [] }; // Stores pending actions
+
+    let logImportState = { importing: false, importId: '', total: 0, filename: '' };
+
+    function resetLogImportUi() {
+        logImportState = { importing: false, importId: '', total: 0, filename: '' };
+        if (logImportEls.file) logImportEls.file.value = '';
+        if (logImportEls.loading) logImportEls.loading.style.display = 'none';
+        if (logImportEls.preview) logImportEls.preview.style.display = 'none';
+        if (logImportEls.stepSelect) logImportEls.stepSelect.style.display = 'block';
+        if (logImportEls.stepProgress) logImportEls.stepProgress.style.display = 'none';
+        if (logImportEls.bar) logImportEls.bar.style.width = '0%';
+        if (logImportEls.progressText) logImportEls.progressText.textContent = '';
+        if (logImportEls.deviceTable) logImportEls.deviceTable.innerHTML = '';
+        if (logImportEls.sampleTable) logImportEls.sampleTable.innerHTML = '';
+        if (logImportEls.start) logImportEls.start.disabled = true;
+        if (logImportEls.cancel) logImportEls.cancel.disabled = false;
+        if (logImportEls.file) logImportEls.file.disabled = false;
+    }
+
+    function openLogImportModal() {
+        resetLogImportUi();
+        if (logImportEls.modal) logImportEls.modal.classList.add('show');
+    }
+
+    function closeLogImportModal() {
+        if (logImportState.importing) return;
+        if (logImportEls.modal) logImportEls.modal.classList.remove('show');
+    }
+
+    function renderLogImportPreview(data) {
+        logImportState.importId = data.import_id || '';
+        logImportState.total = data.total_records || 0;
+        logImportState.filename = data.filename || '';
+
+        logImportEls.metaFile.textContent = data.filename || '';
+        logImportEls.metaFmt.textContent = data.detected_format || '';
+        logImportEls.metaTotal.textContent = String(data.total_records || 0);
+
+        const devices = Array.isArray(data.devices) ? data.devices : [];
+        logImportEls.deviceTable.innerHTML = devices.map(d => {
+            const label = d.name ? `${d.name} (${d.uuid})` : (d.uuid || '');
+            const cat = d.category ? ` <span class="text-muted">/ ${d.category}</span>` : '';
+            return `
+                <tr>
+                    <td>${label}${cat}</td>
+                    <td>${d.count || 0}</td>
+                    <td>${d.start || ''}</td>
+                    <td>${d.end || ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const sample = Array.isArray(data.sample) ? data.sample : [];
+        logImportEls.sampleTable.innerHTML = sample.map(r => `
+            <tr>
+                <td>${r.uuid || ''}</td>
+                <td>${r.time || ''}</td>
+                <td>${r.in_count ?? ''}</td>
+                <td>${r.out_count ?? ''}</td>
+                <td>${r.battery ?? ''}</td>
+                <td>${r.btx ?? ''}</td>
+                <td>${r.signal_strength ?? ''}</td>
+                <td>${r.warn_status ?? ''}</td>
+            </tr>
+        `).join('');
+
+        logImportEls.preview.style.display = 'block';
+        logImportEls.start.disabled = !(logImportState.importId && logImportState.total > 0);
+    }
+
+    async function previewDeviceLogFile(file) {
+        if (!file) return;
+        logImportEls.loading.style.display = 'block';
+        logImportEls.preview.style.display = 'none';
+        logImportEls.start.disabled = true;
+
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/v1/admin/device-log/preview', { method: 'POST', body: fd });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            renderLogImportPreview(data);
+        } catch (e) {
+            await showAlert('解析失败: ' + (e && e.message ? e.message : '未知错误'));
+        } finally {
+            logImportEls.loading.style.display = 'none';
+        }
+    }
+
+    async function runLogImport() {
+        if (!logImportState.importId || !logImportState.total) return;
+        const ok = await showConfirm(`确认导入 ${logImportState.total} 条记录？`);
+        if (!ok) return;
+
+        logImportState.importing = true;
+        logImportEls.cancel.disabled = true;
+        logImportEls.file.disabled = true;
+        logImportEls.start.disabled = true;
+        logImportEls.stepSelect.style.display = 'none';
+        logImportEls.stepProgress.style.display = 'block';
+
+        const total = logImportState.total;
+        const limit = 500;
+        let offset = 0;
+        let imported = 0;
+
+        while (offset < total) {
+            const res = await fetch('/api/v1/admin/device-log/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ import_id: logImportState.importId, offset: offset, limit: limit })
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                logImportState.importing = false;
+                logImportEls.cancel.disabled = false;
+                logImportEls.stepSelect.style.display = 'block';
+                logImportEls.stepProgress.style.display = 'none';
+                throw new Error(t || '导入失败');
+            }
+            const data = await res.json();
+            imported += data.imported || 0;
+            offset = data.next_offset || (offset + limit);
+
+            const pct = total ? Math.min(100, Math.round((imported / total) * 100)) : 0;
+            logImportEls.bar.style.width = pct + '%';
+            logImportEls.progressText.textContent = `已导入 ${imported} / ${total} (${pct}%)`;
+        }
+
+        logImportState.importing = false;
+        await showAlert(`导入成功：${total} 条记录`);
+        closeLogImportModal();
+        loadHistory();
+    }
+
+    if (logImportEls.openBtn) logImportEls.openBtn.addEventListener('click', openLogImportModal);
+    if (logImportEls.cancel) logImportEls.cancel.addEventListener('click', closeLogImportModal);
+    if (logImportEls.file) logImportEls.file.addEventListener('change', (e) => previewDeviceLogFile(e.target.files && e.target.files[0]));
+    if (logImportEls.start) logImportEls.start.addEventListener('click', async () => {
+        try {
+            await runLogImport();
+        } catch (e) {
+            await showAlert('导入失败: ' + (e && e.message ? e.message : '未知错误'));
+        }
+    });
 
     async function loadDevices() {
         const mapRes = await fetch('/api/v1/devices/mapping');

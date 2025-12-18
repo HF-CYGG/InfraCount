@@ -1641,6 +1641,17 @@ async def admin_get_record_ids(uuid=None, start=None, end=None):
     rows = await run_query(sql, params)
     return [r[0] for r in rows]
 
+async def admin_get_record_id_map_by_times(uuid: str, times: list):
+    if not uuid or not times:
+        return {}
+
+    placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(times))
+    sql = f"SELECT id, time FROM records WHERE uuid = {'?' if use_sqlite() else '%s'} AND time IN ({placeholders})"
+    params = [uuid]
+    params.extend(times)
+    rows = await run_query(sql, params)
+    return {str(r[1]): r[0] for r in rows}
+
 async def admin_batch_delete(ids):
     if not ids: return
     placeholders = ",".join(["?" if use_sqlite() else "%s"] * len(ids))
