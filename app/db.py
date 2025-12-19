@@ -350,10 +350,30 @@ async def init_sqlite():
             uuid TEXT,
             type TEXT,
             level INTEGER,
+            status INTEGER DEFAULT 0,
             info TEXT,
-            time DATETIME DEFAULT CURRENT_TIMESTAMP
+            time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            notified INTEGER DEFAULT 0,
+            notified_at DATETIME,
+            notify_error TEXT
         )
     """)
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN status INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN notified INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN notified_at DATETIME")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN notify_error TEXT")
+    except Exception:
+        pass
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS location_academy (
             location_name TEXT PRIMARY KEY,
@@ -513,10 +533,30 @@ async def init_pool():
                         uuid VARCHAR(64),
                         type VARCHAR(64),
                         level INT,
+                        status INT DEFAULT 0,
                         info TEXT,
-                        time DATETIME DEFAULT CURRENT_TIMESTAMP
+                        time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        notified INT DEFAULT 0,
+                        notified_at DATETIME NULL,
+                        notify_error TEXT
                     )
                 """)
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN status INT DEFAULT 0")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN notified INT DEFAULT 0")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN notified_at DATETIME NULL")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN notify_error TEXT")
+                except Exception:
+                    pass
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS location_academy (
                         location_name VARCHAR(128) PRIMARY KEY,
@@ -566,20 +606,25 @@ async def fetch_latest():
                 await cur.execute(sql)
                 return await cur.fetchall()
 
-async def fetch_history(uuid=None, start=None, end=None, limit=100):
+async def fetch_history(uuid=None, start=None, end=None, limit=100, order: str = "desc", sort_by: str = "time"):
     where = ["1=1"]
     params = []
     if uuid:
         where.append("uuid = ?" if use_sqlite() else "uuid = %s")
         params.append(uuid)
+    sort_by_norm = str(sort_by or "").strip().lower()
+    col = "created_at" if sort_by_norm == "created_at" else "time"
+
     if start:
-        where.append("time >= ?" if use_sqlite() else "time >= %s")
+        where.append(f"{col} >= ?" if use_sqlite() else f"{col} >= %s")
         params.append(start)
     if end:
-        where.append("time <= ?" if use_sqlite() else "time <= %s")
+        where.append(f"{col} <= ?" if use_sqlite() else f"{col} <= %s")
         params.append(end)
-        
-    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY time DESC LIMIT {limit}"
+
+    order_norm = str(order or "").strip().lower()
+    order_sql = "ASC" if order_norm == "asc" else "DESC"
+    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY {col} {order_sql} LIMIT {limit}"
     
     if use_sqlite():
         if not _sqlite: await init_sqlite()
@@ -1316,6 +1361,64 @@ async def list_alerts(uuid=None, limit=100):
             async with conn.cursor(aiomysql.DictCursor) as cur:
                 await cur.execute(sql, params)
                 return await cur.fetchall()
+
+async def list_unnotified_critical_alerts(limit: int = 20):
+    sql = f"SELECT * FROM alerts WHERE level >= 2 AND (status IS NULL OR status = 0) AND (notified IS NULL OR notified = 0) ORDER BY time DESC LIMIT {int(limit or 0)}"
+    params: list = []
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(row) for row in rows]
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql, params)
+                return await cur.fetchall()
+
+async def mark_alert_notified(alert_id: int, status: int = 1, error: str | None = None):
+    sid = int(alert_id)
+    st = int(status)
+    err = (str(error)[:800] if error else None)
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(
+            "UPDATE alerts SET notified=?, notified_at=CURRENT_TIMESTAMP, notify_error=? WHERE id=?",
+            (st, err, sid),
+        )
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE alerts SET notified=%s, notified_at=NOW(), notify_error=%s WHERE id=%s",
+                    (st, err, sid),
+                )
+                return True
+
+async def set_alert_status(alert_id: int, status: int = 1):
+    sid = int(alert_id)
+    st = int(status)
+    if use_sqlite():
+        if not _sqlite: await init_sqlite()
+        await _sqlite.execute(
+            "UPDATE alerts SET status=? WHERE id=?",
+            (st, sid),
+        )
+        await _sqlite.commit()
+        return True
+    else:
+        if not _pool: await init_pool()
+        async with _pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE alerts SET status=%s WHERE id=%s",
+                    (st, sid),
+                )
+                return True
 
 # --- Activity Events (Preserved) ---
 

@@ -4,11 +4,14 @@ import logging
 import difflib
 import csv
 import json
+import smtplib
+import ssl
 import re
 import uuid as uuidlib
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 from typing import List, Optional, Dict, Any
+from email.message import EmailMessage
 from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, Request, Response
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +26,99 @@ app = FastAPI(title="InfraCount API", version="1.0.0")
 
 _LOG_IMPORT_CACHE: Dict[str, Dict[str, Any]] = {}
 _AUTO_SYNC_TASK: Optional[asyncio.Task] = None
+_ALERT_EMAIL_TASK: Optional[asyncio.Task] = None
+
+def _parse_mail_list(v: str) -> List[str]:
+    s = str(v or "").strip()
+    if not s:
+        return []
+    out = []
+    for it in s.replace(";", ",").split(","):
+        e = it.strip()
+        if e:
+            out.append(e)
+    return out
+
+def _build_alert_mail(alert: Dict[str, Any]) -> EmailMessage:
+    uuid = str(alert.get("uuid") or "")
+    a_type = str(alert.get("type") or "")
+    level = str(alert.get("level") or "")
+    time_s = str(alert.get("time") or "")
+    info = str(alert.get("info") or "")
+
+    msg = EmailMessage()
+    msg["Subject"] = f"{config.SMTP_SUBJECT_PREFIX} 严重告警 {uuid} {a_type}".strip()
+    msg["From"] = config.SMTP_FROM
+    to_list = _parse_mail_list(config.SMTP_TO)
+    msg["To"] = ", ".join(to_list)
+    msg.set_content(
+        "\n".join([
+            "InfraCount 严重告警提醒",
+            "",
+            f"设备UUID: {uuid}",
+            f"类型: {a_type}",
+            f"等级: {level}",
+            f"时间: {time_s}",
+            f"信息: {info}",
+        ])
+    )
+    return msg
+
+def _send_mail_sync(msg: EmailMessage) -> None:
+    host = str(config.SMTP_HOST or "").strip()
+    port = int(config.SMTP_PORT or 0)
+    user = str(config.SMTP_USERNAME or "").strip()
+    password = str(config.SMTP_PASSWORD or "")
+
+    if not host or not port:
+        raise RuntimeError("SMTP not configured")
+    if not msg.get("From"):
+        raise RuntimeError("SMTP_FROM not configured")
+    if not msg.get("To"):
+        raise RuntimeError("SMTP_TO not configured")
+
+    if config.SMTP_USE_SSL:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(host=host, port=port, context=ctx, timeout=15) as s:
+            if user:
+                s.login(user, password)
+            s.send_message(msg)
+        return
+
+    with smtplib.SMTP(host=host, port=port, timeout=15) as s:
+        s.ehlo()
+        if config.SMTP_USE_TLS:
+            ctx = ssl.create_default_context()
+            s.starttls(context=ctx)
+            s.ehlo()
+        if user:
+            s.login(user, password)
+        s.send_message(msg)
+
+async def _alert_email_loop():
+    while True:
+        try:
+            if not config.ALERT_EMAIL_ENABLE:
+                await asyncio.sleep(5)
+                continue
+
+            batch = await db.list_unnotified_critical_alerts(limit=config.ALERT_EMAIL_MAX_PER_SCAN)
+            if not batch:
+                await asyncio.sleep(max(5, int(config.ALERT_EMAIL_SCAN_INTERVAL_SEC)))
+                continue
+
+            for a in batch:
+                aid = a.get("id")
+                try:
+                    msg = _build_alert_mail(a)
+                    await asyncio.to_thread(_send_mail_sync, msg)
+                    await db.mark_alert_notified(alert_id=int(aid), status=1, error=None)
+                except Exception as e:
+                    await db.mark_alert_notified(alert_id=int(aid), status=-1, error=str(e))
+        except Exception:
+            logging.exception("alert email loop failed")
+
+        await asyncio.sleep(max(5, int(config.ALERT_EMAIL_SCAN_INTERVAL_SEC)))
 
 async def _auto_sync_walkin_loop():
     while True:
@@ -457,6 +553,9 @@ async def startup_event():
     global _AUTO_SYNC_TASK
     if config.AUTO_SYNC_WALKIN_ENABLE and _AUTO_SYNC_TASK is None:
         _AUTO_SYNC_TASK = asyncio.create_task(_auto_sync_walkin_loop())
+    global _ALERT_EMAIL_TASK
+    if config.ALERT_EMAIL_ENABLE and _ALERT_EMAIL_TASK is None:
+        _ALERT_EMAIL_TASK = asyncio.create_task(_alert_email_loop())
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -468,6 +567,14 @@ async def shutdown_event():
         except BaseException:
             pass
         _AUTO_SYNC_TASK = None
+    global _ALERT_EMAIL_TASK
+    if _ALERT_EMAIL_TASK is not None:
+        _ALERT_EMAIL_TASK.cancel()
+        try:
+            await _ALERT_EMAIL_TASK
+        except BaseException:
+            pass
+        _ALERT_EMAIL_TASK = None
     await db.close_pool()
 
 # --- Auth ---
@@ -657,11 +764,13 @@ async def get_records_history(
     uuid: Optional[str] = None, 
     limit: int = 100, 
     start: Optional[str] = None, 
-    end: Optional[str] = None
+    end: Optional[str] = None,
+    order: Optional[str] = None,
+    sort_by: Optional[str] = None
 ):
     if uuid == "undefined":
         return []
-    return await db.fetch_history(uuid=uuid, start=start, end=end, limit=limit)
+    return await db.fetch_history(uuid=uuid, start=start, end=end, limit=limit, order=order or "desc", sort_by=sort_by or "time")
 
 # --- Activity API ---
 
@@ -883,6 +992,11 @@ async def get_device_mapping_singular():
 @app.get("/api/v1/alerts")
 async def list_alerts(uuid: Optional[str] = None, limit: int = 100):
     return await db.list_alerts(uuid, limit)
+
+@app.post("/api/v1/alerts/{alert_id}/ack")
+async def ack_alert(alert_id: int):
+    await db.set_alert_status(alert_id=alert_id, status=1)
+    return {"ok": True}
 
 # --- Admin Records ---
 
