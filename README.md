@@ -2,14 +2,21 @@
 
 > **基于 Python Asyncio + FastAPI 的高性能红外设备接入与数据分析平台**
 
-本项目专为高校书院/场馆场景设计，提供从设备接入、数据清洗、持久化存储到实时可视化的一站式解决方案。支持高并发 TCP 连接、多租户权限管理、AI 辅助场地归属匹配以及多维度流量统计分析。
+本项目专为高校书院/场馆场景设计，提供从设备接入、数据持久化存储到可视化展示的一站式解决方案，支持高并发 TCP 连接、场地归属模糊匹配以及多维度流量统计分析。
 
 ## 核心特性
 - **高并发接入**：基于 `asyncio` 的 TCP 服务，单机轻松支撑数千台设备长连接。
-- **稳定可靠**：内置心跳保活、断线重连、异常熔断机制，确保数据不丢失。
-- **智能归属**：集成模糊匹配算法，自动关联设备与物理场地，减少人工配置。
-- **实时看板**：集成 ECharts/Chart.js，提供秒级刷新的流量趋势图与热力分布。
-- **安全可控**：完善的 RBAC 权限体系，支持多级管理员与操作审计。
+- **稳定易运维**：提供一键安装/启动脚本，自动准备虚拟环境与依赖，输出服务日志到 `data/` 目录。
+- **归属匹配**：集成场地模糊匹配能力，辅助将设备/位置关联到标准场地，减少人工配置。
+- **可视化看板**：集成 ECharts/Chart.js，提供定时刷新的流量趋势图与统计视图。
+- **权限控制**：内置基础账号体系（`admin`/`user`），通过登录态 Cookie 控制访问。
+
+## v1.0.0 发布说明
+- **链路打通**：设备 TCP 上报 → 协议解析 → 数据落库（SQLite/MySQL）→ 页面查看与查询。
+- **双服务一键启动**：统一拉起 TCP Server（默认 `8085`）与 Web Server（默认 `8000`）。
+- **页面能力**：登录、看板、设备、历史、活动、告警、账户管理等页面可用。
+- **启动更省心**：自动检测端口占用并清理历史 InfraCount 相关进程，异常时输出日志尾部便于排障。
+- **默认账号**：首次启动会自动初始化 `admin` 账号，默认密码为 `admin`（建议登录后立刻修改）。
 
 ## 快速开始 (Quick Start)
 
@@ -20,7 +27,10 @@
 ```powershell
 # 安装并启动
 .\install.ps1
-.\start.ps1
+.\start.ps1 -NoBrowser
+
+# 如遇端口占用/残留进程，使用强制释放端口再启动
+.\start.ps1 -ForceKillPorts -NoBrowser
 ```
 
 **Linux / macOS:**
@@ -46,10 +56,14 @@ chmod +x install.sh start.sh
    python tcp_server.py
    
    # 终端 2：启动 Web API 服务 (默认端口 8000)
-   uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+   python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
-访问管理面板：[http://localhost:8000/dashboard](http://localhost:8000/dashboard) (默认账号：admin / admin123)
+访问入口：
+- 登录页：[http://localhost:8000/login](http://localhost:8000/login)（登录成功后会跳转到活动看板）
+- 综合看板：[http://localhost:8000/dashboard](http://localhost:8000/dashboard)
+
+默认账号：`admin` / `admin`（首次启动自动创建）
 
 ## 目录结构
 ```text
@@ -80,18 +94,23 @@ InfraCount/
 - **主要指令**：
   - `0x21` **数据上报**：设备上传进出人数 → 服务器回复 ACK。
   - `0x22` **时间同步**：设备请求校时 → 服务器下发当前时间。
-  - `0x23` **心跳包**：维持 TCP 连接活跃 (默认 60s)。
 
 ## API 接口概览
 | 模块 | 方法 | 路径 | 说明 |
 | :--- | :--- | :--- | :--- |
-| **基础** | `GET` | `/api/v1/health` | 服务健康检查 |
-| **数据** | `GET` | `/api/v1/data/latest` | 获取指定设备的最新上报 |
-| **数据** | `GET` | `/api/v1/data/history` | 查询历史流量记录 (支持分页) |
-| **统计** | `GET` | `/api/v1/stats/daily` | 获取日流量统计趋势 |
-| **统计** | `GET` | `/api/v1/stats/top` | 获取流量 Top N 设备榜单 |
-| **设备** | `GET` | `/api/v1/devices` | 获取设备列表与在线状态 |
-| **导出** | `GET` | `/api/v1/export/*` | 导出 CSV 格式报表 |
+| **认证** | `POST` | `/api/v1/auth/login` | 登录，写入 `session_token` Cookie |
+| **认证** | `POST` | `/api/v1/auth/logout` | 退出登录 |
+| **认证** | `GET` | `/api/v1/auth/me` | 获取当前登录用户 |
+| **认证** | `POST` | `/api/v1/auth/password` | 修改密码 |
+| **记录** | `GET` | `/api/v1/records/latest` | 获取指定设备最新上报 |
+| **记录** | `GET` | `/api/v1/records/history` | 查询历史记录（支持时间范围/limit） |
+| **统计** | `GET` | `/api/v1/stats/summary` | 获取汇总统计 |
+| **统计** | `GET` | `/api/v1/stats/daily` | 日统计趋势 |
+| **统计** | `GET` | `/api/v1/stats/hourly` | 小时统计趋势 |
+| **设备** | `GET` | `/api/v1/devices` | 设备列表与状态 |
+| **告警** | `GET` | `/api/v1/alerts` | 告警列表 |
+
+更多管理类/导入类/归属纠错接口请直接查看 `api/main.py`。
 
 ## 可视化功能
 - **综合看板**：`GET /dashboard` - 实时流量卡片、小时级趋势图、设备状态概览。
