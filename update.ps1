@@ -98,7 +98,7 @@ if (-not (Test-Path $PY)) {
         if (Test-Path "$ROOT\requirements.txt") {
             & $PY -m pip install -r "$ROOT\requirements.txt" | Out-Null
         } else {
-            & $PY -m pip install fastapi "uvicorn[standard]" aiosqlite python-multipart | Out-Null
+            & $PY -m pip install fastapi "uvicorn[standard]" aiosqlite python-multipart rapidfuzz | Out-Null
         }
         Write-Host "Dependencies updated." -ForegroundColor Green
     } catch {

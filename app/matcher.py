@@ -1,6 +1,11 @@
 import re
-from rapidfuzz import process, fuzz
 from typing import List, Tuple, Optional
+try:
+    from rapidfuzz import process, fuzz
+except Exception:
+    process = None
+    fuzz = None
+    import difflib
 
 class LocationMatcher:
     def __init__(self):
@@ -42,27 +47,27 @@ class LocationMatcher:
         if not self._standard_locations:
             return query_norm, 0.0
             
-        # extraction using rapidfuzz
-        # process.extractOne returns (match, score, index)
-        # We use token_set_ratio to handle subset strings like "Hello(103)" vs "Hello(Y1-103)"
-        # token_set_ratio is good for intersection.
-        # token_sort_ratio is good for reordering.
-        # "Hello(103)" vs "Hello(Y1-103)" -> intersection is "Hello", "103".
-        # Let's try partial_ratio too?
-        # User example: PBL制造局(107) -> PBL制造局(Y8-107)
-        # These share "PBL制造局" and "107".
-        
-        best = process.extractOne(
-            query_norm, 
-            self._standard_locations, 
-            scorer=fuzz.token_set_ratio
-        )
-        
-        if best:
-            match_str, score, _ = best
-            if score >= threshold:
-                return match_str, score
-        
-        return query_norm, 0.0
+        if process and fuzz:
+            best = process.extractOne(
+                query_norm,
+                self._standard_locations,
+                scorer=fuzz.token_set_ratio
+            )
+            if best:
+                match_str, score, _ = best
+                if score >= threshold:
+                    return match_str, score
+            return query_norm, 0.0
+
+        best_match: Optional[str] = None
+        best_score = 0.0
+        for cand in self._standard_locations:
+            s = difflib.SequenceMatcher(None, query_norm, cand).ratio() * 100.0
+            if s > best_score:
+                best_score = s
+                best_match = cand
+        if best_match and best_score >= threshold:
+            return best_match, best_score
+        return query_norm, best_score
 
 matcher = LocationMatcher()

@@ -321,10 +321,10 @@ async def init_sqlite():
             sort_order INTEGER DEFAULT 0
         )
     """)
-    try:
+    async with _sqlite.execute("PRAGMA table_info(academies)") as cur:
+        cols = [r[1] for r in (await cur.fetchall() or []) if r and len(r) > 1]
+    if "sort_order" not in cols:
         await _sqlite.execute("ALTER TABLE academies ADD COLUMN sort_order INTEGER DEFAULT 0")
-    except Exception as e:
-        logging.info(f"Migration: sort_order column might already exist or failed: {e}")
     
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS activity_events (
