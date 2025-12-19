@@ -50,13 +50,22 @@
         tr:hover td {
             background: var(--bg-subtle);
         }
+        .badge-type, .badge-academy {
+            background: var(--badge-bg, var(--border));
+            color: var(--badge-fg, var(--text-secondary));
+            border: 1px solid var(--badge-bd, transparent);
+            font-weight: 700;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+        }
         .badge {
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
         }
-        .badge-academy { background: var(--primary-light); color: var(--primary); }
-        .badge-type { background: rgba(250, 176, 5, 0.1); color: var(--warning); }
         
         /* Modal Styles */
         .modal-backdrop {
@@ -1034,7 +1043,90 @@
             els.tbl.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#999">暂无数据</td></tr>';
             return;
         }
-        
+
+        function escapeHtml(v) {
+            const s = String(v ?? '');
+            return s
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function hashString(s) {
+            let h = 5381;
+            for (const ch of String(s)) {
+                h = ((h << 5) + h + ch.codePointAt(0)) >>> 0;
+            }
+            return h >>> 0;
+        }
+
+        function pickHue(key, usedHues) {
+            let hue = hashString(key) % 360;
+            for (let i = 0; i < 36; i++) {
+                let ok = true;
+                for (const u of usedHues) {
+                    const d = Math.abs(hue - u);
+                    const dist = Math.min(d, 360 - d);
+                    if (dist < 20) { ok = false; break; }
+                }
+                if (ok) return hue;
+                hue = (hue + 137) % 360;
+            }
+            return hue;
+        }
+
+        function applyBadgeColors() {
+            const typeNodes = Array.from(els.tbl.querySelectorAll('.badge-type'));
+            const academyNodes = Array.from(els.tbl.querySelectorAll('.badge-academy'));
+
+            const typeUsed = [];
+            const academyUsed = [];
+            const typeMap = new Map();
+            const academyMap = new Map();
+
+            for (const el of typeNodes) {
+                const key = (el.textContent || '').trim() || '-';
+                if (key === '-') {
+                    el.classList.add('badge-gray');
+                    el.style.removeProperty('--badge-bg');
+                    el.style.removeProperty('--badge-fg');
+                    el.style.removeProperty('--badge-bd');
+                    continue;
+                }
+                if (!typeMap.has(key)) {
+                    const hue = pickHue(key, typeUsed);
+                    typeUsed.push(hue);
+                    typeMap.set(key, hue);
+                }
+                const hue = typeMap.get(key);
+                el.style.setProperty('--badge-bg', `hsl(${hue} 92% 78%)`);
+                el.style.setProperty('--badge-fg', `hsl(${hue} 55% 18%)`);
+                el.style.setProperty('--badge-bd', `hsl(${hue} 80% 52%)`);
+            }
+
+            for (const el of academyNodes) {
+                const key = (el.textContent || '').trim() || '-';
+                if (key === '-') {
+                    el.classList.add('badge-gray');
+                    el.style.removeProperty('--badge-bg');
+                    el.style.removeProperty('--badge-fg');
+                    el.style.removeProperty('--badge-bd');
+                    continue;
+                }
+                if (!academyMap.has(key)) {
+                    const hue = pickHue(key, academyUsed);
+                    academyUsed.push(hue);
+                    academyMap.set(key, hue);
+                }
+                const hue = academyMap.get(key);
+                el.style.setProperty('--badge-bg', `hsl(${hue} 82% 30%)`);
+                el.style.setProperty('--badge-fg', `hsl(${hue} 15% 96%)`);
+                el.style.setProperty('--badge-bd', `hsl(${hue} 70% 22%)`);
+            }
+        }
+
         els.tbl.innerHTML = items.map((item, idx) => {
             // Duration Calc
             let durStr = '-';
@@ -1047,23 +1139,25 @@
             return `
             <tr>
                 <td>${(state.page-1)*state.pageSize + idx + 1}</td>
-                <td>${item.date}</td>
-                <td>${item.weekday}</td>
-                <td>${item.start_time}</td>
-                <td>${item.end_time || '-'}</td>
+                <td>${escapeHtml(item.date)}</td>
+                <td>${escapeHtml(item.weekday)}</td>
+                <td>${escapeHtml(item.start_time)}</td>
+                <td>${escapeHtml(item.end_time || '-')}</td>
                 <td>${durStr}</td>
-                <td><span class="badge badge-academy">${item.academy || '-'}</span></td>
-                <td>${item.location || '-'}</td>
-                <td>${item.activity_name || '-'}</td>
-                <td><span class="badge badge-type">${item.activity_type || '-'}</span></td>
+                <td><span class="badge badge-academy">${escapeHtml(item.academy || '-')}</span></td>
+                <td>${escapeHtml(item.location || '-')}</td>
+                <td>${escapeHtml(item.activity_name || '-')}</td>
+                <td><span class="badge badge-type">${escapeHtml(item.activity_type || '-')}</span></td>
                 <td>${item.audience_count}</td>
-                <td>${item.notes || ''}</td>
+                <td>${escapeHtml(item.notes || '')}</td>
                 <td>
                     <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">删除</button>
                 </td>
             </tr>
             `;
         }).join('');
+
+        applyBadgeColors();
     }
     
     // Pagination
