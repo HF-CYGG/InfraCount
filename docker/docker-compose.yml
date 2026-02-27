@@ -1,0 +1,21 @@
+services:
+  infracount:
+    container_name: infracount
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+      - "8085:8085"
+    environment:
+      WEB_HOST: "0.0.0.0"
+      WEB_PORT: "8000"
+      TCP_HOST: "0.0.0.0"
+      TCP_PORT: "8085"
+      INFRACOUNT_NO_BROWSER: "1"
+      DB_DRIVER: "sqlite"
+      DB_SQLITE_PATH: "/app/data/infrared.db"
+    volumes:
+      - ../data:/app/data
+    restart: unless-stopped
+

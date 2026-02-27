@@ -1,0 +1,772 @@
+{
+  "app": {
+    "title": "InfraCount API",
+    "version": "1.0.0"
+  },
+  "auth_model": {
+    "admin": {
+      "requires": "session + role==admin"
+    },
+    "session": {
+      "cookie": "session_token",
+      "max_age_sec": 604800
+    }
+  },
+  "generated_at": "2026-02-27T05:27:13.527964+00:00",
+  "routes": [
+    {
+      "auth": "public",
+      "endpoint": "api.main:index",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "index",
+      "path": "/"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:account_page",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "account_page",
+      "path": "/account"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity",
+      "path": "/activity"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_dashboard",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_dashboard",
+      "path": "/activity-dashboard"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:alerts",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "alerts",
+      "path": "/alerts"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_academies",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_academies",
+      "path": "/api/v1/academies"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:add_academy",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "add_academy",
+      "path": "/api/v1/academies"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:update_academy_order",
+      "include_in_schema": true,
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_academy_order",
+      "path": "/api/v1/academies/order"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:delete_academy",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_academy",
+      "path": "/api/v1/academies/{id}"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_aggregations",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_aggregations",
+      "path": "/api/v1/activity/aggregations"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_events",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_events",
+      "path": "/api/v1/activity/events"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:api_activity_import_excel",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "api_activity_import_excel",
+      "path": "/api/v1/activity/import-excel"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_list",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_list",
+      "path": "/api/v1/activity/list"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_options",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_options",
+      "path": "/api/v1/activity/options"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_options",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_options",
+      "path": "/api/v1/activity/options"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_stats",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "activity_stats",
+      "path": "/api/v1/activity/stats"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:api_activity_sync_visitors",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "api_activity_sync_visitors",
+      "path": "/api/v1/activity/sync-visitors"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:activity_upload",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "activity_upload",
+      "path": "/api/v1/activity/upload"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:walkin_dates",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "walkin_dates",
+      "path": "/api/v1/activity/walkin/dates"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:walkin_preview",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "walkin_preview",
+      "path": "/api/v1/activity/walkin/preview"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:walkin_preview_dates",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "walkin_preview_dates",
+      "path": "/api/v1/activity/walkin/preview-dates"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:walkin_sync",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "walkin_sync",
+      "path": "/api/v1/activity/walkin/sync"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:api_activity_delete",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "api_activity_delete",
+      "path": "/api/v1/activity/{id}"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_device_log_import",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_device_log_import",
+      "path": "/api/v1/admin/device-log/import"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_device_log_preview",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_device_log_preview",
+      "path": "/api/v1/admin/device-log/preview"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_list_records",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_list_records",
+      "path": "/api/v1/admin/records"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_create_record",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_create_record",
+      "path": "/api/v1/admin/records"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_batch_delete",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_batch_delete",
+      "path": "/api/v1/admin/records/batch-delete"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_batch_save_records",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_batch_save_records",
+      "path": "/api/v1/admin/records/batch-save"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_batch_update",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_batch_update",
+      "path": "/api/v1/admin/records/batch-update"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_get_record_ids",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_get_record_ids",
+      "path": "/api/v1/admin/records/ids"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_delete_range",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "admin_delete_range",
+      "path": "/api/v1/admin/records/range"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_delete_record",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "admin_delete_record",
+      "path": "/api/v1/admin/records/{id}"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_update_record",
+      "include_in_schema": true,
+      "methods": [
+        "PUT"
+      ],
+      "name": "admin_update_record",
+      "path": "/api/v1/admin/records/{id}"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_list_registry",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_list_registry",
+      "path": "/api/v1/admin/registry"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:admin_upsert_registry",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_upsert_registry",
+      "path": "/api/v1/admin/registry"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:list_alerts",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "list_alerts",
+      "path": "/api/v1/alerts"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:ack_alert",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "ack_alert",
+      "path": "/api/v1/alerts/{alert_id}/ack"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:auth_login",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_login",
+      "path": "/api/v1/auth/login"
+    },
+    {
+      "auth": "optional_session",
+      "endpoint": "api.main:auth_logout",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_logout",
+      "path": "/api/v1/auth/logout"
+    },
+    {
+      "auth": "session",
+      "endpoint": "api.main:auth_me",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "auth_me",
+      "path": "/api/v1/auth/me"
+    },
+    {
+      "auth": "session",
+      "endpoint": "api.main:auth_change_password",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "auth_change_password",
+      "path": "/api/v1/auth/password"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_device_mapping_singular",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_device_mapping_singular",
+      "path": "/api/v1/device/mapping"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:list_devices",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "list_devices",
+      "path": "/api/v1/devices"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_device_mapping",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_device_mapping",
+      "path": "/api/v1/devices/mapping"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:health",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "health",
+      "path": "/api/v1/health"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_all_locations",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_all_locations",
+      "path": "/api/v1/locations/all"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:auto_correct_scan",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "auto_correct_scan",
+      "path": "/api/v1/locations/auto-correct-scan"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:batch_correct",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "batch_correct",
+      "path": "/api/v1/locations/batch-correct"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:execute_correction",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "execute_correction",
+      "path": "/api/v1/locations/correct"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_correction_candidates",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_correction_candidates",
+      "path": "/api/v1/locations/correction-candidates"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:delete_location_mapping",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_location_mapping",
+      "path": "/api/v1/locations/mapping"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_location_mapping",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_location_mapping",
+      "path": "/api/v1/locations/mapping"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:update_location_mapping",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "update_location_mapping",
+      "path": "/api/v1/locations/mapping"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_records_history",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_records_history",
+      "path": "/api/v1/records/history"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_records_latest",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_records_latest",
+      "path": "/api/v1/records/latest"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_stats_daily",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_stats_daily",
+      "path": "/api/v1/stats/daily"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_stats_hourly",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_stats_hourly",
+      "path": "/api/v1/stats/hourly"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:get_stats_summary",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "get_stats_summary",
+      "path": "/api/v1/stats/summary"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:system_status",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "system_status",
+      "path": "/api/v1/system/status"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:list_users",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "list_users",
+      "path": "/api/v1/users"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:create_user_api",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "create_user_api",
+      "path": "/api/v1/users"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:delete_user_api",
+      "include_in_schema": true,
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_user_api",
+      "path": "/api/v1/users/{user_id}"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:update_user_api",
+      "include_in_schema": true,
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_user_api",
+      "path": "/api/v1/users/{user_id}"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:dashboard",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "dashboard",
+      "path": "/dashboard"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:devices",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "devices",
+      "path": "/devices"
+    },
+    {
+      "auth": "public",
+      "endpoint": "fastapi.applications:FastAPI.setup.<locals>.swagger_ui_html",
+      "include_in_schema": false,
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_html",
+      "path": "/docs"
+    },
+    {
+      "auth": "public",
+      "endpoint": "fastapi.applications:FastAPI.setup.<locals>.swagger_ui_redirect",
+      "include_in_schema": false,
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_redirect",
+      "path": "/docs/oauth2-redirect"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:favicon",
+      "include_in_schema": false,
+      "methods": [
+        "GET"
+      ],
+      "name": "favicon",
+      "path": "/favicon.ico"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:history",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "history",
+      "path": "/history"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:history_academy",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "history_academy",
+      "path": "/history/academy"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:history_device",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "history_device",
+      "path": "/history/device"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:login_page",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "login_page",
+      "path": "/login"
+    },
+    {
+      "auth": "public",
+      "endpoint": "fastapi.applications:FastAPI.setup.<locals>.openapi",
+      "include_in_schema": false,
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "openapi",
+      "path": "/openapi.json"
+    },
+    {
+      "auth": "public",
+      "endpoint": "fastapi.applications:FastAPI.setup.<locals>.redoc_html",
+      "include_in_schema": false,
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "redoc_html",
+      "path": "/redoc"
+    }
+  ]
+}

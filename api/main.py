@@ -4,9 +4,12 @@ import logging
 import difflib
 import csv
 import json
+import os
+import platform
 import smtplib
 import ssl
 import re
+import time
 import uuid as uuidlib
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
@@ -15,8 +18,10 @@ from email.message import EmailMessage
 from fastapi import FastAPI, HTTPException, Query, Body, File, UploadFile, Request, Response
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+import aiosqlite
 
 from app import db
 from app import config
@@ -24,9 +29,67 @@ from app.matcher import matcher
 
 app = FastAPI(title="InfraCount API", version="1.0.0")
 
+_APP_START_TS = time.time()
 _LOG_IMPORT_CACHE: Dict[str, Dict[str, Any]] = {}
 _AUTO_SYNC_TASK: Optional[asyncio.Task] = None
 _ALERT_EMAIL_TASK: Optional[asyncio.Task] = None
+
+_DB_MERGE_UPLOAD_CACHE: Dict[str, Dict[str, Any]] = {}
+_DB_MERGE_JOB_CACHE: Dict[str, Dict[str, Any]] = {}
+_DB_MERGE_UPLOAD_DIR = os.path.abspath(os.path.join("data", "db_merge_uploads"))
+
+def _db_merge_cleanup(now_ts: float, max_age_sec: int = 2 * 3600) -> None:
+    """
+    清理过期的合并导入上传文件与任务缓存。
+
+    设计说明：
+    - 上传的 .db 文件可能较大，不应长期占用磁盘；
+    - 任务状态用于前端轮询进度，默认保留 2 小时；
+    - 正在运行的任务不清理，避免误删。
+    """
+    expired_uploads: List[str] = []
+    for import_id, v in list(_DB_MERGE_UPLOAD_CACHE.items()):
+        created = float(v.get("created_at_ts") or 0)
+        if now_ts - created > max_age_sec:
+            expired_uploads.append(import_id)
+    for import_id in expired_uploads:
+        ctx = _DB_MERGE_UPLOAD_CACHE.pop(import_id, None) or {}
+        p = str(ctx.get("path") or "").strip()
+        if p and os.path.isfile(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
+    expired_jobs: List[str] = []
+    for job_id, j in list(_DB_MERGE_JOB_CACHE.items()):
+        created = float(j.get("created_at_ts") or 0)
+        running = bool(j.get("running"))
+        if running:
+            continue
+        if now_ts - created > max_age_sec:
+            expired_jobs.append(job_id)
+    for job_id in expired_jobs:
+        _DB_MERGE_JOB_CACHE.pop(job_id, None)
+
+async def _require_admin_user(request: Request) -> Dict[str, Any]:
+    """
+    管理员鉴权统一入口。
+
+    实现逻辑：
+    - 从 Cookie 中读取 session_token；
+    - 调用数据库查询当前用户；
+    - 要求 role=admin，否则拒绝访问。
+    """
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(401, "Invalid session")
+    if user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+    return user
 
 def _parse_mail_list(v: str) -> List[str]:
     s = str(v or "").strip()
@@ -544,6 +607,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def _task_status(task: Optional[asyncio.Task]) -> Dict[str, Any]:
+    if task is None:
+        return {"exists": False, "running": False}
+    return {
+        "exists": True,
+        "running": not task.done(),
+        "cancelled": task.cancelled(),
+        "done": task.done(),
+    }
+
+def _uptime_sec() -> int:
+    return max(0, int(time.time() - _APP_START_TS))
+
+@app.get("/api/v1/health")
+async def health():
+    return {
+        "status": "ok",
+        "time": datetime.now(timezone.utc).isoformat(),
+        "uptime_sec": _uptime_sec(),
+        "db": {
+            "driver": config.DB_DRIVER,
+            **(await db.ping()),
+        }
+    }
+
+@app.get("/api/v1/system/status")
+async def system_status(request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(401, "Not logged in")
+    user = await db.get_user_by_token(token)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "Access denied")
+
+    db_info: Dict[str, Any] = {"driver": config.DB_DRIVER}
+    if db.use_sqlite():
+        db_info["sqlite_path"] = config.DB_SQLITE_PATH
+    else:
+        db_info.update({
+            "host": config.DB_HOST,
+            "port": config.DB_PORT,
+            "database": config.DB_NAME,
+            "user": config.DB_USER,
+        })
+
+    return {
+        "status": "ok",
+        "time": datetime.now(timezone.utc).isoformat(),
+        "uptime_sec": _uptime_sec(),
+        "app": {"title": app.title, "version": app.version},
+        "process": {
+            "pid": os.getpid(),
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
+        "db": {
+            **db_info,
+            **(await db.ping()),
+        },
+        "features": {
+            "csrf_enable": bool(config.CSRF_ENABLE),
+            "auto_sync_walkin_enable": bool(config.AUTO_SYNC_WALKIN_ENABLE),
+            "auto_sync_walkin_interval_sec": int(config.AUTO_SYNC_WALKIN_INTERVAL_SEC),
+            "alert_email_enable": bool(config.ALERT_EMAIL_ENABLE),
+            "alert_email_scan_interval_sec": int(config.ALERT_EMAIL_SCAN_INTERVAL_SEC),
+            "time_sync_digits": bool(config.TIME_SYNC_DIGITS),
+        },
+        "tasks": {
+            "auto_sync_walkin": _task_status(_AUTO_SYNC_TASK),
+            "alert_email": _task_status(_ALERT_EMAIL_TASK),
+        },
+    }
+
 @app.on_event("startup")
 async def startup_event():
     if db.use_sqlite():
@@ -701,17 +837,109 @@ async def delete_user_api(user_id: int, request: Request):
 
 # --- Pages ---
 
-@app.get("/login")
-async def login_page():
-    return FileResponse("templates/login.html")
+def _legacy_page_file(full_path: str) -> str | None:
+    """
+    将 /legacy/* 映射到旧版 templates/ 页面文件。
 
-@app.get("/account")
+    设计目标：
+    - 旧版页面用于“回退兜底”，因此必须保持可访问；
+    - 新版默认入口指向 /spa（Vue3 单页应用）；
+    - 旧版页面不做自动探测与目录遍历，避免任意文件读取风险，仅允许白名单路径。
+    """
+    p = str(full_path or "").strip().lstrip("/")
+    if p in {"", "dashboard"}:
+        return "templates/dashboard.html"
+    if p == "login":
+        return "templates/login.html"
+    if p == "account":
+        return "templates/account.html"
+    if p == "devices":
+        return "templates/devices.html"
+    if p == "history":
+        return "templates/history.html"
+    if p == "history/academy":
+        return "templates/history_academy.html"
+    if p == "history/device":
+        return "templates/history.html"
+    if p == "activity":
+        return "templates/activity.html"
+    if p == "alerts":
+        return "templates/alerts.html"
+    if p == "activity-dashboard":
+        return "activity_dashboard.html"
+    return None
+
+@app.get("/legacy", include_in_schema=False)
+async def legacy_root():
+    f = _legacy_page_file("")
+    return FileResponse(f)  # type: ignore[arg-type]
+
+@app.get("/legacy/{full_path:path}", include_in_schema=False)
+async def legacy_any(full_path: str):
+    f = _legacy_page_file(full_path)
+    if not f:
+        raise HTTPException(404, "Legacy page not found")
+    return FileResponse(f)
+
+@app.get("/login", include_in_schema=False)
+async def login_page():
+    """
+    新入口：统一把登录入口指向 SPA。
+
+    兼容性说明：
+    - 旧版登录页仍可通过 /legacy/login 访问；
+    - 这里保留 /login 作为“习惯入口”，但不再渲染 templates/login.html。
+    """
+    return RedirectResponse(url="/spa/login", status_code=302)
+
+@app.get("/account", include_in_schema=False)
 async def account_page():
-    return FileResponse("templates/account.html")
+    return RedirectResponse(url="/spa/account", status_code=302)
 
 # --- Static & Pages ---
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# --- SPA（Vue3 单页应用）托管 ---
+#
+# 设计目标：
+# - 前端构建产物输出到 static/spa（由 web/vite.config.ts 控制 outDir）；
+# - 后端在 /spa 下托管该单页应用：
+#   - 直接访问 /spa 或 /spa/ 会返回 index.html；
+#   - 访问 /spa/assets/... 会返回静态资源文件；
+#   - 访问 /spa/dashboard 之类的前端路由，也会回落到 index.html（避免刷新 404）。
+#
+# 为什么不直接使用 StaticFiles(html=True)：
+# - Starlette 的 StaticFiles(html=True) 仅对“目录”请求回退 index.html，
+#   对 SPA 的“任意路径刷新”并不等价；
+# - 因此这里用一个显式的 catch-all 路由：若请求不是实际存在的文件，则返回 index.html。
+
+_SPA_ROOT_DIR = os.path.abspath(os.path.join("static", "spa"))
+_SPA_INDEX_FILE = os.path.join(_SPA_ROOT_DIR, "index.html")
+
+def _is_safe_spa_path(target_path: str) -> bool:
+    # 防止路径穿越：确保最终路径仍然位于 static/spa 目录内
+    abs_target = os.path.abspath(target_path)
+    return abs_target.startswith(_SPA_ROOT_DIR + os.sep) or abs_target == _SPA_ROOT_DIR
+
+@app.get("/spa", include_in_schema=False)
+async def spa_root():
+    if not os.path.isfile(_SPA_INDEX_FILE):
+        raise HTTPException(404, "SPA 未构建：请先在 web/ 目录执行 npm install && npm run build")
+    return FileResponse(_SPA_INDEX_FILE, media_type="text/html")
+
+@app.get("/spa/{full_path:path}", include_in_schema=False)
+async def spa_any(full_path: str):
+    if not os.path.isfile(_SPA_INDEX_FILE):
+        raise HTTPException(404, "SPA 未构建：请先在 web/ 目录执行 npm install && npm run build")
+
+    # full_path 可能为空（例如访问 /spa/），此时直接回落 index.html
+    if full_path:
+        candidate = os.path.join(_SPA_ROOT_DIR, full_path)
+        if _is_safe_spa_path(candidate) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+
+    return FileResponse(_SPA_INDEX_FILE, media_type="text/html")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -719,44 +947,56 @@ async def favicon():
 
 @app.get("/")
 async def index():
-    return FileResponse("templates/dashboard.html")
+    """
+    默认入口指向 SPA。
 
-@app.get("/dashboard")
+    说明：
+    - 新版前端在 /spa 下托管（见下方 SPA catch-all）；
+    - 旧版 templates 页面保留在 /legacy/*，便于紧急回退与对照验证。
+    """
+    return RedirectResponse(url="/spa/", status_code=302)
+
+@app.get("/dashboard", include_in_schema=False)
 async def dashboard():
-    return FileResponse("templates/dashboard.html")
+    return RedirectResponse(url="/spa/dashboard", status_code=302)
 
 @app.get("/activity-dashboard")
 async def activity_dashboard():
-    return FileResponse("activity_dashboard.html")
+    return RedirectResponse(url="/legacy/activity-dashboard", status_code=302)
 
-@app.get("/activity")
+@app.get("/activity", include_in_schema=False)
 async def activity():
-    return FileResponse("templates/activity.html")
+    return RedirectResponse(url="/spa/activity", status_code=302)
 
-@app.get("/history")
+@app.get("/history", include_in_schema=False)
 async def history():
-    return FileResponse("templates/history.html")
+    return RedirectResponse(url="/spa/history", status_code=302)
 
-@app.get("/history/academy")
+@app.get("/history/academy", include_in_schema=False)
 async def history_academy():
-    return FileResponse("templates/history_academy.html")
+    return RedirectResponse(url="/legacy/history/academy", status_code=302)
 
-@app.get("/history/device")
+@app.get("/history/device", include_in_schema=False)
 async def history_device():
-    return FileResponse("templates/history.html")
+    return RedirectResponse(url="/legacy/history/device", status_code=302)
 
-@app.get("/devices")
+@app.get("/devices", include_in_schema=False)
 async def devices():
-    return FileResponse("templates/devices.html")
+    return RedirectResponse(url="/spa/devices", status_code=302)
 
-@app.get("/alerts")
+@app.get("/alerts", include_in_schema=False)
 async def alerts():
-    return FileResponse("templates/alerts.html")
+    return RedirectResponse(url="/spa/alerts", status_code=302)
 
 # --- Records ---
 
 @app.get("/api/v1/records/latest")
-async def get_records_latest(uuid: str):
+async def get_records_latest(uuid: Optional[str] = None):
+    """
+    获取最新记录：
+    - uuid 为空：返回“每台设备最新一条”列表；
+    - uuid 非空：返回指定设备最新一条（列表长度为 0 或 1）。
+    """
     return await db.fetch_latest(uuid)
 
 @app.get("/api/v1/records/history")
@@ -1010,9 +1250,23 @@ async def admin_list_records(
     warn: Optional[int] = None,
     rec_type: Optional[int] = None,
     btx_min: Optional[int] = None,
-    btx_max: Optional[int] = None
+    btx_max: Optional[int] = None,
+    order: Optional[str] = None,
+    sort_by: Optional[str] = None
 ):
-    items = await db.admin_list_records(page, size, uuid, start, end, warn, rec_type, btx_min, btx_max)
+    items = await db.admin_list_records(
+        page=page,
+        limit=size,
+        uuid=uuid,
+        start=start,
+        end=end,
+        warn=warn,
+        rec_type=rec_type,
+        btx_min=btx_min,
+        btx_max=btx_max,
+        order=order or "desc",
+        sort_by=sort_by or "time",
+    )
     total = await db.admin_count_records(uuid, start, end, warn, rec_type, btx_min, btx_max)
     return {"items": items, "total": total}
 
@@ -1209,6 +1463,219 @@ async def admin_device_log_import(payload: Dict[str, Any] = Body(...)):
         "done": done
     }
 
+# --- Admin: SQLite 数据库合并导入 ---
+
+class DbMergePreviewPayload(BaseModel):
+    import_id: str
+    merge_mode: str = "skip_existing"  # skip_existing | update_existing
+    conflict_preference: str = "prefer_import"  # prefer_current_non_empty | prefer_import
+
+class DbMergeExecutePayload(BaseModel):
+    import_id: str
+    merge_mode: str = "skip_existing"  # skip_existing | update_existing
+    conflict_preference: str = "prefer_import"  # prefer_current_non_empty | prefer_import
+
+async def _db_merge_validate_strategy(merge_mode: str, conflict_preference: str) -> Dict[str, str]:
+    mm = str(merge_mode or "").strip()
+    cp = str(conflict_preference or "").strip()
+    if mm not in {"skip_existing", "update_existing"}:
+        raise HTTPException(400, "Invalid merge_mode")
+    if cp not in {"prefer_current_non_empty", "prefer_import"}:
+        raise HTTPException(400, "Invalid conflict_preference")
+    return {"merge_mode": mm, "conflict_preference": cp}
+
+@app.post("/api/v1/admin/db-merge/upload")
+async def admin_db_merge_upload(request: Request, file: UploadFile = File(...)):
+    """
+    上传 SQLite .db 文件（仅管理员）。
+
+    返回 import_id，前端需携带 import_id 调用预览/执行接口。
+    """
+    user = await _require_admin_user(request)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    _db_merge_cleanup(now_ts)
+
+    filename = str(file.filename or "").strip()
+    if not filename:
+        raise HTTPException(400, "Missing filename")
+
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in {"db", "sqlite", "sqlite3"}:
+        raise HTTPException(400, "Invalid file type")
+
+    os.makedirs(_DB_MERGE_UPLOAD_DIR, exist_ok=True)
+    import_id = uuidlib.uuid4().hex
+    target_path = os.path.join(_DB_MERGE_UPLOAD_DIR, f"{import_id}.db")
+
+    size_bytes = 0
+    try:
+        with open(target_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                size_bytes += len(chunk)
+    except Exception:
+        try:
+            if os.path.isfile(target_path):
+                os.remove(target_path)
+        except Exception:
+            pass
+        raise HTTPException(500, "Save file failed")
+
+    # 快速校验：确保它是一个能打开的 SQLite 文件
+    try:
+        async with aiosqlite.connect(target_path) as conn:
+            async with conn.execute("SELECT name FROM sqlite_master LIMIT 1") as cur:
+                await cur.fetchone()
+    except Exception:
+        try:
+            if os.path.isfile(target_path):
+                os.remove(target_path)
+        except Exception:
+            pass
+        raise HTTPException(400, "Invalid sqlite database")
+
+    _DB_MERGE_UPLOAD_CACHE[import_id] = {
+        "created_at_ts": now_ts,
+        "path": os.path.abspath(target_path),
+        "filename": filename,
+        "size_bytes": int(size_bytes),
+        "actor": str(user.get("username") or ""),
+    }
+
+    return {
+        "import_id": import_id,
+        "filename": filename,
+        "size_bytes": int(size_bytes),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+@app.post("/api/v1/admin/db-merge/preview")
+async def admin_db_merge_preview(request: Request, payload: DbMergePreviewPayload):
+    """
+    预览合并影响范围（仅管理员）。
+    """
+    await _require_admin_user(request)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    _db_merge_cleanup(now_ts)
+
+    import_id = str(payload.import_id or "").strip()
+    ctx = _DB_MERGE_UPLOAD_CACHE.get(import_id)
+    if not ctx:
+        raise HTTPException(404, "Import file not found")
+
+    strat = await _db_merge_validate_strategy(payload.merge_mode, payload.conflict_preference)
+    res = await db.sqlite_db_merge_preview(
+        import_db_path=str(ctx.get("path") or ""),
+        merge_mode=strat["merge_mode"],  # type: ignore[arg-type]
+        conflict_preference=strat["conflict_preference"],  # type: ignore[arg-type]
+    )
+    return {
+        "import_id": import_id,
+        "filename": ctx.get("filename"),
+        "size_bytes": ctx.get("size_bytes"),
+        **res,
+    }
+
+async def _run_db_merge_job(job_id: str, import_id: str, actor: str, merge_mode: str, conflict_preference: str) -> None:
+    ctx = _DB_MERGE_UPLOAD_CACHE.get(import_id) or {}
+    import_path = str(ctx.get("path") or "").strip()
+    job = _DB_MERGE_JOB_CACHE.get(job_id) or {}
+
+    def update_progress(p: Dict[str, Any]) -> None:
+        job["progress"] = {**(job.get("progress") or {}), **(p or {})}
+
+    try:
+        job["running"] = True
+        job["status"] = "running"
+        job["progress"] = {"status": "running", "stage": "init"}
+        result = await db.sqlite_db_merge_execute(
+            import_db_path=import_path,
+            actor=actor,
+            merge_mode=merge_mode,  # type: ignore[arg-type]
+            conflict_preference=conflict_preference,  # type: ignore[arg-type]
+            progress_cb=update_progress,
+        )
+        job["running"] = False
+        job["status"] = "done"
+        job["result"] = result
+    except Exception as e:
+        job["running"] = False
+        job["status"] = "error"
+        job["error"] = str(e)
+        job["progress"] = {**(job.get("progress") or {}), "status": "error", "error": str(e)}
+
+@app.post("/api/v1/admin/db-merge/execute")
+async def admin_db_merge_execute(request: Request, payload: DbMergeExecutePayload):
+    """
+    启动合并导入任务（仅管理员）。
+
+    说明：
+    - 该接口会立即返回 job_id；
+    - 前端通过 /api/v1/admin/db-merge/status 轮询进度与最终结果。
+    """
+    user = await _require_admin_user(request)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    _db_merge_cleanup(now_ts)
+
+    import_id = str(payload.import_id or "").strip()
+    ctx = _DB_MERGE_UPLOAD_CACHE.get(import_id)
+    if not ctx:
+        raise HTTPException(404, "Import file not found")
+
+    strat = await _db_merge_validate_strategy(payload.merge_mode, payload.conflict_preference)
+    job_id = uuidlib.uuid4().hex
+
+    job: Dict[str, Any] = {
+        "job_id": job_id,
+        "import_id": import_id,
+        "filename": ctx.get("filename"),
+        "size_bytes": ctx.get("size_bytes"),
+        "strategy": strat,
+        "created_at_ts": now_ts,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "actor": str(user.get("username") or ""),
+        "running": True,
+        "status": "running",
+        "progress": {"status": "running", "stage": "queued"},
+    }
+    _DB_MERGE_JOB_CACHE[job_id] = job
+
+    task = asyncio.create_task(
+        _run_db_merge_job(
+            job_id=job_id,
+            import_id=import_id,
+            actor=str(user.get("username") or ""),
+            merge_mode=strat["merge_mode"],
+            conflict_preference=strat["conflict_preference"],
+        )
+    )
+    job["task"] = task
+
+    return {"job_id": job_id}
+
+@app.get("/api/v1/admin/db-merge/status")
+async def admin_db_merge_status(request: Request, job_id: str = Query(...)):
+    """
+    查询合并导入任务状态（仅管理员）。
+    """
+    await _require_admin_user(request)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    _db_merge_cleanup(now_ts)
+
+    jid = str(job_id or "").strip()
+    job = _DB_MERGE_JOB_CACHE.get(jid)
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    # task 对象不可序列化：对外隐藏
+    public_job = {k: v for k, v in job.items() if k != "task"}
+    public_job["running"] = bool(public_job.get("running"))
+    public_job["status"] = str(public_job.get("status") or "")
+    return {"job": public_job}
+
 # --- Admin Registry ---
 
 @app.get("/api/v1/admin/registry")
@@ -1242,6 +1709,32 @@ async def add_academy(data: Dict[str, Any] = Body(...)):
 async def delete_academy(id: int):
     success = await db.delete_academy(id)
     if not success: raise HTTPException(400, "Failed to delete")
+    return {"status": "ok"}
+
+@app.post("/api/v1/academies-reorder")
+async def academies_reorder_legacy(payload: Dict[str, Any] = Body(...)):
+    """
+    旧版页面兼容接口：保存书院排序。
+
+    背景：
+    - templates/devices.html 中使用了 /api/v1/academies-reorder；
+    - 新版规范接口为 PUT /api/v1/academies/order（直接传 List[int]）。
+
+    兼容策略：
+    - 支持两种 body：
+      1) {"order": [1,2,3]}
+      2) [1,2,3]
+    """
+    order_list = payload.get("order") if isinstance(payload, dict) else payload
+    if not isinstance(order_list, list):
+        raise HTTPException(400, "Invalid order list")
+    ids: List[int] = []
+    for v in order_list:
+        try:
+            ids.append(int(v))
+        except Exception:
+            continue
+    await db.update_academy_order(ids)
     return {"status": "ok"}
 
 @app.put("/api/v1/academies/order")

@@ -50,7 +50,12 @@ def main():
     tcp_port = env.get("TCP_PORT", "8085")
     web_host = env.get("WEB_HOST", "0.0.0.0")
     web_port = env.get("WEB_PORT", "8000")
+    # 浏览器自动打开策略（默认关闭，避免在受限环境触发 webbrowser/桌面能力相关崩溃）：
+    # - INFRACOUNT_NO_BROWSER=1：强制禁止打开（优先级最高）
+    # - INFRACOUNT_OPEN_BROWSER=1：显式允许打开
+    # 只有当「未禁止」且「显式允许」时才会尝试打开浏览器
     no_browser = env.get("INFRACOUNT_NO_BROWSER", "").strip() == "1"
+    open_browser = env.get("INFRACOUNT_OPEN_BROWSER", "").strip() == "1"
     reset_logs = env.get("INFRACOUNT_RESET_LOGS", "").strip() == "1"
 
     tcp_out_path = os.path.join(data_dir, "tcp_server.out")
@@ -90,9 +95,15 @@ def main():
     try:
         time.sleep(2)
         url = f"http://127.0.0.1:{web_port}/login"
-        print(f"Opening {url} ...")
-        if not no_browser:
+        # 兼容性说明：
+        # - 旧版本默认会尝试打开浏览器；新版本默认不再自动打开，避免受限环境（无桌面/无默认浏览器）
+        #   因调用 webbrowser.open() 导致启动脚本异常退出或卡死。
+        # - 如需自动打开：设置 INFRACOUNT_OPEN_BROWSER=1；如需强制禁止：设置 INFRACOUNT_NO_BROWSER=1。
+        if (not no_browser) and open_browser:
+            print(f"Opening {url} ...")
             webbrowser.open(url)
+        else:
+            print(f"Dashboard: {url}")
     except Exception:
         pass
 

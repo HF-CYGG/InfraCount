@@ -1,0 +1,226 @@
+/**
+ * 全局样式
+ *
+ * 设计目标：
+ * - 不引入任何 UI 框架，保持依赖轻量；
+ * - 用最基础的布局与配色，保证“能用、清晰、可扩展”；
+ * - 统一中文字体回退顺序，兼顾 Windows/macOS/Linux。
+ */
+
+:root {
+  --颜色-背景: #0b1220;
+  --颜色-面板: #111a2e;
+  --颜色-面板2: #0f1729;
+  --颜色-边框: rgba(255, 255, 255, 0.12);
+  --颜色-文本: rgba(255, 255, 255, 0.92);
+  --颜色-次要文本: rgba(255, 255, 255, 0.68);
+  --颜色-强调: #4ea1ff;
+  --颜色-危险: #ff5a5f;
+  --颜色-成功: #33d69f;
+  --圆角: 10px;
+  --间距: 14px;
+  --阴影: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(1000px 600px at 20% 0%, rgba(78, 161, 255, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 80% 10%, rgba(51, 214, 159, 0.14), transparent 60%),
+    var(--颜色-背景);
+  color: var(--颜色-文本);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.卡片 {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--颜色-边框);
+  border-radius: var(--圆角);
+  box-shadow: var(--阴影);
+}
+
+.按钮 {
+  border: 1px solid var(--颜色-边框);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--颜色-文本);
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.06s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.按钮:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.按钮:active {
+  transform: translateY(1px);
+}
+
+.按钮.强调 {
+  background: rgba(78, 161, 255, 0.18);
+  border-color: rgba(78, 161, 255, 0.42);
+}
+
+.输入框 {
+  width: 100%;
+  border: 1px solid var(--颜色-边框);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--颜色-文本);
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+}
+
+.输入框:focus {
+  border-color: rgba(78, 161, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(78, 161, 255, 0.15);
+}
+
+.提示-错误 {
+  color: var(--颜色-危险);
+}
+
+.提示-次要 {
+  color: var(--颜色-次要文本);
+}
+
+/**
+ * 通用布局/表格样式
+ *
+ * 说明：
+ * - 这些样式用于页面“可用化”阶段快速统一外观；
+ * - 命名全部使用中文，降低前端维护时的语义切换成本；
+ * - 保持足够克制：只做最基础的表格/栅格/徽章/间距。
+ */
+
+.行 {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.两列栅格 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  min-width: 0;
+}
+
+.三列栅格 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.面板 {
+  padding: 14px;
+}
+
+.分隔线 {
+  height: 1px;
+  background: var(--颜色-边框);
+  margin: 12px 0;
+}
+
+.表格容器 {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--颜色-边框);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.表格 {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.表格 th,
+.表格 td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.表格 thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(15, 23, 41, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 1;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.表格 tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.徽章 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.徽章.成功 {
+  border-color: rgba(51, 214, 159, 0.35);
+  background: rgba(51, 214, 159, 0.14);
+}
+
+.徽章.危险 {
+  border-color: rgba(255, 90, 95, 0.35);
+  background: rgba(255, 90, 95, 0.14);
+}
+
+.徽章.强调 {
+  border-color: rgba(78, 161, 255, 0.35);
+  background: rgba(78, 161, 255, 0.14);
+}
+
+.小字 {
+  font-size: 12px;
+}
+
+.数字 {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 920px) {
+  .两列栅格 {
+    grid-template-columns: 1fr;
+  }
+  .三列栅格 {
+    grid-template-columns: 1fr;
+  }
+}

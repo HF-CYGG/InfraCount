@@ -1,0 +1,32 @@
+{
+  /**
+   * TypeScript 配置（浏览器端）
+   *
+   * 设计原则：
+   * - 保持配置尽量“标准化”，让新同事一眼能看懂；
+   * - 用严格模式提升类型安全；
+   * - 配合 Vue SFC（.vue）使用 vue-tsc 进行类型检查。
+   */
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
+}
+

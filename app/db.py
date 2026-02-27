@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 import json
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable, Literal, Tuple
 
 import aiomysql
 import aiosqlite
@@ -583,27 +583,81 @@ async def close_pool():
     if _sqlite:
         await _sqlite.close()
 
+async def ping() -> Dict[str, Any]:
+    start_ts = time.time()
+    try:
+        if use_sqlite():
+            if not _sqlite:
+                await init_sqlite()
+            async with _sqlite.execute("SELECT 1") as cur:
+                await cur.fetchone()
+        else:
+            if not _pool:
+                await init_pool()
+            async with _pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("SELECT 1")
+                    await cur.fetchone()
+        return {"ok": True, "latency_ms": int((time.time() - start_ts) * 1000)}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "latency_ms": int((time.time() - start_ts) * 1000)}
+
 # --- Device / Records ---
 
-async def fetch_latest():
-    # Return list of latest record per device
-    # Join with registry to get names
-    sql = """
-    SELECT r.*, reg.name, reg.category 
+async def fetch_latest(uuid: str | None = None):
+    """
+    获取“每台设备最新一条记录”，并附带 registry 的 name/category。
+
+    设计说明（兼容两类调用场景）：
+    1) uuid 为空：返回所有设备的最新记录列表（用于看板/总览）。
+    2) uuid 非空：仅返回指定设备的最新记录列表（长度为 0 或 1）。
+
+    返回结构：
+    - SQLite：返回 list[dict]，字段为 records 表的列 + name/category；
+    - MySQL：返回 list[dict]，字段同上。
+    """
+    base_sql = """
+    SELECT r.*, reg.name, reg.category
     FROM records r
     LEFT JOIN registry reg ON r.uuid = reg.uuid
+    """
+
+    params = []
+    if uuid:
+        sql = (
+            base_sql
+            + """
+    WHERE r.uuid = {uuid_ph}
+    ORDER BY r.id DESC
+    LIMIT 1
+    """
+        )
+        if use_sqlite():
+            sql = sql.format(uuid_ph="?")
+            params = [uuid]
+        else:
+            sql = sql.format(uuid_ph="%s")
+            params = [uuid]
+    else:
+        sql = (
+            base_sql
+            + """
     WHERE r.id IN (SELECT MAX(id) FROM records GROUP BY uuid)
     """
+        )
+
     if use_sqlite():
-        if not _sqlite: await init_sqlite()
-        async with _sqlite.execute(sql) as cur:
+        if not _sqlite:
+            await init_sqlite()
+        async with _sqlite.execute(sql, params) as cur:
             rows = await cur.fetchall()
             return [dict(row) for row in rows]
     else:
-        if not _pool: await init_pool()
+        if not _pool:
+            await init_pool()
         async with _pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cur:
-                await cur.execute(sql)
+                await cur.execute(sql, params)
                 return await cur.fetchall()
 
 async def fetch_history(uuid=None, start=None, end=None, limit=100, order: str = "desc", sort_by: str = "time"):
@@ -943,18 +997,43 @@ async def admin_count_records(uuid=None, start=None, end=None, warn=None, rec_ty
                 row = await cur.fetchone()
                 return row[0]
 
-async def admin_list_records(page=1, limit=50, uuid=None, start=None, end=None, warn=None, rec_type=None, btx_min=None, btx_max=None):
+async def admin_list_records(
+    page=1,
+    limit=50,
+    uuid=None,
+    start=None,
+    end=None,
+    warn=None,
+    rec_type=None,
+    btx_min=None,
+    btx_max=None,
+    order: str = "desc",
+    sort_by: str = "time",
+):
+    """
+    管理视图：按条件分页列出 records。
+
+    与 fetch_history 的差异：
+    - fetch_history：面向“轻量历史查询”，只支持 limit，不返回 total；
+    - admin_list_records：面向“管理后台表格”，支持 page/limit（并配合 admin_count_records 返回 total）。
+
+    额外能力：
+    - 支持排序字段：time / created_at
+    - 支持排序方向：asc / desc
+    """
     offset = (page - 1) * limit
     where = ["1=1"]
     params = []
     if uuid:
         where.append("uuid = ?" if use_sqlite() else "uuid = %s")
         params.append(uuid)
+    sort_by_norm = str(sort_by or "").strip().lower()
+    col = "created_at" if sort_by_norm == "created_at" else "time"
     if start:
-        where.append("time >= ?" if use_sqlite() else "time >= %s")
+        where.append(f"{col} >= ?" if use_sqlite() else f"{col} >= %s")
         params.append(start)
     if end:
-        where.append("time <= ?" if use_sqlite() else "time <= %s")
+        where.append(f"{col} <= ?" if use_sqlite() else f"{col} <= %s")
         params.append(end)
     if warn is not None:
         where.append("warn_status = ?" if use_sqlite() else "warn_status = %s")
@@ -968,8 +1047,11 @@ async def admin_list_records(page=1, limit=50, uuid=None, start=None, end=None, 
     if btx_max is not None:
         where.append("btx <= ?" if use_sqlite() else "btx <= %s")
         params.append(btx_max)
-    
-    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY time DESC LIMIT {limit} OFFSET {offset}"
+
+    order_norm = str(order or "").strip().lower()
+    order_sql = "ASC" if order_norm == "asc" else "DESC"
+
+    sql = f"SELECT * FROM records WHERE {' AND '.join(where)} ORDER BY {col} {order_sql} LIMIT {limit} OFFSET {offset}"
     
     if use_sqlite():
         if not _sqlite: await init_sqlite()
@@ -984,21 +1066,123 @@ async def admin_list_records(page=1, limit=50, uuid=None, start=None, end=None, 
                 return await cur.fetchall()
 
 async def save_device_data(data: dict, ip: str = None):
-    uuid = data.get("uuid")
-    if not uuid: return
-    
-    # Insert record
+    """
+    保存设备上报数据到 records，并更新 registry 的 last_seen/ip。
+
+    兼容性说明（本函数的核心目标）：
+    - 兼容 parse_sensor_xml 的输出：in/out/batterytx_level/rec_type/warn_status 等；
+    - 同时兼容历史/导入场景可能使用的字段：in_count/out_count/btx/battery/signal_strength 等；
+    - 最终统一写入 records 表的标准字段：in_count/out_count/battery/btx/rec_type/signal_strength/warn_status/activity_type。
+    """
+    # 1) 解析并校验 UUID：设备唯一标识，缺失则不入库
+    uuid = (data.get("uuid") or "").strip()
+    if not uuid:
+        return
+
+    def _safe_int(v, default: int | None = 0) -> int | None:
+        """
+        将任意输入安全转换为 int：
+        - v 为 None/空串/不可转数字时返回 default；
+        - v 已是数字时直接转换；
+        - 该函数用于“入库前强制类型兜底”，避免因脏数据导致写入异常。
+        """
+        if v is None:
+            return default
+        if isinstance(v, bool):
+            return int(v)
+        if isinstance(v, (int, float)):
+            try:
+                return int(v)
+            except Exception:
+                return default
+        s = str(v).strip()
+        if s == "":
+            return default
+        try:
+            return int(s)
+        except Exception:
+            return default
+
+    def _pick_int(*keys: str, default: int = 0) -> int:
+        """
+        在 data 中按 keys 的顺序尝试取值并转为 int：
+        - 只要遇到一个非 None/非空的值且可转换，就立即返回；
+        - 全部失败则返回 default；
+        - 用于处理“同一语义字段多种命名”的兼容写入。
+        """
+        for k in keys:
+            if k in data:
+                v = data.get(k)
+                if v is None:
+                    continue
+                if isinstance(v, str) and v.strip() == "":
+                    continue
+                n = _safe_int(v, default=None)  # 先用 None 表示“转换失败”
+                if n is not None:
+                    return n
+        return default
+
+    def _pick_str(*keys: str, default: str = "") -> str:
+        """
+        在 data 中按 keys 的顺序尝试取值并转为 str：
+        - 只要遇到一个非空字符串（或可转为非空字符串的值）就返回；
+        - 全部失败则返回 default。
+        """
+        for k in keys:
+            if k in data:
+                v = data.get(k)
+                if v is None:
+                    continue
+                s = str(v).strip()
+                if s != "":
+                    return s
+        return default
+
+    # 2) 时间字段兼容：
+    # - parse_sensor_xml 会提供 "time"（通常为 "YYYY-MM-DD HH:MM:SS"）；
+    # - 兼容极少数场景传 compact 格式 "YYYYMMDDHHMMSS"；
+    # - 若缺失则使用服务器当前时间。
+    ts = _pick_str("time", "timestamp", "datetime", "record_time", default=time.strftime("%Y-%m-%d %H:%M:%S"))
+    if len(ts) == 14 and ts.isdigit():
+        try:
+            import datetime as _dt
+            dt = _dt.datetime.strptime(ts, "%Y%m%d%H%M%S")
+            ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            ts = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 3) 字段映射（重点修复）：
+    # - in/out ↔ in_count/out_count
+    # - batterytx_level ↔ btx
+    # - warn_status ↔ warn
+    # - rec_type ↔ rec_type
+    # - battery_level ↔ battery
+    # - signal_status ↔ signal_strength
+    in_count = _pick_int("in_count", "in", "IN", default=0)
+    out_count = _pick_int("out_count", "out", "OUT", default=0)
+    battery = _pick_int("battery", "battery_level", "power", default=0)
+    btx = _pick_int("btx", "batterytx_level", "battery_tx", "btx_level", default=0)
+    rec_type = _pick_int("rec_type", "rectype", default=0)
+    warn_status = _pick_int("warn_status", "warn", "warning", default=0)
+    signal_strength = _pick_int("signal_strength", "signal_status", "signal", default=0)
+
+    # 4) 业务扩展字段：
+    # - activity_type 主要用于管理后台/活动归属，设备上报通常不带；
+    # - 兼容 data 已携带 activity_type 的情况；否则维持历史默认值 "default"。
+    activity_type = _pick_str("activity_type", "activity", default="default")
+
+    # 5) 入库：统一写入 records 标准字段
     rec = {
         "uuid": uuid,
-        "time": data.get("time") or time.strftime("%Y-%m-%d %H:%M:%S"),
-        "in_count": int(data.get("in_count") or 0),
-        "out_count": int(data.get("out_count") or 0),
-        "battery": int(data.get("battery_level") or 0),
-        "signal_strength": int(data.get("signal_status") or 0),
-        "btx": 0,
-        "rec_type": 0,
-        "warn_status": 0,
-        "activity_type": "default"
+        "time": ts,
+        "in_count": in_count,
+        "out_count": out_count,
+        "battery": battery,
+        "btx": btx,
+        "rec_type": rec_type,
+        "signal_strength": signal_strength,
+        "warn_status": warn_status,
+        "activity_type": activity_type,
     }
     await admin_create_record(rec)
     
@@ -2271,6 +2455,495 @@ async def correct_location_data(target_location: str, target_academy: str, merge
             await conn.commit()
             
     return count
+
+
+# --- SQLite 数据库合并导入（管理员功能） ---
+#
+# 设计目标：
+# 1) 支持管理员上传一个 SQLite .db 文件，并将其数据“合并导入”到当前运行库（仅支持当前库为 SQLite）。
+# 2) 合并流程分两步：
+#    - 预览：统计各表“新增/冲突/无效/预计插入/预计更新/预计跳过”；
+#    - 执行：在一个事务中完成插入/更新，失败则整体回滚，同时写入 audit_logs 便于审计追溯。
+# 3) 合并策略：
+#    - merge_mode:
+#      - skip_existing：遇到主键/签名冲突则跳过；
+#      - update_existing：遇到冲突则更新已有记录（不改变主键/签名字段）。
+#    - conflict_preference（仅 update_existing 时生效）：
+#      - prefer_import：以导入库字段为准；
+#      - prefer_current_non_empty：导入字段为空（NULL/空字符串）时保留当前库字段，否则使用导入值。
+#
+# 关键说明（“签名键”定义）：
+# - records：使用 (uuid, time) 作为签名键（表内不一定有 UNIQUE 约束，但业务上视作唯一）。
+# - registry：主键 uuid。
+# - activity_events：使用 (date, start_time, location, activity_name) 作为签名键（与现有去重逻辑保持一致）。
+# - alerts：使用 (uuid, type, time) 作为签名键（time 作为告警发生时间）。
+# - academies：使用 name 作为签名键（name 唯一）。
+# - location_academy：主键 location_name。
+
+MergeMode = Literal["skip_existing", "update_existing"]
+ConflictPreference = Literal["prefer_current_non_empty", "prefer_import"]
+
+_DB_MERGE_TABLE_SPECS: Dict[str, Dict[str, Any]] = {
+    "records": {
+        "key_cols": ["uuid", "time"],
+        "insert_cols": [
+            "uuid",
+            "time",
+            "in_count",
+            "out_count",
+            "battery",
+            "btx",
+            "rec_type",
+            "signal_strength",
+            "warn_status",
+            "activity_type",
+            "created_at",
+        ],
+        "update_cols": [
+            "in_count",
+            "out_count",
+            "battery",
+            "btx",
+            "rec_type",
+            "signal_strength",
+            "warn_status",
+            "activity_type",
+        ],
+        "text_cols": ["activity_type"],
+    },
+    "registry": {
+        "key_cols": ["uuid"],
+        "insert_cols": ["uuid", "name", "category", "description", "last_seen", "ip", "bound_at"],
+        "update_cols": ["name", "category", "description", "last_seen", "ip", "bound_at"],
+        "text_cols": ["name", "category", "description", "ip"],
+    },
+    "activity_events": {
+        "key_cols": ["date", "start_time", "location", "activity_name"],
+        "insert_cols": [
+            "date",
+            "weekday",
+            "start_time",
+            "end_time",
+            "duration_minutes",
+            "academy",
+            "location",
+            "activity_name",
+            "activity_type",
+            "audience_count",
+            "notes",
+            "create_time",
+        ],
+        "update_cols": [
+            "weekday",
+            "end_time",
+            "duration_minutes",
+            "academy",
+            "activity_type",
+            "audience_count",
+            "notes",
+        ],
+        "text_cols": ["weekday", "end_time", "academy", "activity_type", "notes"],
+    },
+    "alerts": {
+        "key_cols": ["uuid", "type", "time"],
+        "insert_cols": ["uuid", "type", "level", "status", "info", "time", "notified", "notified_at", "notify_error"],
+        "update_cols": ["level", "status", "info", "notified", "notified_at", "notify_error"],
+        "text_cols": ["type", "info", "notify_error"],
+    },
+    "academies": {
+        "key_cols": ["name"],
+        "insert_cols": ["name", "sort_order"],
+        "update_cols": ["sort_order"],
+        "text_cols": ["name"],
+    },
+    "location_academy": {
+        "key_cols": ["location_name"],
+        "insert_cols": ["location_name", "academy_name"],
+        "update_cols": ["academy_name"],
+        "text_cols": ["location_name", "academy_name"],
+    },
+}
+
+def _sqlite_escape_path_for_attach(path: str) -> str:
+    """
+    将文件路径转为可安全放进 SQLite 字符串字面量的形式。
+
+    说明：
+    - ATTACH 不支持参数化占位符传入路径，因此只能拼接 SQL；
+    - 这里通过转义单引号来规避注入风险；
+    - 路径来源于后端保存的临时文件（非用户直接拼 SQL），仍建议做严格转义。
+    """
+    return str(path).replace("'", "''")
+
+async def _sqlite_attach_database(conn: aiosqlite.Connection, alias: str, file_path: str) -> None:
+    escaped = _sqlite_escape_path_for_attach(os.path.abspath(file_path))
+    await conn.execute(f"ATTACH DATABASE '{escaped}' AS {alias}")
+
+async def _sqlite_detach_database(conn: aiosqlite.Connection, alias: str) -> None:
+    await conn.execute(f"DETACH DATABASE {alias}")
+
+async def _sqlite_table_exists(conn: aiosqlite.Connection, schema: str, table: str) -> bool:
+    sql = f"SELECT 1 FROM {schema}.sqlite_master WHERE type='table' AND name=? LIMIT 1"
+    async with conn.execute(sql, (table,)) as cur:
+        return (await cur.fetchone()) is not None
+
+async def _sqlite_table_columns(conn: aiosqlite.Connection, schema: str, table: str) -> List[str]:
+    sql = f"PRAGMA {schema}.table_info({table})"
+    async with conn.execute(sql) as cur:
+        rows = await cur.fetchall()
+    cols: List[str] = []
+    for r in rows or []:
+        if not r or len(r) < 2:
+            continue
+        cols.append(str(r[1]))
+    return cols
+
+def _build_invalid_key_condition(key_cols: List[str], table_alias: str = "s") -> str:
+    parts: List[str] = []
+    for k in key_cols:
+        # 统一将字段 cast 成 TEXT 来判空，兼容 time/date 等字段可能的存储类型差异
+        parts.append(f"{table_alias}.{k} IS NULL OR trim(CAST({table_alias}.{k} AS TEXT)) = ''")
+    return "(" + " OR ".join(parts) + ")"
+
+def _build_key_join_condition(key_cols: List[str], left_alias: str, right_alias: str) -> str:
+    return " AND ".join([f"{left_alias}.{k} = {right_alias}.{k}" for k in key_cols])
+
+async def sqlite_db_merge_preview(
+    import_db_path: str,
+    merge_mode: MergeMode = "skip_existing",
+    conflict_preference: ConflictPreference = "prefer_import",
+) -> Dict[str, Any]:
+    """
+    预览合并导入影响范围（仅 SQLite）。
+
+    返回结构示例：
+    {
+      "db_driver": "sqlite",
+      "import_db_path": "...(server path)...",
+      "strategy": {"merge_mode": "...", "conflict_preference": "..."},
+      "tables": {
+        "records": {"exists": true, "total": 123, "invalid": 0, "new": 100, "conflict": 23, "plan": {...}},
+        ...
+      }
+    }
+    """
+    if not use_sqlite():
+        raise RuntimeError("当前数据库不是 SQLite，无法执行 .db 合并导入")
+    if not _sqlite:
+        await init_sqlite()
+
+    conn = _sqlite
+    alias = "importdb"
+    await _sqlite_attach_database(conn, alias, import_db_path)
+    try:
+        out: Dict[str, Any] = {
+            "db_driver": "sqlite",
+            "import_db_path": os.path.abspath(import_db_path),
+            "strategy": {"merge_mode": merge_mode, "conflict_preference": conflict_preference},
+            "tables": {},
+        }
+
+        for table_name, spec in _DB_MERGE_TABLE_SPECS.items():
+            key_cols: List[str] = list(spec.get("key_cols") or [])
+            exists = await _sqlite_table_exists(conn, alias, table_name)
+            if not exists:
+                out["tables"][table_name] = {
+                    "exists": False,
+                    "reason": "导入库缺少该表",
+                    "total": 0,
+                    "invalid": 0,
+                    "new": 0,
+                    "conflict": 0,
+                    "plan": {"insert": 0, "update": 0, "skip": 0},
+                }
+                continue
+
+            main_cols = set(await _sqlite_table_columns(conn, "main", table_name))
+            import_cols = set(await _sqlite_table_columns(conn, alias, table_name))
+            required_cols = set(key_cols)
+            if not required_cols.issubset(main_cols) or not required_cols.issubset(import_cols):
+                out["tables"][table_name] = {
+                    "exists": True,
+                    "reason": "主库/导入库字段不匹配（缺少签名键字段）",
+                    "total": 0,
+                    "invalid": 0,
+                    "new": 0,
+                    "conflict": 0,
+                    "plan": {"insert": 0, "update": 0, "skip": 0},
+                }
+                continue
+
+            invalid_cond = _build_invalid_key_condition(key_cols, table_alias="s")
+            join_cond = _build_key_join_condition(key_cols, left_alias="s", right_alias="t")
+
+            async with conn.execute(f"SELECT COUNT(*) AS c FROM {alias}.{table_name} s") as cur:
+                total = int((await cur.fetchone() or [0])[0] or 0)
+
+            async with conn.execute(
+                f"SELECT COUNT(*) AS c FROM {alias}.{table_name} s WHERE {invalid_cond}"
+            ) as cur:
+                invalid = int((await cur.fetchone() or [0])[0] or 0)
+
+            valid_cond = f"NOT {invalid_cond}"
+
+            async with conn.execute(
+                f"""
+                SELECT COUNT(*) AS c
+                FROM {alias}.{table_name} s
+                WHERE {valid_cond}
+                  AND NOT EXISTS (
+                    SELECT 1 FROM main.{table_name} t WHERE {join_cond}
+                  )
+                """
+            ) as cur:
+                new_count = int((await cur.fetchone() or [0])[0] or 0)
+
+            async with conn.execute(
+                f"""
+                SELECT COUNT(*) AS c
+                FROM {alias}.{table_name} s
+                WHERE {valid_cond}
+                  AND EXISTS (
+                    SELECT 1 FROM main.{table_name} t WHERE {join_cond}
+                  )
+                """
+            ) as cur:
+                conflict = int((await cur.fetchone() or [0])[0] or 0)
+
+            if merge_mode == "skip_existing":
+                plan = {"insert": new_count, "update": 0, "skip": conflict + invalid}
+            else:
+                plan = {"insert": new_count, "update": conflict, "skip": invalid}
+
+            out["tables"][table_name] = {
+                "exists": True,
+                "total": total,
+                "invalid": invalid,
+                "new": new_count,
+                "conflict": conflict,
+                "plan": plan,
+            }
+
+        return out
+    finally:
+        try:
+            await _sqlite_detach_database(conn, alias)
+        except Exception:
+            # 如果 detach 失败（例如仍处在事务中或连接状态异常），不阻断预览结果返回
+            pass
+
+async def sqlite_db_merge_execute(
+    import_db_path: str,
+    actor: str,
+    merge_mode: MergeMode = "skip_existing",
+    conflict_preference: ConflictPreference = "prefer_import",
+    progress_cb: Optional[Callable[[Dict[str, Any]], None]] = None,
+) -> Dict[str, Any]:
+    """
+    执行合并导入（仅 SQLite，强事务）。
+
+    progress_cb：
+    - 用于后台任务实时汇报进度；
+    - 回调参数为 dict（可直接序列化给前端）。
+    """
+    if not use_sqlite():
+        raise RuntimeError("当前数据库不是 SQLite，无法执行 .db 合并导入")
+    if not _sqlite:
+        await init_sqlite()
+
+    conn = _sqlite
+    alias = "importdb"
+
+    def emit(payload: Dict[str, Any]) -> None:
+        if progress_cb:
+            try:
+                progress_cb(payload)
+            except Exception:
+                pass
+
+    await _sqlite_attach_database(conn, alias, import_db_path)
+    started_at = time.time()
+    emit({"status": "running", "stage": "begin", "started_at": started_at})
+
+    try:
+        await conn.execute("BEGIN")
+        results: Dict[str, Any] = {
+            "db_driver": "sqlite",
+            "import_db_path": os.path.abspath(import_db_path),
+            "strategy": {"merge_mode": merge_mode, "conflict_preference": conflict_preference},
+            "tables": {},
+            "audit_log": {"written": False},
+        }
+
+        tables = list(_DB_MERGE_TABLE_SPECS.keys())
+        total_tables = len(tables)
+        done_tables = 0
+
+        for table_name in tables:
+            spec = _DB_MERGE_TABLE_SPECS[table_name]
+            key_cols: List[str] = list(spec.get("key_cols") or [])
+            text_cols: set[str] = set(spec.get("text_cols") or [])
+
+            emit({"status": "running", "stage": "table_start", "table": table_name})
+
+            exists = await _sqlite_table_exists(conn, alias, table_name)
+            if not exists:
+                results["tables"][table_name] = {"exists": False, "skipped": True, "reason": "导入库缺少该表"}
+                done_tables += 1
+                emit({"status": "running", "stage": "table_done", "table": table_name, "progress": done_tables / max(1, total_tables)})
+                continue
+
+            main_cols = set(await _sqlite_table_columns(conn, "main", table_name))
+            import_cols = set(await _sqlite_table_columns(conn, alias, table_name))
+            if not set(key_cols).issubset(main_cols) or not set(key_cols).issubset(import_cols):
+                results["tables"][table_name] = {"exists": True, "skipped": True, "reason": "缺少签名键字段，无法合并"}
+                done_tables += 1
+                emit({"status": "running", "stage": "table_done", "table": table_name, "progress": done_tables / max(1, total_tables)})
+                continue
+
+            common_cols = main_cols.intersection(import_cols)
+
+            insert_cols: List[str] = []
+            for c in (spec.get("insert_cols") or []):
+                if c in common_cols and c != "id":
+                    insert_cols.append(c)
+
+            update_cols: List[str] = []
+            for c in (spec.get("update_cols") or []):
+                if c in common_cols and c not in key_cols and c != "id":
+                    update_cols.append(c)
+
+            invalid_cond = _build_invalid_key_condition(key_cols, table_alias="s")
+            valid_cond = f"NOT {invalid_cond}"
+            join_cond = _build_key_join_condition(key_cols, left_alias="s", right_alias="t")
+
+            inserted = 0
+            updated = 0
+            skipped_invalid = 0
+
+            # 1) 统计无效行（签名键为空）：执行阶段直接计数并作为“跳过”
+            async with conn.execute(
+                f"SELECT COUNT(*) AS c FROM {alias}.{table_name} s WHERE {invalid_cond}"
+            ) as cur:
+                skipped_invalid = int((await cur.fetchone() or [0])[0] or 0)
+
+            # 2) 插入新增
+            if insert_cols:
+                cols_sql = ", ".join(insert_cols)
+                select_cols_sql = ", ".join([f"s.{c}" for c in insert_cols])
+                await conn.execute(
+                    f"""
+                    INSERT INTO main.{table_name} ({cols_sql})
+                    SELECT {select_cols_sql}
+                    FROM {alias}.{table_name} s
+                    WHERE {valid_cond}
+                      AND NOT EXISTS (
+                        SELECT 1 FROM main.{table_name} t WHERE {join_cond}
+                      )
+                    """
+                )
+                async with conn.execute("SELECT changes()") as cur:
+                    inserted = int((await cur.fetchone() or [0])[0] or 0)
+            else:
+                inserted = 0
+
+            emit({"status": "running", "stage": "table_insert_done", "table": table_name, "inserted": inserted})
+
+            # 3) 更新冲突（可选）
+            if merge_mode == "update_existing" and update_cols:
+                # 3.1 构造 UPDATE SQL（使用命名参数，便于按列赋值）
+                set_parts: List[str] = []
+                for c in update_cols:
+                    if conflict_preference == "prefer_current_non_empty":
+                        if c in text_cols:
+                            set_parts.append(
+                                f"{c} = CASE WHEN :{c} IS NULL OR trim(CAST(:{c} AS TEXT)) = '' THEN {c} ELSE :{c} END"
+                            )
+                        else:
+                            # 非文本字段：导入值为 NULL 时保留当前值，其它情况使用导入值
+                            set_parts.append(f"{c} = COALESCE(:{c}, {c})")
+                    else:
+                        # prefer_import：无条件以导入值覆盖
+                        set_parts.append(f"{c} = :{c}")
+                set_sql = ", ".join(set_parts)
+
+                where_parts = [f"{k} = :__k_{k}" for k in key_cols]
+                where_sql = " AND ".join(where_parts)
+                update_sql = f"UPDATE main.{table_name} SET {set_sql} WHERE {where_sql}"
+
+                select_cols = key_cols + update_cols
+                select_cols_sql = ", ".join([f"s.{c}" for c in select_cols])
+                select_sql = f"""
+                    SELECT {select_cols_sql}
+                    FROM {alias}.{table_name} s
+                    WHERE {valid_cond}
+                      AND EXISTS (SELECT 1 FROM main.{table_name} t WHERE {join_cond})
+                """
+
+                async with conn.execute(select_sql) as cur:
+                    while True:
+                        rows = await cur.fetchmany(500)
+                        if not rows:
+                            break
+                        params_list: List[Dict[str, Any]] = []
+                        for r in rows:
+                            # r 的列顺序与 select_cols 一致
+                            p: Dict[str, Any] = {}
+                            for idx, c in enumerate(select_cols):
+                                p[c] = r[idx]
+                            for k in key_cols:
+                                p[f"__k_{k}"] = p.get(k)
+                            params_list.append(p)
+                        await conn.executemany(update_sql, params_list)
+                        updated += len(params_list)
+
+                emit({"status": "running", "stage": "table_update_done", "table": table_name, "updated": updated})
+
+            results["tables"][table_name] = {
+                "exists": True,
+                "inserted": inserted,
+                "updated": updated,
+                "skipped_invalid": skipped_invalid,
+            }
+
+            done_tables += 1
+            emit({"status": "running", "stage": "table_done", "table": table_name, "progress": done_tables / max(1, total_tables)})
+
+        # 4) 写入审计日志（同一事务内）
+        finished_at = time.time()
+        details = json.dumps(
+            {
+                "feature": "sqlite_db_merge_import",
+                "import_db_path": os.path.abspath(import_db_path),
+                "strategy": results["strategy"],
+                "results": results["tables"],
+                "duration_sec": round(finished_at - started_at, 3),
+            },
+            ensure_ascii=False,
+        )
+        await conn.execute(
+            "INSERT INTO audit_logs (actor, action, target, details) VALUES (?, ?, ?, ?)",
+            (str(actor or ""), "db_merge_import", "sqlite", details),
+        )
+        results["audit_log"] = {"written": True}
+
+        await conn.commit()
+        results["finished_at"] = finished_at
+        results["duration_sec"] = round(finished_at - started_at, 3)
+        emit({"status": "done", "stage": "commit", "finished_at": finished_at, "duration_sec": results["duration_sec"]})
+        return results
+    except Exception as e:
+        try:
+            await conn.rollback()
+        except Exception:
+            pass
+        emit({"status": "error", "stage": "rollback", "error": str(e)})
+        raise
+    finally:
+        try:
+            await _sqlite_detach_database(conn, alias)
+        except Exception:
+            pass
 
 
 

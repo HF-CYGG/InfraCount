@@ -1,4 +1,5 @@
 import asyncio
+import argparse
 import struct
 
 HEAD = b"\xFA\xF5\xF6"
@@ -32,4 +33,15 @@ async def send_once(host: str = "127.0.0.1", port: int = 8085):
     await writer.wait_closed()
 
 if __name__ == "__main__":
-    asyncio.run(send_once())
+    parser = argparse.ArgumentParser(
+        description=(
+            "InfraCount TCP 上报模拟器：向目标 TCP Server 发送一次示例 UP_SENSOR_DATA 包。\n"
+            "为便于在不同环境（本地/容器/远端）验证，支持通过命令行覆盖 host/port。"
+        )
+    )
+    # 兼容历史行为：不传参数时仍默认连接 127.0.0.1:8085
+    parser.add_argument("--host", default="127.0.0.1", help="TCP Server 主机名或 IP（默认 127.0.0.1）")
+    parser.add_argument("--port", default=8085, type=int, help="TCP Server 端口（默认 8085）")
+    args = parser.parse_args()
+
+    asyncio.run(send_once(host=args.host, port=args.port))
