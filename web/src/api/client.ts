@@ -13,7 +13,17 @@
  * - 后续如果需要文件上传/下载，可在此基础上扩展。
  */
 
+import { toastStore } from "@/stores/toast";
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+
+export type ApiRequestDedupeMode = "none" | "reuse" | "takeLatest";
+
+export type ApiRetryOptions = {
+  count?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+};
 
 export type ApiRequestOptions = {
   method: HttpMethod;
@@ -21,6 +31,12 @@ export type ApiRequestOptions = {
   query?: Record<string, string | number | boolean | undefined | null>;
   body?: unknown;
   headers?: Record<string, string>;
+  timeoutMs?: number;
+  dedupe?: ApiRequestDedupeMode;
+  cancelKey?: string;
+  retry?: ApiRetryOptions;
+  toastOnError?: boolean;
+  signal?: AbortSignal;
 };
 
 export class ApiError extends Error {
@@ -34,6 +50,15 @@ export class ApiError extends Error {
     this.data = data;
   }
 }
+
+type InFlightEntry = {
+  controller: AbortController;
+  promise: Promise<unknown>;
+  cancelKey?: string;
+};
+
+const inFlightByRequestKey = new Map<string, InFlightEntry>();
+const requestKeysByCancelKey = new Map<string, Set<string>>();
 
 function buildQueryString(query?: ApiRequestOptions["query"]): string {
   if (!query) return "";
@@ -60,6 +85,78 @@ async function parseResponseBody(res: Response): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+function stableStringify(v: unknown): string {
+  try {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (v instanceof FormData) return "[FormData]";
+    return JSON.stringify(v);
+  } catch {
+    return "[Unserializable]";
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function computeRequestKey(opts: ApiRequestOptions, url: string, normalizedHeaders: Record<string, string>): string {
+  const headersPart = Object.keys(normalizedHeaders)
+    .sort()
+    .map((k) => `${k}:${normalizedHeaders[k]}`)
+    .join("|");
+  const bodyPart = opts.method === "GET" ? "" : stableStringify(opts.body);
+  return `${opts.method} ${url} :: ${headersPart} :: ${bodyPart}`;
+}
+
+function unlinkFromCancelKey(requestKey: string, cancelKey?: string): void {
+  if (!cancelKey) return;
+  const set = requestKeysByCancelKey.get(cancelKey);
+  if (!set) return;
+  set.delete(requestKey);
+  if (!set.size) requestKeysByCancelKey.delete(cancelKey);
+}
+
+function linkToCancelKey(requestKey: string, cancelKey?: string): void {
+  if (!cancelKey) return;
+  const set = requestKeysByCancelKey.get(cancelKey) || new Set<string>();
+  set.add(requestKey);
+  requestKeysByCancelKey.set(cancelKey, set);
+}
+
+function abortByCancelKey(cancelKey: string): void {
+  const set = requestKeysByCancelKey.get(cancelKey);
+  if (!set) return;
+  for (const requestKey of Array.from(set)) {
+    const entry = inFlightByRequestKey.get(requestKey);
+    if (!entry) {
+      set.delete(requestKey);
+      continue;
+    }
+    entry.controller.abort();
+    inFlightByRequestKey.delete(requestKey);
+    unlinkFromCancelKey(requestKey, cancelKey);
+  }
+  if (!set.size) requestKeysByCancelKey.delete(cancelKey);
+}
+
+function normalizeFetchError(e: unknown, timedOut: boolean): ApiError | null {
+  if (e instanceof ApiError) return e;
+  if (e && typeof e === "object" && "name" in e && (e as any).name === "AbortError") {
+    if (timedOut) return new ApiError("请求超时，请稍后重试。", 408, null);
+    return new ApiError("", 499, null);
+  }
+  if (e instanceof TypeError) {
+    return new ApiError("网络异常：无法连接服务器或连接已中断。", 0, null);
+  }
+  return new ApiError("请求失败：未知错误。", 0, null);
 }
 
 /**
@@ -97,21 +194,114 @@ export async function apiRequest<T = unknown>(opts: ApiRequestOptions): Promise<
     }
   }
 
-  const res = await fetch(url, {
-    method: opts.method,
-    headers,
-    body,
-    credentials: "include"
-  });
+  const timeoutMs = Number.isFinite(opts.timeoutMs as any) ? Number(opts.timeoutMs) : 15_000;
+  const toastOnError = opts.toastOnError ?? true;
+  const retryCount = clamp(Number(opts.retry?.count ?? 0), 0, 2);
+  const baseDelayMs = clamp(Number(opts.retry?.baseDelayMs ?? 300), 50, 5_000);
+  const maxDelayMs = clamp(Number(opts.retry?.maxDelayMs ?? 3_000), 50, 30_000);
 
-  const data = await parseResponseBody(res);
+  const dedupe: ApiRequestDedupeMode = opts.dedupe ?? (opts.method === "GET" ? "reuse" : "none");
+  const requestKey = computeRequestKey(opts, url, headers);
 
-  if (!res.ok) {
-    const msg = typeof data === "string" && data.trim() ? data : `请求失败（HTTP ${res.status}）`;
-    throw new ApiError(msg, res.status, data);
+  if (dedupe === "reuse") {
+    const existing = inFlightByRequestKey.get(requestKey);
+    if (existing) return (await existing.promise) as T;
   }
 
-  return data as T;
+  if (dedupe === "takeLatest") {
+    if (opts.cancelKey) abortByCancelKey(opts.cancelKey);
+    else {
+      const existing = inFlightByRequestKey.get(requestKey);
+      if (existing) {
+        existing.controller.abort();
+        inFlightByRequestKey.delete(requestKey);
+        unlinkFromCancelKey(requestKey, existing.cancelKey);
+      }
+    }
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: number | null = null;
+
+  if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+  }
+
+  if (opts.signal) {
+    if (opts.signal.aborted) controller.abort();
+    else {
+      opts.signal.addEventListener(
+        "abort",
+        () => {
+          controller.abort();
+        },
+        { once: true }
+      );
+    }
+  }
+
+  const doFetch = async (): Promise<T> => {
+    const res = await fetch(url, {
+      method: opts.method,
+      headers,
+      body,
+      credentials: "include",
+      signal: controller.signal
+    });
+
+    const data = await parseResponseBody(res);
+
+    if (!res.ok) {
+      const msg = typeof data === "string" && data.trim() ? data : `请求失败（HTTP ${res.status}）`;
+      throw new ApiError(msg, res.status, data);
+    }
+
+    return data as T;
+  };
+
+  const promise = (async (): Promise<T> => {
+    try {
+      let attempt = 0;
+      while (true) {
+        try {
+          return await doFetch();
+        } catch (e) {
+          const normalized = normalizeFetchError(e, timedOut);
+          if (!normalized) throw e;
+          const retryable =
+            opts.method === "GET" &&
+            attempt < retryCount &&
+            (normalized.status === 0 || normalized.status === 408 || normalized.status >= 500);
+          if (!retryable) throw normalized;
+          const delay = clamp(baseDelayMs * Math.pow(2, attempt), 0, maxDelayMs);
+          attempt += 1;
+          await sleep(delay);
+        }
+      }
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      inFlightByRequestKey.delete(requestKey);
+      unlinkFromCancelKey(requestKey, opts.cancelKey);
+    }
+  })();
+
+  inFlightByRequestKey.set(requestKey, { controller, promise, cancelKey: opts.cancelKey });
+  linkToCancelKey(requestKey, opts.cancelKey);
+
+  try {
+    return await promise;
+  } catch (e) {
+    const normalized = normalizeFetchError(e, timedOut);
+    if (normalized) {
+      if (toastOnError && normalized.status !== 499 && normalized.message) toastStore.push(normalized.message, { tone: "danger" });
+      throw normalized;
+    }
+    throw e;
+  }
 }
 
 /**

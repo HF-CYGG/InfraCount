@@ -27,14 +27,18 @@
           </g>
         </g>
 
-        <g v-for="s in 归一化序列" :key="s.name">
-          <polyline :points="s.points" class="折线" :style="{ stroke: s.color }" />
-          <g v-for="p in s.dots" :key="p.key">
-            <circle :cx="p.x" :cy="p.y" r="3.2" class="圆点" :style="{ fill: s.color }">
-              <title>{{ p.tip }}</title>
-            </circle>
+        <Transition name="ui-fade" mode="out-in" appear>
+          <g :key="渲染键">
+            <g v-for="s in 归一化序列" :key="s.name">
+              <polyline :points="s.points" class="折线" :style="{ stroke: s.color }" />
+              <g v-for="p in s.dots" :key="p.key">
+                <circle :cx="p.x" :cy="p.y" r="3.2" class="圆点" :style="{ fill: s.color }">
+                  <title>{{ p.tip }}</title>
+                </circle>
+              </g>
+            </g>
           </g>
-        </g>
+        </Transition>
       </svg>
     </div>
 
@@ -142,6 +146,21 @@ const 归一化序列 = computed(() => {
     }
     return { name: s.name, color: s.color, points: points.join(" "), dots };
   });
+});
+
+const 渲染键 = computed(() => {
+  const labels = props.labels;
+  const head = labels[0] || "";
+  const tail = labels[labels.length - 1] || "";
+  const seriesSig = props.series
+    .map((s) => {
+      const values = s.values || [];
+      const v0 = values[0] ?? 0;
+      const v1 = values[values.length - 1] ?? 0;
+      return `${s.name}:${values.length}:${v0}:${v1}`;
+    })
+    .join("|");
+  return `${labels.length}:${head}:${tail}:${seriesSig}`;
 });
 </script>
 

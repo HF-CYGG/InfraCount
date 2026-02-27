@@ -837,6 +837,12 @@ async def delete_user_api(user_id: int, request: Request):
 
 # --- Pages ---
 
+_LEGACY_ROOT_DIR = os.path.abspath("legacy_backup")
+_LEGACY_TEMPLATES_DIR = os.path.join(_LEGACY_ROOT_DIR, "templates")
+_LEGACY_STATIC_DIR = os.path.join(_LEGACY_ROOT_DIR, "static")
+
+app.mount("/legacy/static", StaticFiles(directory=_LEGACY_STATIC_DIR), name="legacy_static")
+
 def _legacy_page_file(full_path: str) -> str | None:
     """
     将 /legacy/* 映射到旧版 templates/ 页面文件。
@@ -848,25 +854,25 @@ def _legacy_page_file(full_path: str) -> str | None:
     """
     p = str(full_path or "").strip().lstrip("/")
     if p in {"", "dashboard"}:
-        return "templates/dashboard.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "dashboard.html")
     if p == "login":
-        return "templates/login.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "login.html")
     if p == "account":
-        return "templates/account.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "account.html")
     if p == "devices":
-        return "templates/devices.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "devices.html")
     if p == "history":
-        return "templates/history.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "history.html")
     if p == "history/academy":
-        return "templates/history_academy.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "history_academy.html")
     if p == "history/device":
-        return "templates/history.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "history.html")
     if p == "activity":
-        return "templates/activity.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "activity.html")
     if p == "alerts":
-        return "templates/alerts.html"
+        return os.path.join(_LEGACY_TEMPLATES_DIR, "alerts.html")
     if p == "activity-dashboard":
-        return "activity_dashboard.html"
+        return os.path.join(_LEGACY_ROOT_DIR, "activity_dashboard.html")
     return None
 
 @app.get("/legacy", include_in_schema=False)

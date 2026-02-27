@@ -12,11 +12,169 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>InfraCount 管理后台（单页应用）</title>
-    <script type="module" crossorigin src="/spa/assets/index-Dq30jmW3.js"></script>
-    <link rel="stylesheet" crossorigin href="/spa/assets/index-B_D8rhqE.css">
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+          "Apple Color Emoji", "Segoe UI Emoji";
+        background: #0b0f17;
+        color: #e9edf7;
+      }
+      #app {
+        min-height: 100%;
+      }
+      .boot {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .boot-card {
+        width: min(560px, 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 20px 20px 18px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      .boot-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(233, 237, 247, 0.72);
+      }
+      .boot-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #7c5cff;
+        box-shadow: 0 0 0 6px rgba(124, 92, 255, 0.12);
+      }
+      .boot-logo {
+        width: 220px;
+        height: 220px;
+        display: block;
+        margin: 16px auto 12px;
+        filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+      }
+      .boot-title {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 650;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
+      }
+      .boot-subtitle {
+        margin: 0 0 14px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: rgba(233, 237, 247, 0.72);
+      }
+      .boot-skeleton {
+        display: grid;
+        gap: 10px;
+      }
+      .boot-line {
+        height: 12px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .w-92 {
+        width: 92%;
+      }
+      .w-84 {
+        width: 84%;
+      }
+      .w-74 {
+        width: 74%;
+      }
+      .w-66 {
+        width: 66%;
+      }
+      .boot-footer {
+        margin-top: 14px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12px;
+        color: rgba(233, 237, 247, 0.6);
+      }
+      .boot-footer a {
+        color: inherit;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(233, 237, 247, 0.24);
+      }
+      @media (prefers-color-scheme: light) {
+        body {
+          background: #f6f7fb;
+          color: #101322;
+        }
+        .boot-card {
+          border-color: rgba(16, 19, 34, 0.12);
+          background: rgba(16, 19, 34, 0.02);
+          box-shadow: 0 12px 32px rgba(16, 19, 34, 0.1);
+        }
+        .boot-brand,
+        .boot-subtitle,
+        .boot-footer {
+          color: rgba(16, 19, 34, 0.68);
+        }
+        .boot-line {
+          background: rgba(16, 19, 34, 0.08);
+        }
+        .boot-logo {
+          filter: drop-shadow(0 12px 22px rgba(16, 19, 34, 0.22));
+        }
+        .boot-footer a {
+          border-bottom-color: rgba(16, 19, 34, 0.22);
+        }
+      }
+    </style>
+    <script type="module" crossorigin src="/spa/assets/index-BrhhG77x.js"></script>
+    <link rel="stylesheet" crossorigin href="/spa/assets/index-OtLTItxn.css">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main class="boot" role="main" aria-label="应用加载占位">
+        <section class="boot-card" aria-live="polite" aria-busy="true">
+          <div class="boot-brand">
+            <span class="boot-dot" aria-hidden="true"></span>
+            <span>InfraCount</span>
+          </div>
+          <img
+            class="boot-logo"
+            src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22512%22%20height%3D%22512%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%237c5cff%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230b0f17%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22url(%23g)%22/%3E%3C/svg%3E"
+            width="220"
+            height="220"
+            alt="InfraCount"
+            decoding="async"
+            fetchpriority="high"
+          />
+          <h1 class="boot-title">管理后台正在加载</h1>
+          <p class="boot-subtitle">若网络较慢，请稍候片刻。页面加载完成后将自动进入系统。</p>
+          <div class="boot-skeleton" aria-hidden="true">
+            <div class="boot-line w-92"></div>
+            <div class="boot-line w-84"></div>
+            <div class="boot-line w-74"></div>
+            <div class="boot-line w-66"></div>
+          </div>
+          <div class="boot-footer">
+            <span>性能采集：FCP / LCP</span>
+            <a href="/spa/" aria-label="重新加载">刷新</a>
+          </div>
+        </section>
+        <noscript>需要启用 JavaScript 才能使用此管理后台。</noscript>
+      </main>
+    </div>
   </body>
 </html>
-

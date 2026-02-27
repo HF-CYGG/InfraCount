@@ -1,0 +1,1 @@
+import{d as s,k as t,c as o,G as n,H as c,_ as r}from"./index-BrhhG77x.js";const l=s({__name:"UiTag",props:{tone:{default:"default"}},setup(e){return(a,p)=>(t(),o("span",{class:c(["ui-tag",[`ui-tag--${e.tone}`]])},[n(a.$slots,"default",{},void 0)],2))}}),d=r(l,[["__scopeId","data-v-e96bcf8e"]]);export{d as U};

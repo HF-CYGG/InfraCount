@@ -37,7 +37,7 @@
           <div class="用户名称">{{ 用户名 }}</div>
           <div class="用户角色 提示-次要">角色：{{ 角色 }}</div>
         </div>
-        <button class="按钮" type="button" @click="退出登录">退出登录</button>
+        <UiButton size="sm" @click="退出登录">退出登录</UiButton>
       </div>
     </aside>
 
@@ -70,6 +70,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { authStore } from "@/stores/auth";
+import UiButton from "@/components/ui/UiButton.vue";
 
 const props = defineProps<{
   title: string;
@@ -92,28 +93,29 @@ async function 退出登录(): Promise<void> {
 .布局 {
   display: grid;
   grid-template-columns: 260px 1fr;
-  gap: 14px;
-  padding: 14px;
+  gap: var(--间距-14);
+  padding: var(--间距-14);
   min-height: 100vh;
 }
 
 .侧栏 {
-  padding: 14px;
+  padding: var(--间距-14);
   position: sticky;
-  top: 14px;
-  height: calc(100vh - 28px);
+  top: var(--间距-14);
+  height: calc(100vh - var(--间距-14) - var(--间距-14));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--间距-14);
+  overflow: hidden;
 }
 
 .侧栏标题 {
-  padding: 12px 12px 4px 12px;
+  padding: var(--间距-12) var(--间距-12) var(--间距-4) var(--间距-12);
 }
 
 .应用名 {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 900;
   letter-spacing: 0.5px;
 }
 
@@ -126,14 +128,18 @@ async function 退出登录(): Promise<void> {
 .导航 {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--间距-6);
+  overflow: auto;
+  padding-right: var(--间距-4);
 }
 
 .导航项 {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: var(--间距-10) var(--间距-12);
+  border-radius: var(--圆角-10);
   border: 1px solid transparent;
   color: var(--颜色-次要文本);
+  transition: background var(--动效-中) var(--ease-标准), border-color var(--动效-中) var(--ease-标准),
+    color var(--动效-中) var(--ease-标准);
 }
 
 .导航项:hover {
@@ -151,13 +157,13 @@ async function 退出登录(): Promise<void> {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--间距-10);
 }
 
 .用户信息 {
-  padding: 10px 12px;
+  padding: var(--间距-10) var(--间距-12);
   border: 1px solid var(--颜色-边框);
-  border-radius: 10px;
+  border-radius: var(--圆角-10);
   background: rgba(0, 0, 0, 0.14);
 }
 
@@ -166,19 +172,19 @@ async function 退出登录(): Promise<void> {
 }
 
 .用户角色 {
-  margin-top: 6px;
+  margin-top: var(--间距-6);
   font-size: 12px;
 }
 
 .内容区 {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--间距-14);
   min-width: 0;
 }
 
 .顶部栏 {
-  padding: 14px;
+  padding: var(--间距-14);
 }
 
 .页面标题 {
@@ -189,7 +195,8 @@ async function 退出登录(): Promise<void> {
 
 .标题 {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .副标题 {
@@ -199,7 +206,7 @@ async function 退出登录(): Promise<void> {
 .页面内容 {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--间距-14);
 }
 
 @media (max-width: 920px) {

@@ -1,0 +1,71 @@
+.按钮 {
+  border: var(--边框-卡片);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--颜色-文本);
+  padding: var(--间距-10) var(--间距-12);
+  border-radius: var(--圆角-10);
+  cursor: pointer;
+  transition: transform var(--动效-快) var(--ease-标准), background var(--动效-中) var(--ease-标准),
+    border-color var(--动效-中) var(--ease-标准), opacity var(--动效-中) var(--ease-标准);
+}
+
+.按钮:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.按钮:active {
+  transform: translateY(1px);
+}
+
+.按钮:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.按钮.强调 {
+  background: rgba(78, 161, 255, 0.18);
+  border-color: rgba(78, 161, 255, 0.42);
+}
+
+.输入框 {
+  width: 100%;
+  border: var(--边框-卡片);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--颜色-文本);
+  padding: var(--间距-10) var(--间距-12);
+  border-radius: var(--圆角-10);
+  outline: none;
+}
+
+.输入框:focus {
+  border-color: rgba(78, 161, 255, 0.65);
+  box-shadow: 0 0 0 3px rgba(78, 161, 255, 0.15);
+}
+
+.徽章 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--间距-6);
+  padding: var(--间距-4) var(--间距-8);
+  border-radius: var(--圆角-999);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: var(--字号-12);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.徽章.成功 {
+  border-color: rgba(51, 214, 159, 0.35);
+  background: rgba(51, 214, 159, 0.14);
+}
+
+.徽章.危险 {
+  border-color: rgba(255, 90, 95, 0.35);
+  background: rgba(255, 90, 95, 0.14);
+}
+
+.徽章.强调 {
+  border-color: rgba(78, 161, 255, 0.35);
+  background: rgba(78, 161, 255, 0.14);
+}

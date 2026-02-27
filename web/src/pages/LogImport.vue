@@ -6,38 +6,36 @@
 
     <template v-else>
       <div class="卡片 面板">
-        <div class="标题">1) 选择日志文件</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">1) 选择日志文件</div>
+        <div class="区块说明">
           支持 txt/log/json 等文本格式（后端会自动识别并解析）。建议先“预览”，确认识别无误再导入。
         </div>
 
         <div class="分隔线" />
 
         <div class="行">
-          <input ref="文件输入" class="输入框" type="file" @change="选择文件" />
-          <button class="按钮" type="button" :disabled="!选中文件 || 预览中" @click="预览">
-            {{ 预览中 ? "正在解析..." : "预览" }}
-          </button>
-          <button class="按钮 强调" type="button" :disabled="!可导入 || 导入中" @click="开始导入">
+          <UiInput type="file" @change="选择文件" />
+          <UiButton :loading="预览中" :disabled="!选中文件" @click="预览">{{ 预览中 ? "正在解析..." : "预览" }}</UiButton>
+          <UiButton variant="primary" :loading="导入中" :disabled="!可导入" @click="开始导入">
             {{ 导入中 ? "正在导入..." : "开始导入" }}
-          </button>
-          <button class="按钮" type="button" :disabled="!导入中" @click="取消导入">取消导入</button>
+          </UiButton>
+          <UiButton :disabled="!导入中" @click="取消导入">取消导入</UiButton>
         </div>
 
-        <div v-if="错误信息" class="提示-错误" style="margin-top: 10px">{{ 错误信息 }}</div>
-        <div v-if="提示信息" class="提示-次要 小字" style="margin-top: 10px">{{ 提示信息 }}</div>
+        <div v-if="错误信息" class="提示-错误 上间距-10">{{ 错误信息 }}</div>
+        <div v-if="提示信息" class="提示-次要 小字 上间距-10">{{ 提示信息 }}</div>
       </div>
 
       <div v-if="预览结果" class="卡片 面板">
-        <div class="标题">2) 解析预览</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">2) 解析预览</div>
+        <div class="区块说明">
           文件：{{ 预览结果.filename || "-" }}；识别格式：{{ 预览结果.detected_format }}；总记录数：{{ 预览结果.total_records }}
         </div>
 
         <div class="分隔线" />
 
         <div class="子标题">按设备汇总</div>
-        <div class="表格容器" style="margin-top: 10px">
+        <div class="表格容器 上间距-10">
           <table class="表格">
             <thead>
               <tr>
@@ -59,7 +57,9 @@
                 <td class="数字">{{ 格式化时间文本(d.end) }}</td>
               </tr>
               <tr v-if="!预览结果.devices.length">
-                <td colspan="6" class="提示-次要">无设备数据</td>
+                <td colspan="6" class="空态单元格">
+                  <UiEmptyState title="无设备数据" description="该文件未解析出设备维度的记录。" />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -68,7 +68,7 @@
         <div class="分隔线" />
 
         <div class="子标题">样例记录（前 30 条）</div>
-        <div class="表格容器" style="margin-top: 10px">
+        <div class="表格容器 上间距-10">
           <table class="表格">
             <thead>
               <tr>
@@ -96,7 +96,9 @@
                 <td>{{ r.activity_type }}</td>
               </tr>
               <tr v-if="!预览结果.sample.length">
-                <td colspan="9" class="提示-次要">无样例数据</td>
+                <td colspan="9" class="空态单元格">
+                  <UiEmptyState title="无样例数据" description="该文件未解析出可展示的样例记录。" />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -104,16 +106,14 @@
       </div>
 
       <div v-if="导入中 || 导入完成" class="卡片 面板">
-        <div class="标题">3) 导入进度</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
-          已导入 {{ 导入进度.imported }} / {{ 导入进度.total }}（{{ 导入百分比 }}%）
-        </div>
+        <div class="区块标题">3) 导入进度</div>
+        <div class="区块说明">已导入 {{ 导入进度.imported }} / {{ 导入进度.total }}（{{ 导入百分比 }}%）</div>
 
         <div class="进度条外壳">
           <div class="进度条内" :style="{ width: 导入百分比 + '%' }" />
         </div>
 
-        <div v-if="导入完成" class="提示-次要 小字" style="margin-top: 10px">导入完成。你可以前往“历史”页面查看结果。</div>
+        <div v-if="导入完成" class="提示-次要 小字 上间距-10">导入完成。你可以前往“历史”页面查看结果。</div>
       </div>
     </template>
   </AppLayout>
@@ -138,7 +138,11 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import { computed, ref } from "vue";
 import { authStore } from "@/stores/auth";
 import { api, ApiError } from "@/api/client";
+import UiButton from "@/components/ui/UiButton.vue";
+import UiEmptyState from "@/components/ui/UiEmptyState.vue";
+import UiInput from "@/components/ui/UiInput.vue";
 import { 格式化时间文本 } from "@/utils/datetime";
+import { toastStore } from "@/stores/toast";
 
 const 是管理员 = computed(() => authStore.state.user?.role === "admin");
 
@@ -180,6 +184,7 @@ function 选择文件(e: Event): void {
   导入进度.value = { imported: 0, total: 0 };
   错误信息.value = "";
   提示信息.value = f ? `已选择文件：${f.name}` : "";
+  if (提示信息.value) toastStore.push(提示信息.value, { tone: "success" });
 }
 
 async function 预览(): Promise<void> {
@@ -192,6 +197,7 @@ async function 预览(): Promise<void> {
     预览结果.value = res as any;
     导入进度.value = { imported: 0, total: Number(res.total_records || 0) };
     提示信息.value = "预览解析完成。";
+    toastStore.push("预览解析完成", { tone: "success" });
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "预览失败：未知错误";
   } finally {
@@ -219,6 +225,7 @@ async function 开始导入(): Promise<void> {
     while (offset < total) {
       if (取消标记.value) {
         提示信息.value = "已取消导入（不会继续提交后续批次）。";
+        toastStore.push(提示信息.value, { tone: "warning" });
         break;
       }
 
@@ -234,6 +241,7 @@ async function 开始导入(): Promise<void> {
     if (!取消标记.value) {
       导入完成.value = true;
       提示信息.value = `导入完成：共处理 ${导入进度.value.imported} 条。`;
+      toastStore.push("导入完成", { tone: "success" });
     }
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "导入失败：未知错误";
@@ -248,18 +256,8 @@ function 取消导入(): void {
 </script>
 
 <style scoped>
-.标题 {
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.子标题 {
-  font-size: 14px;
-  font-weight: 800;
-}
-
 .进度条外壳 {
-  margin-top: 10px;
+  margin-top: var(--间距-10);
   height: 10px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.16);

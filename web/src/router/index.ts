@@ -20,7 +20,7 @@
  * - 如果仍未登录，则跳转到 /login，并带上 redirect 参数用于登录后返回。
  */
 
-import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouteLocationNormalized } from "vue-router";
 import { authStore } from "@/stores/auth";
 
 const routes: RouteRecordRaw[] = [
@@ -119,7 +119,7 @@ export const router = createRouter({
   routes
 });
 
-router.beforeEach(async (to) => {
+router.beforeEach(async (to: RouteLocationNormalized) => {
   /**
    * 第一次路由进入时，尝试恢复登录态：
    * - 如果用户已有 Cookie，会直接拿到当前用户；

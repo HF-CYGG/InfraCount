@@ -12,33 +12,36 @@
   <div class="容器">
     <div class="卡片 登录卡片">
       <div class="标题区">
-        <div class="标题">InfraCount 管理后台</div>
-        <div class="副标题 提示-次要">请先登录以继续</div>
+        <img
+          class="登录-LCP图"
+          :src="lcpLogoUrl"
+          width="240"
+          height="240"
+          alt="InfraCount"
+          decoding="async"
+          fetchpriority="high"
+        />
+        <div class="区块标题">InfraCount</div>
+        <div class="区块说明">管理后台（SPA） · 请先登录以继续</div>
       </div>
 
       <form class="表单" @submit.prevent="提交登录">
         <label class="字段">
           <div class="字段标题">用户名</div>
-          <input v-model.trim="username" class="输入框" autocomplete="username" placeholder="请输入用户名" />
+          <UiInput v-model.trim="username" autocomplete="username" placeholder="请输入用户名" />
         </label>
 
         <label class="字段">
           <div class="字段标题">密码</div>
-          <input
-            v-model="password"
-            class="输入框"
-            type="password"
-            autocomplete="current-password"
-            placeholder="请输入密码"
-          />
+          <UiInput v-model="password" type="password" autocomplete="current-password" placeholder="请输入密码" />
         </label>
 
         <div v-if="错误信息" class="提示-错误">{{ 错误信息 }}</div>
         <div class="提示-次要">默认账号：admin / admin（首次启动自动创建）</div>
 
-        <button class="按钮 强调" type="submit" :disabled="loading">
+        <UiButton class="登录按钮" variant="primary" type="submit" :loading="loading">
           {{ loading ? "正在登录..." : "登录" }}
-        </button>
+        </UiButton>
       </form>
     </div>
   </div>
@@ -59,6 +62,11 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ApiError } from "@/api/client";
 import { authStore } from "@/stores/auth";
+import UiButton from "@/components/ui/UiButton.vue";
+import UiInput from "@/components/ui/UiInput.vue";
+
+const lcpLogoUrl =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22512%22%20height%3D%22512%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%237c5cff%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230b0f17%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%2296%22%20fill%3D%22url(%23g)%22/%3E%3C/svg%3E";
 
 const router = useRouter();
 const route = useRoute();
@@ -107,53 +115,28 @@ async function 提交登录(): Promise<void> {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 14px;
+  padding: var(--间距-14);
 }
 
 .登录卡片 {
   width: min(420px, 100%);
-  padding: 18px;
+  padding: var(--间距-18);
 }
 
 .标题区 {
-  margin-bottom: 14px;
+  margin-bottom: var(--间距-14);
+  text-align: center;
 }
 
-.标题 {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
+.登录-LCP图 {
+  width: 240px;
+  height: 240px;
+  display: block;
+  margin: 0 auto var(--间距-12);
 }
 
-.副标题 {
-  margin-top: 8px;
-  font-size: 13px;
-}
-
-.表单 {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.字段 {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.字段标题 {
-  font-size: 13px;
-  color: var(--颜色-次要文本);
-}
-
-.按钮 {
+.登录按钮 {
   width: 100%;
-}
-
-.按钮:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 </style>
 

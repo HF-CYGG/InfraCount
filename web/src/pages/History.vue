@@ -1,94 +1,95 @@
 <template>
   <AppLayout title="历史" subtitle="筛选 + 分页 + 排序 + CSV 导出">
-    <div class="卡片 面板">
-      <div class="行">
+    <div class="卡片 面板 筛选区">
+      <div class="筛选行">
         <label class="字段">
           <div class="字段标题">设备</div>
-          <select v-model="筛选.uuid" class="输入框">
+          <UiSelect v-model="筛选.uuid">
             <option value="">全部设备</option>
             <option v-for="d in 设备选项" :key="d.uuid" :value="d.uuid">{{ d.label }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">开始日期</div>
-          <input v-model="筛选.start" class="输入框" type="date" />
+          <UiInput v-model="筛选.start" type="date" />
         </label>
 
         <label class="字段">
           <div class="字段标题">结束日期</div>
-          <input v-model="筛选.end" class="输入框" type="date" />
+          <UiInput v-model="筛选.end" type="date" />
         </label>
 
         <label class="字段">
           <div class="字段标题">告警状态</div>
-          <select v-model="筛选.warn" class="输入框">
+          <UiSelect v-model="筛选.warn">
             <option value="">全部</option>
             <option value="0">正常（0）</option>
             <option value="1">告警（1）</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">记录类型</div>
-          <select v-model="筛选.rec_type" class="输入框">
+          <UiSelect v-model="筛选.rec_type">
             <option value="">全部</option>
             <option value="1">实时（1）</option>
             <option value="2">历史（2）</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">Tx 电量（最小）</div>
-          <input v-model.trim="筛选.btx_min" class="输入框" inputmode="numeric" placeholder="例如 0" />
+          <UiInput v-model.trim="筛选.btx_min" inputmode="numeric" placeholder="例如 0" />
         </label>
 
         <label class="字段">
           <div class="字段标题">Tx 电量（最大）</div>
-          <input v-model.trim="筛选.btx_max" class="输入框" inputmode="numeric" placeholder="例如 100" />
+          <UiInput v-model.trim="筛选.btx_max" inputmode="numeric" placeholder="例如 100" />
         </label>
 
         <label class="字段">
           <div class="字段标题">排序字段</div>
-          <select v-model="筛选.sort_by" class="输入框">
+          <UiSelect v-model="筛选.sort_by">
             <option value="time">time（业务时间）</option>
             <option value="created_at">created_at（入库时间）</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">排序方向</div>
-          <select v-model="筛选.order" class="输入框">
+          <UiSelect v-model="筛选.order">
             <option value="desc">从新到旧</option>
             <option value="asc">从旧到新</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">每页条数</div>
-          <select v-model.number="分页.size" class="输入框">
+          <UiSelect v-model.number="分页.size">
             <option :value="20">20</option>
             <option :value="50">50</option>
             <option :value="100">100</option>
             <option :value="200">200</option>
-          </select>
+          </UiSelect>
         </label>
 
-        <button class="按钮 强调" type="button" :disabled="loading" @click="查询(1)">
-          {{ loading ? "正在查询..." : "查询" }}
-        </button>
-
-        <button class="按钮" type="button" :disabled="导出中 || loading" @click="导出CSV">
-          {{ 导出中 ? "正在导出..." : "导出 CSV" }}
-        </button>
+        <div class="筛选操作">
+          <UiButton variant="primary" :loading="loading" @click="查询(1)">
+            {{ loading ? "正在查询..." : "查询" }}
+          </UiButton>
+          <UiButton :disabled="loading" :loading="导出中" @click="导出CSV">
+            {{ 导出中 ? "正在导出..." : "导出 CSV" }}
+          </UiButton>
+        </div>
       </div>
 
-      <div class="提示-次要 小字" style="margin-top: 10px">
+      <div class="提示-次要 小字 上间距-10">
         共 {{ 分页.total }} 条；当前第 {{ 分页.page }} / {{ 总页数 }} 页
       </div>
 
-      <div v-if="错误信息" class="提示-错误" style="margin-top: 10px">{{ 错误信息 }}</div>
-      <div v-if="导出提示" class="提示-次要 小字" style="margin-top: 10px">{{ 导出提示 }}</div>
+      <div v-if="错误信息" class="提示-错误 上间距-10">{{ 错误信息 }}</div>
+      <div v-if="导出提示" class="提示-次要 小字 上间距-10">{{ 导出提示 }}</div>
     </div>
 
     <div class="卡片 面板">
@@ -107,33 +108,52 @@
               <th>活动类型</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="r in 列表" :key="String(r.id ?? r.time ?? Math.random())">
-              <td class="数字">{{ r.uuid }}</td>
-              <td class="数字">{{ 格式化时间文本(r.time) }}</td>
-              <td class="数字">{{ r.in_count ?? "" }}</td>
-              <td class="数字">{{ r.out_count ?? "" }}</td>
-              <td class="数字">{{ r.battery ?? "" }}</td>
-              <td>
-                <span class="徽章" :class="Number(r.warn_status) === 1 ? '危险' : '成功'">
-                  {{ Number(r.warn_status) === 1 ? "告警" : "正常" }}
-                </span>
-              </td>
-              <td class="数字">{{ r.btx ?? "" }}</td>
-              <td class="数字">{{ r.rec_type ?? "" }}</td>
-              <td>{{ r.activity_type ?? "" }}</td>
-            </tr>
-            <tr v-if="!列表.length">
-              <td colspan="9" class="提示-次要">暂无数据</td>
-            </tr>
-          </tbody>
+          <Transition name="ui-fade" mode="out-in" appear>
+            <tbody :key="loading ? 'loading' : 'data'">
+              <template v-if="loading">
+                <tr v-for="i in 8" :key="i">
+                  <td><UiSkeleton width="220px" height="12px" /></td>
+                  <td><UiSkeleton width="160px" height="12px" /></td>
+                  <td><UiSkeleton width="48px" height="12px" /></td>
+                  <td><UiSkeleton width="48px" height="12px" /></td>
+                  <td><UiSkeleton width="48px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="96px" height="12px" /></td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr v-for="r in 列表" :key="String(r.id ?? r.time ?? Math.random())">
+                  <td class="数字">{{ r.uuid }}</td>
+                  <td class="数字">{{ 格式化时间文本(r.time) }}</td>
+                  <td class="数字">{{ r.in_count ?? "" }}</td>
+                  <td class="数字">{{ r.out_count ?? "" }}</td>
+                  <td class="数字">{{ r.battery ?? "" }}</td>
+                  <td>
+                    <UiTag :tone="Number(r.warn_status) === 1 ? 'danger' : 'success'">
+                      {{ Number(r.warn_status) === 1 ? "告警" : "正常" }}
+                    </UiTag>
+                  </td>
+                  <td class="数字">{{ r.btx ?? "" }}</td>
+                  <td class="数字">{{ r.rec_type ?? "" }}</td>
+                  <td>{{ r.activity_type ?? "" }}</td>
+                </tr>
+                <tr v-if="!列表.length">
+                  <td colspan="9" class="空态单元格">
+                    <UiEmptyState title="暂无记录" description="请尝试调整筛选条件后重新查询。" />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </Transition>
         </table>
       </div>
 
-      <div class="行" style="justify-content: space-between; margin-top: 12px">
-        <button class="按钮" type="button" :disabled="分页.page <= 1 || loading" @click="查询(分页.page - 1)">上一页</button>
+      <div class="分页栏">
+        <UiButton size="sm" :disabled="分页.page <= 1 || loading" @click="查询(分页.page - 1)">上一页</UiButton>
         <div class="提示-次要 小字">第 {{ 分页.page }} / {{ 总页数 }} 页</div>
-        <button class="按钮" type="button" :disabled="分页.page >= 总页数 || loading" @click="查询(分页.page + 1)">下一页</button>
+        <UiButton size="sm" :disabled="分页.page >= 总页数 || loading" @click="查询(分页.page + 1)">下一页</UiButton>
       </div>
     </div>
   </AppLayout>
@@ -158,9 +178,16 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, ApiError } from "@/api/client";
+import UiButton from "@/components/ui/UiButton.vue";
+import UiEmptyState from "@/components/ui/UiEmptyState.vue";
+import UiInput from "@/components/ui/UiInput.vue";
+import UiSelect from "@/components/ui/UiSelect.vue";
+import UiSkeleton from "@/components/ui/UiSkeleton.vue";
+import UiTag from "@/components/ui/UiTag.vue";
 import { 日期起始时间, 日期结束时间, 格式化时间文本 } from "@/utils/datetime";
 import { 生成CSV文本 } from "@/utils/csv";
 import { 触发文本下载 } from "@/utils/download";
+import { useChunkedList } from "@/utils/chunkedList";
 
 type 设备选项 = { uuid: string; label: string };
 
@@ -194,7 +221,7 @@ const 筛选 = reactive<{
 });
 
 const 分页 = reactive<{ page: number; size: number; total: number }>({ page: 1, size: 50, total: 0 });
-const 列表 = ref<Array<Record<string, any>>>([]);
+const { visible: 列表, setSource: 设置列表 } = useChunkedList<Record<string, any>>({ chunkSize: 50 });
 
 const 总页数 = computed(() => Math.max(1, Math.ceil((分页.total || 0) / (分页.size || 1))));
 
@@ -240,7 +267,7 @@ async function 查询(page: number): Promise<void> {
       sort_by: 筛选.sort_by
     });
 
-    列表.value = (res.items || []) as any[];
+    设置列表(((res.items || []) as any[]) || []);
     分页.total = Number(res.total || 0);
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "查询失败：未知错误";
@@ -326,18 +353,4 @@ onMounted(async () => {
   await 查询(1);
 });
 </script>
-
-<style scoped>
-.字段 {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 190px;
-}
-
-.字段标题 {
-  font-size: 12px;
-  color: var(--颜色-次要文本);
-}
-</style>
 

@@ -2,29 +2,27 @@
   <AppLayout title="数据库合并导入" subtitle="上传 SQLite .db → 预览差异 → 选择策略 → 执行合并（仅管理员）">
     <div v-if="!是管理员" class="卡片 面板">
       <div class="提示-错误">无权限访问：该页面仅管理员可用。</div>
-      <div class="提示-次要 小字" style="margin-top: 8px">请使用管理员账号登录后再操作。</div>
+      <div class="提示-次要 小字 上间距-8">请使用管理员账号登录后再操作。</div>
     </div>
 
     <template v-else>
       <div class="卡片 面板">
-        <div class="标题">1）上传 SQLite 数据库文件</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">1）上传 SQLite 数据库文件</div>
+        <div class="区块说明">
           支持 .db / .sqlite / .sqlite3。上传后会生成 import_id，用于后续预览与执行。
         </div>
 
-        <div class="行" style="gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap">
-          <input class="输入框" type="file" accept=".db,.sqlite,.sqlite3" @change="选择文件" />
-          <button class="按钮 强调" type="button" :disabled="上传中 || !选择的文件" @click="上传">
+        <div class="行 上间距-12">
+          <UiInput type="file" accept=".db,.sqlite,.sqlite3" @change="选择文件" />
+          <UiButton variant="primary" :loading="上传中" :disabled="!选择的文件" @click="上传">
             {{ 上传中 ? "上传中..." : "上传" }}
-          </button>
-          <button class="按钮" type="button" :disabled="上传中 && !选择的文件 && !importId" @click="重置">
-            重置
-          </button>
+          </UiButton>
+          <UiButton :disabled="上传中 && !选择的文件 && !importId" @click="重置">重置</UiButton>
         </div>
 
-        <div v-if="上传错误" class="提示-错误" style="margin-top: 10px">{{ 上传错误 }}</div>
+        <div v-if="上传错误" class="提示-错误 上间距-10">{{ 上传错误 }}</div>
 
-        <div v-if="importId" class="提示-次要 小字" style="margin-top: 10px; line-height: 1.8">
+        <div v-if="importId" class="提示-次要 小字 上间距-10 行高-18">
           <div>已上传：{{ 上传文件名 }}</div>
           <div>import_id：<span class="数字">{{ importId }}</span></div>
           <div>大小：<span class="数字">{{ 上传文件大小显示 }}</span></div>
@@ -32,46 +30,46 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="标题">2）选择合并策略</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">2）选择合并策略</div>
+        <div class="区块说明">
           说明：预览统计会按你选择的策略给出“预计插入/预计更新/预计跳过”。执行时也会严格按该策略落库。
         </div>
 
-        <div class="行" style="gap: 12px; margin-top: 12px; flex-wrap: wrap">
-          <label class="字段">
+        <div class="行 上间距-12">
+          <label class="字段 宽字段">
             <div class="字段标题">遇到重复时</div>
-            <select v-model="策略.merge_mode" class="输入框">
+            <UiSelect v-model="策略.merge_mode">
               <option value="skip_existing">跳过已存在（skip_existing）</option>
               <option value="update_existing">更新已存在（update_existing）</option>
-            </select>
+            </UiSelect>
           </label>
 
-          <label class="字段">
+          <label class="字段 宽字段">
             <div class="字段标题">字段冲突偏好（仅更新模式生效）</div>
-            <select v-model="策略.conflict_preference" class="输入框">
+            <UiSelect v-model="策略.conflict_preference">
               <option value="prefer_import">优先导入库（prefer_import）</option>
               <option value="prefer_current_non_empty">优先保留当前库非空字段（prefer_current_non_empty）</option>
-            </select>
+            </UiSelect>
           </label>
         </div>
       </div>
 
       <div class="卡片 面板">
-        <div class="标题">3）预览差异</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">3）预览差异</div>
+        <div class="区块说明">
           预览会统计每张表：导入总数、可新增、冲突、无效行，并给出按策略计算的预计动作。
         </div>
 
-        <div class="行" style="gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center">
-          <button class="按钮 强调" type="button" :disabled="预览中 || !importId" @click="预览">
+        <div class="行 上间距-12">
+          <UiButton variant="primary" :loading="预览中" :disabled="!importId" @click="预览">
             {{ 预览中 ? "预览中..." : "生成预览" }}
-          </button>
+          </UiButton>
           <div v-if="预览提示" class="提示-次要 小字">{{ 预览提示 }}</div>
         </div>
 
-        <div v-if="预览错误" class="提示-错误" style="margin-top: 10px">{{ 预览错误 }}</div>
+        <div v-if="预览错误" class="提示-错误 上间距-10">{{ 预览错误 }}</div>
 
-        <div v-if="预览结果" class="表格容器" style="margin-top: 12px">
+        <div v-if="预览结果" class="表格容器 上间距-12">
           <table class="表格">
             <thead>
               <tr>
@@ -96,10 +94,12 @@
                 <td class="数字">{{ it.planInsert }}</td>
                 <td class="数字">{{ it.planUpdate }}</td>
                 <td class="数字">{{ it.planSkip }}</td>
-                <td class="提示-次要 小字" style="white-space: normal">{{ it.reason }}</td>
+                <td class="提示-次要 小字 可换行">{{ it.reason }}</td>
               </tr>
               <tr v-if="!预览表格行.length">
-                <td colspan="9" class="提示-次要">暂无预览数据</td>
+                <td colspan="9" class="空态单元格">
+                  <UiEmptyState title="暂无预览数据" description="请先上传数据库文件并生成预览。" />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -107,22 +107,22 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="标题">4）执行合并</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">
+        <div class="区块标题">4）执行合并</div>
+        <div class="区块说明">
           执行在事务中进行：任意表合并失败会整体回滚，不会产生“部分导入”的中间状态；并会写入 audit_logs 便于审计。
         </div>
 
-        <div class="行" style="gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center">
-          <button class="按钮 强调" type="button" :disabled="执行中 || !importId || !预览结果" @click="执行">
+        <div class="行 上间距-12">
+          <UiButton variant="primary" :loading="执行中" :disabled="!importId || !预览结果" @click="执行">
             {{ 执行中 ? "执行中..." : "开始合并" }}
-          </button>
+          </UiButton>
           <div v-if="执行提示" class="提示-次要 小字">{{ 执行提示 }}</div>
         </div>
 
-        <div v-if="执行错误" class="提示-错误" style="margin-top: 10px">{{ 执行错误 }}</div>
+        <div v-if="执行错误" class="提示-错误 上间距-10">{{ 执行错误 }}</div>
 
-        <div v-if="任务状态" style="margin-top: 12px">
-          <div class="提示-次要 小字" style="line-height: 1.8">
+        <div v-if="任务状态" class="上间距-12">
+          <div class="提示-次要 小字 行高-18">
             <div>任务状态：<span class="数字">{{ 任务状态.status }}</span></div>
             <div v-if="任务状态.progress?.stage">阶段：<span class="数字">{{ 任务状态.progress.stage }}</span></div>
             <div v-if="任务状态.progress?.table">当前表：<span class="数字">{{ 任务状态.progress.table }}</span></div>
@@ -132,7 +132,7 @@
           </div>
         </div>
 
-        <div v-if="任务结果表格行.length" class="表格容器" style="margin-top: 12px">
+        <div v-if="任务结果表格行.length" class="表格容器 上间距-12">
           <table class="表格">
             <thead>
               <tr>
@@ -180,6 +180,11 @@ import { computed, onBeforeUnmount, reactive, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { authStore } from "@/stores/auth";
 import { api, ApiError } from "@/api/client";
+import UiButton from "@/components/ui/UiButton.vue";
+import UiEmptyState from "@/components/ui/UiEmptyState.vue";
+import UiInput from "@/components/ui/UiInput.vue";
+import UiSelect from "@/components/ui/UiSelect.vue";
+import { toastStore } from "@/stores/toast";
 
 type 合并策略 = {
   merge_mode: "skip_existing" | "update_existing";
@@ -306,6 +311,7 @@ async function 上传(): Promise<void> {
     importId.value = String(res.import_id || "");
     上传文件名.value = String(res.filename || 上传文件名.value || "");
     上传文件大小.value = Number(res.size_bytes || 上传文件大小.value || 0);
+    toastStore.push("上传成功：已生成 import_id", { tone: "success" });
   } catch (e) {
     上传错误.value = e instanceof ApiError ? e.message : "上传失败：未知错误";
   } finally {
@@ -326,6 +332,7 @@ async function 预览(): Promise<void> {
     });
     预览结果.value = res;
     预览提示.value = "预览生成成功。请确认策略与统计结果后再执行合并。";
+    toastStore.push("预览生成成功", { tone: "success" });
   } catch (e) {
     预览错误.value = e instanceof ApiError ? e.message : "预览失败：未知错误";
   } finally {
@@ -344,6 +351,7 @@ async function 轮询任务(): Promise<void> {
     if (st === "done") {
       执行中.value = false;
       执行提示.value = "合并完成。已在审计日志中记录本次导入。";
+      toastStore.push("合并完成", { tone: "success" });
       停止轮询();
     }
     if (st === "error") {
@@ -376,6 +384,7 @@ async function 执行(): Promise<void> {
     });
     jobId.value = String(res.job_id || "");
     执行提示.value = jobId.value ? `任务已启动：${jobId.value}，正在合并...` : "任务已启动，正在合并...";
+    toastStore.push("合并任务已启动", { tone: "success" });
 
     await 轮询任务();
     轮询定时器 = window.setInterval(() => {
@@ -391,23 +400,4 @@ onBeforeUnmount(() => {
   停止轮询();
 });
 </script>
-
-<style scoped>
-.标题 {
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.字段 {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 280px;
-}
-
-.字段标题 {
-  font-size: 12px;
-  color: var(--颜色-次要文本);
-}
-</style>
 

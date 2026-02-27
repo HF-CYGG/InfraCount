@@ -1,90 +1,91 @@
 <template>
   <AppLayout title="活动" subtitle="筛选列表 + 聚合统计 + CSV/Excel 导入 + 散客同步预览">
-    <div class="卡片 面板">
-      <div class="行">
+    <div class="卡片 面板 筛选区">
+      <div class="筛选行">
         <label class="字段">
           <div class="字段标题">开始日期</div>
-          <input v-model="筛选.start_date" class="输入框" type="date" />
+          <UiInput v-model="筛选.start_date" type="date" />
         </label>
         <label class="字段">
           <div class="字段标题">结束日期</div>
-          <input v-model="筛选.end_date" class="输入框" type="date" />
+          <UiInput v-model="筛选.end_date" type="date" />
         </label>
 
         <label class="字段 宽字段">
           <div class="字段标题">地点（多选）</div>
-          <select v-model="筛选.locations" class="输入框 多选" multiple>
+          <UiSelect v-model="筛选.locations" class="多选" multiple>
             <option v-for="x in 选项.locations" :key="x" :value="x">{{ x }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段 宽字段">
           <div class="字段标题">活动类型（多选）</div>
-          <select v-model="筛选.types" class="输入框 多选" multiple>
+          <UiSelect v-model="筛选.types" class="多选" multiple>
             <option v-for="x in 选项.types" :key="x" :value="x">{{ x }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段 宽字段">
           <div class="字段标题">书院（多选）</div>
-          <select v-model="筛选.academies" class="输入框 多选" multiple>
+          <UiSelect v-model="筛选.academies" class="多选" multiple>
             <option v-for="x in 选项.academies" :key="x" :value="x">{{ x }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">周几（多选）</div>
-          <select v-model="筛选.weekdays" class="输入框 多选" multiple>
+          <UiSelect v-model="筛选.weekdays" class="多选" multiple>
             <option v-for="x in 选项.weekdays" :key="x" :value="x">{{ x }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">起始时间（多选）</div>
-          <select v-model="筛选.start_times" class="输入框 多选" multiple>
+          <UiSelect v-model="筛选.start_times" class="多选" multiple>
             <option v-for="x in 选项.times" :key="x" :value="x">{{ x }}</option>
-          </select>
+          </UiSelect>
         </label>
 
         <label class="字段">
           <div class="字段标题">每页条数</div>
-          <select v-model.number="分页.page_size" class="输入框">
+          <UiSelect v-model.number="分页.page_size">
             <option :value="20">20</option>
             <option :value="50">50</option>
             <option :value="100">100</option>
-          </select>
+          </UiSelect>
         </label>
 
-        <button class="按钮 强调" type="button" :disabled="loading" @click="查询(1)">
-          {{ loading ? "正在查询..." : "查询" }}
-        </button>
-
-        <button class="按钮" type="button" :disabled="导出中 || loading" @click="导出CSV">
-          {{ 导出中 ? "正在导出..." : "导出 CSV（当前页）" }}
-        </button>
+        <div class="筛选操作">
+          <UiButton variant="primary" :loading="loading" @click="查询(1)">
+            {{ loading ? "正在查询..." : "查询" }}
+          </UiButton>
+          <UiButton :disabled="loading" :loading="导出中" @click="导出CSV">
+            {{ 导出中 ? "正在导出..." : "导出 CSV（当前页）" }}
+          </UiButton>
+        </div>
       </div>
 
-      <div v-if="错误信息" class="提示-错误" style="margin-top: 10px">{{ 错误信息 }}</div>
-      <div v-if="提示信息" class="提示-次要 小字" style="margin-top: 10px">{{ 提示信息 }}</div>
+      <div v-if="错误信息" class="提示-错误 上间距-10">{{ 错误信息 }}</div>
+      <div v-if="提示信息" class="提示-次要 小字 上间距-10">{{ 提示信息 }}</div>
     </div>
 
     <div class="两列栅格">
       <div class="卡片 面板">
-        <div class="标题">聚合统计</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">基于当前筛选条件统计（KPI + Top 列表）。</div>
+        <div class="区块标题">聚合统计</div>
+        <div class="区块说明">基于当前筛选条件统计（KPI + Top 列表）。</div>
 
         <div class="分隔线" />
 
         <div class="三列栅格">
-          <div class="卡片 面板" style="background: rgba(0, 0, 0, 0.12); box-shadow: none">
+          <div class="卡片 面板 子卡片">
             <div class="卡片标题">活动场次</div>
             <div class="卡片数字 数字">{{ 聚合.kpis.total_events ?? 0 }}</div>
           </div>
-          <div class="卡片 面板" style="background: rgba(0, 0, 0, 0.12); box-shadow: none">
+          <div class="卡片 面板 子卡片">
             <div class="卡片标题">受众人数合计</div>
             <div class="卡片数字 数字">{{ 聚合.kpis.total_audience ?? 0 }}</div>
           </div>
-          <div class="卡片 面板" style="background: rgba(0, 0, 0, 0.12); box-shadow: none">
+          <div class="卡片 面板 子卡片">
             <div class="卡片标题">平均受众</div>
             <div class="卡片数字 数字">{{ 聚合.kpis.avg_audience ?? 0 }}</div>
           </div>
@@ -93,9 +94,9 @@
         <div class="分隔线" />
 
         <div class="子标题">地点 Top（前 10）</div>
-        <div class="小字 提示-次要" style="margin-top: 6px">按场次数量降序。</div>
-        <div class="表格容器" style="margin-top: 10px">
-          <table class="表格" style="min-width: 560px">
+        <div class="区块说明">按场次数量降序。</div>
+        <div class="表格容器 上间距-10">
+          <table class="表格 小表格">
             <thead>
               <tr>
                 <th>地点</th>
@@ -110,7 +111,9 @@
                 <td class="数字">{{ x.audience }}</td>
               </tr>
               <tr v-if="!(聚合.location_top || []).length">
-                <td colspan="3" class="提示-次要">暂无数据</td>
+                <td colspan="3" class="空态单元格">
+                  <UiEmptyState title="暂无统计数据" description="请调整筛选条件或先导入活动数据。" />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -118,36 +121,36 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="标题">CSV / Excel 导入</div>
-        <div class="提示-次要 小字" style="margin-top: 6px">导入后会自动刷新列表与聚合统计。</div>
+        <div class="区块标题">CSV / Excel 导入</div>
+        <div class="区块说明">导入后会自动刷新列表与聚合统计。</div>
 
         <div class="分隔线" />
 
         <div class="行">
           <label class="字段 宽字段">
             <div class="字段标题">CSV 文件（/api/v1/activity/upload）</div>
-            <input class="输入框" type="file" accept=".csv" @change="选择CSV" />
+            <UiInput type="file" accept=".csv" @change="选择CSV" />
           </label>
-          <button class="按钮" type="button" :disabled="!导入.csv || 导入中" @click="导入CSV">
-            {{ 导入中 && 导入.类型 === 'csv' ? "导入中..." : "导入 CSV" }}
-          </button>
+          <UiButton :disabled="!导入.csv" :loading="导入中 && 导入.类型 === 'csv'" @click="导入CSV">
+            {{ 导入中 && 导入.类型 === "csv" ? "导入中..." : "导入 CSV" }}
+          </UiButton>
         </div>
 
-        <div class="行" style="margin-top: 12px">
+        <div class="行 上间距-12">
           <label class="字段 宽字段">
             <div class="字段标题">Excel 文件（/api/v1/activity/import-excel）</div>
-            <input class="输入框" type="file" accept=".xls,.xlsx" @change="选择Excel" />
+            <UiInput type="file" accept=".xls,.xlsx" @change="选择Excel" />
           </label>
-          <button class="按钮" type="button" :disabled="!导入.excel || 导入中" @click="导入Excel">
-            {{ 导入中 && 导入.类型 === 'excel' ? "导入中..." : "导入 Excel" }}
-          </button>
+          <UiButton :disabled="!导入.excel" :loading="导入中 && 导入.类型 === 'excel'" @click="导入Excel">
+            {{ 导入中 && 导入.类型 === "excel" ? "导入中..." : "导入 Excel" }}
+          </UiButton>
         </div>
       </div>
     </div>
 
     <div class="卡片 面板">
-      <div class="标题">活动列表</div>
-      <div class="提示-次要 小字" style="margin-top: 6px">
+      <div class="区块标题">活动列表</div>
+      <div class="区块说明">
         共 {{ 分页.total }} 条；当前第 {{ 分页.page }} / {{ 总页数 }} 页
       </div>
 
@@ -169,36 +172,56 @@
               <th>备注</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="it in 列表" :key="String(it.id ?? `${it.date}-${it.start_time}-${it.location}-${it.activity_name}`)">
-              <td class="数字">{{ it.date }}</td>
-              <td>{{ it.weekday }}</td>
-              <td class="数字">{{ it.start_time }}</td>
-              <td class="数字">{{ it.end_time }}</td>
-              <td>{{ it.academy }}</td>
-              <td>{{ it.location }}</td>
-              <td>{{ it.activity_name }}</td>
-              <td>{{ it.activity_type }}</td>
-              <td class="数字">{{ it.audience_count }}</td>
-              <td style="white-space: normal">{{ it.notes }}</td>
-            </tr>
-            <tr v-if="!列表.length">
-              <td colspan="10" class="提示-次要">暂无数据</td>
-            </tr>
-          </tbody>
+          <Transition name="ui-fade" mode="out-in" appear>
+            <tbody :key="loading ? 'loading' : 'data'">
+              <template v-if="loading">
+                <tr v-for="i in 8" :key="i">
+                  <td><UiSkeleton width="90px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="96px" height="12px" /></td>
+                  <td><UiSkeleton width="140px" height="12px" /></td>
+                  <td><UiSkeleton width="220px" height="12px" /></td>
+                  <td><UiSkeleton width="96px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="220px" height="12px" /></td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr v-for="it in 列表" :key="String(it.id ?? `${it.date}-${it.start_time}-${it.location}-${it.activity_name}`)">
+                  <td class="数字">{{ it.date }}</td>
+                  <td>{{ it.weekday }}</td>
+                  <td class="数字">{{ it.start_time }}</td>
+                  <td class="数字">{{ it.end_time }}</td>
+                  <td>{{ it.academy }}</td>
+                  <td>{{ it.location }}</td>
+                  <td>{{ it.activity_name }}</td>
+                  <td>{{ it.activity_type }}</td>
+                  <td class="数字">{{ it.audience_count }}</td>
+                  <td class="可换行">{{ it.notes }}</td>
+                </tr>
+                <tr v-if="!列表.length">
+                  <td colspan="10" class="空态单元格">
+                    <UiEmptyState title="暂无活动" description="请调整筛选条件或先导入活动数据。" />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </Transition>
         </table>
       </div>
 
-      <div class="行" style="justify-content: space-between; margin-top: 12px">
-        <button class="按钮" type="button" :disabled="分页.page <= 1 || loading" @click="查询(分页.page - 1)">上一页</button>
+      <div class="分页栏">
+        <UiButton size="sm" :disabled="分页.page <= 1 || loading" @click="查询(分页.page - 1)">上一页</UiButton>
         <div class="提示-次要 小字">第 {{ 分页.page }} / {{ 总页数 }} 页</div>
-        <button class="按钮" type="button" :disabled="分页.page >= 总页数 || loading" @click="查询(分页.page + 1)">下一页</button>
+        <UiButton size="sm" :disabled="分页.page >= 总页数 || loading" @click="查询(分页.page + 1)">下一页</UiButton>
       </div>
     </div>
 
     <div class="卡片 面板">
-      <div class="标题">散客同步预览</div>
-      <div class="提示-次要 小字" style="margin-top: 6px">
+      <div class="区块标题">散客同步预览</div>
+      <div class="区块说明">
         从设备 records 统计散客访问（30 分钟粒度），预览后可写入 activity_events（类型：散客访问）。
       </div>
 
@@ -207,42 +230,47 @@
       <div class="行">
         <label class="字段 宽字段">
           <div class="字段标题">选择设备（多选）</div>
-          <select v-model="散客.devices" class="输入框 多选" multiple>
+          <UiSelect v-model="散客.devices" class="多选" multiple>
             <option v-for="d in 设备选项" :key="d.uuid" :value="d.uuid">{{ d.label }}</option>
-          </select>
+          </UiSelect>
         </label>
 
-        <button class="按钮" type="button" :disabled="散客加载中 || !散客.devices.length" @click="加载可用日期">
+        <UiButton :loading="散客加载中" :disabled="!散客.devices.length" @click="加载可用日期">
           {{ 散客加载中 ? "加载中..." : "加载可用日期" }}
-        </button>
+        </UiButton>
 
         <label class="字段 宽字段">
           <div class="字段标题">选择日期（多选）</div>
-          <select v-model="散客.dates" class="输入框 多选" multiple>
+          <UiSelect v-model="散客.dates" class="多选" multiple>
             <option v-for="d in 散客可用日期" :key="d" :value="d">{{ d }}</option>
-          </select>
+          </UiSelect>
         </label>
 
-        <button class="按钮" type="button" :disabled="散客预览中 || !散客.devices.length || !散客.dates.length" @click="散客预览">
+        <UiButton :loading="散客预览中" :disabled="!散客.devices.length || !散客.dates.length" @click="散客预览">
           {{ 散客预览中 ? "预览中..." : "预览" }}
-        </button>
+        </UiButton>
 
         <label class="字段">
           <div class="字段标题">同步模式</div>
-          <select v-model="散客.mode" class="输入框">
+          <UiSelect v-model="散客.mode">
             <option value="skip">跳过重复（skip）</option>
             <option value="overwrite">覆盖重复（overwrite）</option>
-          </select>
+          </UiSelect>
         </label>
 
-        <button class="按钮 强调" type="button" :disabled="散客同步中 || !散客预览列表.length" @click="散客同步">
+        <UiButton
+          variant="primary"
+          :loading="散客同步中"
+          :disabled="!散客预览全量.length"
+          @click="散客同步"
+        >
           {{ 散客同步中 ? "同步中..." : "同步写入" }}
-        </button>
+        </UiButton>
       </div>
 
-      <div v-if="散客提示" class="提示-次要 小字" style="margin-top: 10px">{{ 散客提示 }}</div>
+      <div v-if="散客提示" class="提示-次要 小字 上间距-10">{{ 散客提示 }}</div>
 
-      <div class="表格容器" style="margin-top: 12px">
+      <div class="表格容器 上间距-12">
         <table class="表格">
           <thead>
             <tr>
@@ -255,20 +283,37 @@
               <th>备注</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(it, idx) in 散客预览列表" :key="idx">
-              <td class="数字">{{ it.date }}</td>
-              <td class="数字">{{ it.start_time }}</td>
-              <td class="数字">{{ it.end_time }}</td>
-              <td>{{ it.academy }}</td>
-              <td>{{ it.location }}</td>
-              <td class="数字">{{ it.audience_count }}</td>
-              <td style="white-space: normal">{{ it.notes }}</td>
-            </tr>
-            <tr v-if="!散客预览列表.length">
-              <td colspan="7" class="提示-次要">暂无预览数据</td>
-            </tr>
-          </tbody>
+          <Transition name="ui-fade" mode="out-in" appear>
+            <tbody :key="散客预览中 ? 'loading' : 'data'">
+              <template v-if="散客预览中">
+                <tr v-for="i in 6" :key="i">
+                  <td><UiSkeleton width="90px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="96px" height="12px" /></td>
+                  <td><UiSkeleton width="160px" height="12px" /></td>
+                  <td><UiSkeleton width="56px" height="12px" /></td>
+                  <td><UiSkeleton width="220px" height="12px" /></td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr v-for="(it, idx) in 散客预览列表" :key="idx">
+                  <td class="数字">{{ it.date }}</td>
+                  <td class="数字">{{ it.start_time }}</td>
+                  <td class="数字">{{ it.end_time }}</td>
+                  <td>{{ it.academy }}</td>
+                  <td>{{ it.location }}</td>
+                  <td class="数字">{{ it.audience_count }}</td>
+                  <td class="可换行">{{ it.notes }}</td>
+                </tr>
+                <tr v-if="!散客预览全量.length">
+                  <td colspan="7" class="空态单元格">
+                    <UiEmptyState title="暂无预览数据" description="先选择设备与日期后点击“预览”。" />
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </Transition>
         </table>
       </div>
     </div>
@@ -296,8 +341,15 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, ApiError } from "@/api/client";
+import UiButton from "@/components/ui/UiButton.vue";
+import UiEmptyState from "@/components/ui/UiEmptyState.vue";
+import UiInput from "@/components/ui/UiInput.vue";
+import UiSelect from "@/components/ui/UiSelect.vue";
+import UiSkeleton from "@/components/ui/UiSkeleton.vue";
 import { 生成CSV文本 } from "@/utils/csv";
 import { 触发文本下载 } from "@/utils/download";
+import { toastStore } from "@/stores/toast";
+import { useChunkedList } from "@/utils/chunkedList";
 
 type 设备选项 = { uuid: string; label: string };
 
@@ -336,7 +388,8 @@ const 筛选 = reactive<{
 });
 
 const 分页 = reactive<{ page: number; page_size: number; total: number }>({ page: 1, page_size: 50, total: 0 });
-const 列表 = ref<Array<Record<string, any>>>([]);
+const 列表全量 = ref<Array<Record<string, any>>>([]);
+const { visible: 列表, setSource: 设置列表 } = useChunkedList<Record<string, any>>({ chunkSize: 50 });
 
 const 聚合 = reactive<any>({ kpis: {}, location_top: [] });
 
@@ -351,7 +404,8 @@ const 散客提示 = ref<string>("");
 
 const 散客 = reactive<{ devices: string[]; dates: string[]; mode: "skip" | "overwrite" }>({ devices: [], dates: [], mode: "skip" });
 const 散客可用日期 = ref<string[]>([]);
-const 散客预览列表 = ref<Array<Record<string, any>>>([]);
+const 散客预览全量 = ref<Array<Record<string, any>>>([]);
+const { visible: 散客预览列表, setSource: 设置散客预览列表 } = useChunkedList<Record<string, any>>({ chunkSize: 60 });
 
 function joinOrUndefined(arr: string[]): string | undefined {
   const v = (arr || []).map((x) => String(x || "").trim()).filter(Boolean);
@@ -399,7 +453,8 @@ async function 查询(page: number): Promise<void> {
       api.activityAggregations(query)
     ]);
 
-    列表.value = (events.items || []) as any[];
+    列表全量.value = (events.items || []) as any[];
+    设置列表(列表全量.value);
     分页.total = Number(events.total || 0);
 
     const a = aggs as any;
@@ -417,13 +472,14 @@ async function 导出CSV(): Promise<void> {
   错误信息.value = "";
   提示信息.value = "";
   try {
-    if (!列表.value.length) {
+    if (!列表全量.value.length) {
       提示信息.value = "当前页没有可导出的数据。";
+      toastStore.push(提示信息.value, { tone: "warning" });
       return;
     }
 
     const headers = ["日期", "周几", "起始时间", "结束时间", "书院", "地点", "活动名称", "活动类型", "受众学生数", "备注"];
-    const rows = 列表.value.map((it) => [
+    const rows = 列表全量.value.map((it: Record<string, any>) => [
       it.date,
       it.weekday,
       it.start_time,
@@ -438,6 +494,7 @@ async function 导出CSV(): Promise<void> {
     const csv = 生成CSV文本({ headers, rows, withBom: true });
     const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
     触发文本下载({ filename: `活动列表_第${分页.page}页_${ts}.csv`, text: csv, mime: "text/csv;charset=utf-8" });
+    toastStore.push("已导出 CSV（当前页）", { tone: "success" });
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "导出失败：未知错误";
   } finally {
@@ -465,6 +522,7 @@ async function 导入CSV(): Promise<void> {
   try {
     const res = await api.activityUploadCsv(导入.csv);
     提示信息.value = `CSV 导入完成：导入 ${res.imported} 条。`;
+    toastStore.push(提示信息.value, { tone: "success" });
     await 查询(1);
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "CSV 导入失败：未知错误";
@@ -481,6 +539,7 @@ async function 导入Excel(): Promise<void> {
   try {
     const res = await api.activityImportExcel(导入.excel);
     提示信息.value = `Excel 导入完成：写入 ${res.count} 条。`;
+    toastStore.push(提示信息.value, { tone: "success" });
     await 查询(1);
   } catch (e) {
     错误信息.value = e instanceof ApiError ? e.message : "Excel 导入失败：未知错误";
@@ -496,6 +555,7 @@ async function 加载可用日期(): Promise<void> {
     const res = await api.walkinDates({ devices: 散客.devices.join(",") });
     散客可用日期.value = res.dates || [];
     散客提示.value = `可用日期：${散客可用日期.value.length} 天。`;
+    toastStore.push(散客提示.value, { tone: "success" });
   } catch (e) {
     散客提示.value = e instanceof ApiError ? e.message : "加载可用日期失败：未知错误";
   } finally {
@@ -508,8 +568,10 @@ async function 散客预览(): Promise<void> {
   散客提示.value = "";
   try {
     const res = await api.walkinPreviewDates({ devices: 散客.devices, dates: 散客.dates });
-    散客预览列表.value = (res.items || []) as any[];
-    散客提示.value = `预览生成 ${散客预览列表.value.length} 条散客活动。`;
+    散客预览全量.value = (res.items || []) as any[];
+    设置散客预览列表(散客预览全量.value);
+    散客提示.value = `预览生成 ${散客预览全量.value.length} 条散客活动。`;
+    toastStore.push(散客提示.value, { tone: "success" });
   } catch (e) {
     散客提示.value = e instanceof ApiError ? e.message : "预览失败：未知错误";
   } finally {
@@ -521,11 +583,12 @@ async function 散客同步(): Promise<void> {
   散客同步中.value = true;
   散客提示.value = "";
   try {
-    const res = await api.walkinSync({ items: 散客预览列表.value, mode: 散客.mode });
+    const res = await api.walkinSync({ items: 散客预览全量.value, mode: 散客.mode });
     const count = Number((res as any).count || 0);
     const inserted = Number((res as any).inserted || 0);
     const updated = Number((res as any).updated || 0);
     散客提示.value = `同步完成：写入 ${count} 条（inserted=${inserted}, updated=${updated}）。`;
+    toastStore.push("散客同步完成", { tone: "success" });
     await 查询(1);
   } catch (e) {
     散客提示.value = e instanceof ApiError ? e.message : "同步失败：未知错误";
@@ -539,47 +602,4 @@ onMounted(async () => {
   await 查询(1);
 });
 </script>
-
-<style scoped>
-.标题 {
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.子标题 {
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.字段 {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 190px;
-}
-
-.宽字段 {
-  min-width: 280px;
-}
-
-.字段标题 {
-  font-size: 12px;
-  color: var(--颜色-次要文本);
-}
-
-.多选 {
-  min-height: 92px;
-}
-
-.卡片标题 {
-  font-size: 12px;
-  color: var(--颜色-次要文本);
-}
-
-.卡片数字 {
-  margin-top: 8px;
-  font-size: 22px;
-  font-weight: 900;
-}
-</style>
 

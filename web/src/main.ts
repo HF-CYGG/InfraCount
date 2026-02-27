@@ -13,7 +13,14 @@ import App from "@/App.vue";
 import { router } from "@/router";
 import "@/styles/global.css";
 
-const app = createApp(App);
-app.use(router);
-app.mount("#app");
+const mount = () => {
+  const app = createApp(App);
+  app.use(router);
+  app.mount("#app");
+};
 
+if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+  window.setTimeout(mount, 0);
+} else {
+  mount();
+}

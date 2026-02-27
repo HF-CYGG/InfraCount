@@ -7,8 +7,8 @@
       <div class="标题">页面未找到</div>
       <div class="说明 提示-次要">你访问的地址不存在，可能已被移动或删除。</div>
       <div class="操作区">
-        <RouterLink class="按钮 强调" to="/dashboard">返回看板</RouterLink>
-        <RouterLink class="按钮" to="/login">去登录页</RouterLink>
+        <UiLinkButton variant="primary" to="/dashboard">返回看板</UiLinkButton>
+        <UiLinkButton to="/login">去登录页</UiLinkButton>
       </div>
     </div>
   </div>
@@ -19,6 +19,8 @@
  * 404 页脚本（占位）
  * - 无业务逻辑，仅用于路由兜底展示。
  */
+
+import UiLinkButton from "@/components/ui/UiLinkButton.vue";
 </script>
 
 <style scoped>

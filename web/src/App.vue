@@ -8,7 +8,12 @@
     2) 再由路由守卫决定跳转到登录页或业务页。
 -->
 <template>
-  <RouterView />
+  <RouterView v-slot="{ Component, route }">
+    <Transition name="ui-route" mode="out-in" appear>
+      <component :is="Component" :key="route.fullPath" />
+    </Transition>
+  </RouterView>
+  <UiToastHost />
 </template>
 
 <script setup lang="ts">
@@ -23,6 +28,7 @@
 
 import { onMounted } from "vue";
 import { authStore } from "@/stores/auth";
+import UiToastHost from "@/components/ui/UiToastHost.vue";
 
 onMounted(() => {
   void authStore.init();

@@ -1,0 +1,331 @@
+.卡片 {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  border: var(--边框-卡片);
+  border-radius: var(--圆角);
+  box-shadow: var(--阴影);
+}
+
+.面板 {
+  padding: var(--间距-14);
+}
+
+.行 {
+  display: flex;
+  gap: var(--间距-10);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.行-两端 {
+  justify-content: space-between;
+}
+
+.行-右 {
+  justify-content: flex-end;
+}
+
+.两列栅格 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--间距-14);
+  min-width: 0;
+}
+
+.三列栅格 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--间距-14);
+  min-width: 0;
+}
+
+.分隔线 {
+  height: 1px;
+  background: var(--颜色-边框);
+  margin: var(--间距-12) 0;
+}
+
+.提示-错误 {
+  color: var(--颜色-危险);
+}
+
+.提示-次要 {
+  color: var(--颜色-次要文本);
+}
+
+.小字 {
+  font-size: var(--字号-12);
+}
+
+.数字 {
+  font-variant-numeric: tabular-nums;
+}
+
+.字段 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--间距-6);
+  min-width: 200px;
+}
+
+.字段标题 {
+  font-size: var(--字号-12);
+  color: var(--颜色-次要文本);
+}
+
+.筛选区 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--间距-10);
+}
+
+.筛选行 {
+  display: flex;
+  gap: var(--间距-10);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.筛选操作 {
+  margin-left: auto;
+  display: flex;
+  gap: var(--间距-10);
+  align-items: center;
+}
+
+.表格容器 {
+  width: 100%;
+  overflow: auto;
+  border: var(--边框-卡片);
+  border-radius: var(--圆角-12);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.表格 {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.表格.中表格 {
+  min-width: 680px;
+}
+
+.表格.小表格 {
+  min-width: 520px;
+}
+
+.表格 th,
+.表格 td {
+  padding: var(--间距-10) var(--间距-12);
+  border-bottom: var(--边框-分隔);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.表格 thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(15, 23, 41, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 1;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.可换行 {
+  white-space: normal;
+}
+
+.表格 tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.区块头 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--间距-12);
+  flex-wrap: wrap;
+}
+
+.区块标题 {
+  font-size: var(--字号-16);
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+.区块说明 {
+  margin-top: var(--间距-6);
+  font-size: var(--字号-12);
+  color: var(--颜色-次要文本);
+  line-height: 1.65;
+}
+
+.子标题 {
+  font-size: var(--字号-14);
+  font-weight: 800;
+  letter-spacing: 0.1px;
+}
+
+.表单 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--间距-12);
+}
+
+.卡片标题 {
+  font-size: var(--字号-12);
+  color: var(--颜色-次要文本);
+}
+
+.卡片数字 {
+  margin-top: var(--间距-8);
+  font-size: var(--字号-24);
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.子卡片 {
+  background: rgba(0, 0, 0, 0.12);
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.分页栏 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--间距-10);
+  margin-top: var(--间距-12);
+}
+
+.多选 {
+  min-height: 92px;
+}
+
+.宽字段 {
+  min-width: 280px;
+}
+
+.空态单元格 {
+  padding: var(--间距-16) var(--间距-12);
+}
+
+.开关字段 {
+  min-width: 220px;
+}
+
+.开关字段 input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: rgba(78, 161, 255, 0.85);
+}
+
+.列-操作 {
+  width: 140px;
+}
+
+.列-选择 {
+  width: 60px;
+}
+
+.列-操作中 {
+  width: 180px;
+}
+
+.列-操作宽 {
+  width: 220px;
+}
+
+.上间距-6 {
+  margin-top: var(--间距-6);
+}
+
+.上间距-8 {
+  margin-top: var(--间距-8);
+}
+
+.上间距-10 {
+  margin-top: var(--间距-10);
+}
+
+.上间距-12 {
+  margin-top: var(--间距-12);
+}
+
+.限高-320 {
+  max-height: 320px;
+}
+
+.限高-520 {
+  max-height: 520px;
+}
+
+.行高-18 {
+  line-height: 1.8;
+}
+
+@media (max-width: 920px) {
+  .两列栅格 {
+    grid-template-columns: 1fr;
+  }
+  .三列栅格 {
+    grid-template-columns: 1fr;
+  }
+  .字段 {
+    min-width: 0;
+  }
+  .宽字段 {
+    min-width: 0;
+  }
+  .筛选操作 {
+    margin-left: 0;
+  }
+}
+
+.ui-route-enter-active,
+.ui-route-leave-active {
+  transition: opacity var(--动效-中) var(--ease-标准);
+}
+
+.ui-route-enter-from,
+.ui-route-leave-to {
+  opacity: 0;
+}
+
+.ui-fade-enter-active,
+.ui-fade-leave-active {
+  transition: opacity var(--动效-中) var(--ease-标准);
+}
+
+.ui-fade-enter-from,
+.ui-fade-leave-to {
+  opacity: 0;
+}
+
+.ui-toast-enter-active,
+.ui-toast-leave-active {
+  transition: opacity var(--动效-中) var(--ease-标准), transform var(--动效-中) var(--ease-标准);
+}
+
+.ui-toast-enter-from,
+.ui-toast-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.ui-toast-move {
+  transition: transform var(--动效-中) var(--ease-标准);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-route-enter-active,
+  .ui-route-leave-active,
+  .ui-fade-enter-active,
+  .ui-fade-leave-active,
+  .ui-toast-enter-active,
+  .ui-toast-leave-active,
+  .ui-toast-move {
+    transition-duration: 1ms !important;
+  }
+}

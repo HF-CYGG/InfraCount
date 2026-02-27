@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史数据 - InfraCount</title>
+    <link rel="stylesheet" href="/legacy/static/style.css?v=ui_v1">
+    <style>
+        .relative { position: relative; }
+        .popup-card {
+            position: absolute;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: var(--radius);
+            padding: 16px;
+            z-index: 100;
+            display: none;
+            min-width: 250px;
+        }
+        .popup-card.show { display: block; }
+        .date-range-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 240px;
+            cursor: pointer;
+        }
+        .mb-2 { margin-bottom: 8px; }
+        .cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .cal-wd {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 4px 0;
+        }
+        .cal-day {
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 0;
+            transition: all 0.15s ease;
+        }
+        .cal-day:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+        .cal-day:active { transform: scale(0.98); }
+        .cal-day.in-range {
+            background: var(--primary-light);
+            border-color: var(--primary-light);
+        }
+        .cal-day.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="filter-bar" style="margin-bottom:0;border:none;box-shadow:none;padding:0">
+        <div class="flex items-center gap-2">
+            <label>设备</label>
+            <select id="device" class="select" style="width:200px"></select>
+        </div>
+        <div class="flex items-center gap-2">
+            <label>日期范围</label>
+            <div class="relative">
+                <button id="dateRangeBtn" class="input date-range-btn" type="button">
+                    <span id="dateRangeLabel" class="text-muted">选择日期范围</span>
+                    <span style="opacity:.7">📅</span>
+                </button>
+                <div id="dateRangePopup" class="popup-card" style="left:0;top:120%;min-width:360px">
+                    <div class="flex gap-2 mb-2" style="flex-wrap:wrap">
+                        <button class="btn btn-sm" id="quickToday" type="button">今天</button>
+                        <button class="btn btn-sm" id="quickLast7" type="button">近7天</button>
+                        <button class="btn btn-sm" id="quickWeek" type="button">本周</button>
+                        <button class="btn btn-sm" id="quickMonth" type="button">本月</button>
+                    </div>
+
+                    <div class="cal-header">
+                        <button class="btn btn-sm" id="calPrev" type="button">‹</button>
+                        <div class="flex items-center gap-2" style="flex:1;justify-content:center">
+                            <select id="calYear" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                            <select id="calMonth" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                        </div>
+                        <button class="btn btn-sm" id="calNext" type="button">›</button>
+                    </div>
+
+                    <div class="cal-grid" id="calGrid"></div>
+
+                    <div class="flex gap-2" style="justify-content:flex-end;margin-top:12px">
+                        <button class="btn btn-sm" id="dateRangeClear" type="button">清空</button>
+                        <button class="btn btn-primary btn-sm" id="dateRangeApply" type="button">确定</button>
+                    </div>
+                </div>
+
+                <input type="date" id="start" style="display:none">
+                <input type="date" id="end" style="display:none">
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-primary" id="query">查询</button>
+            <button class="btn" id="reset">重置</button>
+            <button class="btn" id="toggleAdvanced">高级筛选</button>
+        </div>
+        <div class="flex items-center gap-2" style="margin-left:auto">
+            <button class="btn btn-success" id="addRecordBtn" style="background:#0ca678;color:#fff;border-color:#0ca678">添加记录</button>
+            <button class="btn btn-primary" id="batchEditBtn">批量修改</button>
+            <button class="btn btn-secondary" id="dataCompletion">数据补全</button>
+            <button class="btn btn-success" id="mergeDataBtn">数据合并</button>
+            <button class="btn btn-danger" id="batchDelete">批量删除</button>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div id="advancedPopup" class="card" data-persist-scope="filters" style="display:none;margin-top:16px;margin-bottom:16px;background:#f8f9fa">
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+            <div>
+                <label class="text-sm">告警状态 (0/1)</label>
+                <input id="filterWarn" type="number" class="input">
+            </div>
+            <div>
+                <label class="text-sm">记录类型</label>
+                <input id="filterRecType" type="number" class="input" placeholder="1:实时 2:历史">
+            </div>
+            <div>
+                <label class="text-sm">Tx电量 (Min)</label>
+                <input id="filterBtxMin" type="number" class="input">
+            </div>
+            <div>
+                <label class="text-sm">Tx电量 (Max)</label>
+                <input id="filterBtxMax" type="number" class="input">
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:40px"><input type="checkbox" id="selectAll"></th>
+                    <th>时间</th>
+                    <th>IN</th>
+                    <th>OUT</th>
+                    <th>电量</th>
+                    <th>状态</th>
+                    <th>Tx电量</th>
+                    <th>记录类型</th>
+                    <th>活动类型</th>
+                    <th style="width:140px">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit/Add Modal -->
+<div id="editModal" class="modal-backdrop">
+    <div class="modal">
+        <h3 id="modalTitle">编辑记录</h3>
+        <div class="mb-4"><label>时间</label><input id="m_time" type="datetime-local" class="input"></div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="mb-4"><label>IN</label><input id="m_in" type="number" class="input"></div>
+            <div class="mb-4"><label>OUT</label><input id="m_out" type="number" class="input"></div>
+        </div>
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="mb-4"><label>电量</label><input id="m_bat" type="number" class="input"></div>
+            <div class="mb-4"><label>Tx电量</label><input id="m_btx" type="number" class="input"></div>
+        </div>
+        <div class="mb-4"><label>活动类型</label>
+            <select id="m_type" class="select">
+                <option value="">-- 选择活动类型 --</option>
+                <option value="班团活动">班团活动</option>
+                <option value="公益/志愿活动">公益/志愿活动</option>
+                <option value="会议活动">会议活动</option>
+                <option value="培训活动">培训活动</option>
+                <option value="其他活动">其他活动</option>
+                <option value="全生异科导师活动">全生异科导师活动</option>
+                <option value="散客访问">散客访问</option>
+                <option value="社团活动">社团活动</option>
+                <option value="书院活动">书院活动</option>
+                <option value="体育活动">体育活动</option>
+                <option value="项目工坊活动">项目工坊活动</option>
+                <option value="艺术活动">艺术活动</option>
+                <option value="项目工坊">项目工坊</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="btn" id="m_cancel">取消</button>
+            <button class="btn btn-primary" id="m_save">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Edit Modal -->
+<div id="batchEditModal" class="modal-backdrop">
+    <div class="modal" style="width:600px">
+        <h3>批量修改</h3>
+        
+        <div style="background:#f8f9fa;padding:16px;border-radius:4px;margin-bottom:16px">
+            <h4 style="margin-top:0;font-size:14px">1. 选择修改范围</h4>
+            <div class="mb-2">
+                <label style="display:inline-flex;align-items:center;margin-right:16px">
+                    <input type="radio" name="batchScope" value="selection" checked> 
+                    当前勾选 (<span id="batchCount">0</span> 条)
+                </label>
+                <label style="display:inline-flex;align-items:center">
+                    <input type="radio" name="batchScope" value="filter"> 
+                    按条件筛选
+                </label>
+            </div>
+            
+            <div id="batchFilterOptions" style="display:none;padding-left:20px;border-left:2px solid #dee2e6">
+                <div class="grid" style="grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px">
+                    <div>
+                        <label style="font-size:12px">开始时间</label>
+                        <input type="datetime-local" id="batchStart" class="input w-full">
+                    </div>
+                    <div>
+                        <label style="font-size:12px">结束时间</label>
+                        <input type="datetime-local" id="batchEnd" class="input w-full">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label style="font-size:12px">设备 (可选)</label>
+                    <select id="batchDevice" class="select w-full"></select>
+                </div>
+                <button class="btn btn-sm" id="batchCheckCount">查询匹配数量</button>
+                <span id="batchFilterCount" style="margin-left:8px;font-size:12px;color:var(--primary)"></span>
+            </div>
+        </div>
+
+        <h4 style="font-size:14px">2. 设置新值 (留空则不修改)</h4>
+        <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div class="mb-2"><label>IN</label><input id="batch_in" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>OUT</label><input id="batch_out" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>电量</label><input id="batch_bat" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>Tx电量</label><input id="batch_btx" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>记录类型</label><input id="batch_rec_type" type="number" class="input w-full" placeholder="保持原值"></div>
+            <div class="mb-2"><label>告警状态</label>
+                <select id="batch_status" class="select w-full">
+                    <option value="">保持原值</option>
+                    <option value="0">正常 (0)</option>
+                    <option value="1">告警 (1)</option>
+                </select>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label>活动类型</label>
+            <select id="batch_act_type" class="select w-full">
+                <option value="">保持原值</option>
+                <option value="班团活动">班团活动</option>
+                <option value="公益/志愿活动">公益/志愿活动</option>
+                <option value="会议活动">会议活动</option>
+                <option value="培训活动">培训活动</option>
+                <option value="其他活动">其他活动</option>
+                <option value="散客访问">散客访问</option>
+            </select>
+        </div>
+        <div class="mb-4">
+            <label>操作 (批量删除)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+                <input type="checkbox" id="batchDeleteFlag">
+                <span style="color:var(--danger)">确认删除匹配的记录 (慎用)</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="batchEditCancel">取消</button>
+            <button class="btn btn-primary" id="batchEditConfirm">确认修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Range Modal -->
+<div id="deleteRangeModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>批量删除</h3>
+        <p style="color:var(--danger)">警告：此操作将永久删除指定时间段内的数据！</p>
+        <div class="mb-4"><label>起始时间</label><input id="delStart" type="datetime-local" class="input"></div>
+        <div class="mb-4"><label>结束时间</label><input id="delEnd" type="datetime-local" class="input"></div>
+        <div class="actions">
+            <button class="btn" id="delCancel">取消</button>
+            <button class="btn btn-danger" id="delConfirm">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<!-- Merge Config Modal -->
+<div id="mergeConfigModal" class="modal-backdrop">
+    <div class="modal">
+        <h3>数据合并 (同步)</h3>
+        <p class="text-sm text-muted">从设备端或其他节点同步数据</p>
+        <div class="mb-4">
+            <label>设备</label>
+            <select id="mergeTargetDevice" class="select"></select>
+        </div>
+        <div class="mb-4">
+            <label>起始时间</label>
+            <input id="mergeStart" type="datetime-local" class="input">
+        </div>
+        <div class="mb-4">
+            <label>结束时间</label>
+            <input id="mergeEnd" type="datetime-local" class="input">
+        </div>
+        <div class="actions">
+            <button class="btn" id="mergeConfigCancel">取消</button>
+            <button class="btn btn-primary" id="mergeFetchBtn">获取数据</button>
+        </div>
+    </div>
+</div>
+
+<!-- Merge Conflict Modal -->
+<div id="mergeConflictModal" class="modal-backdrop" style="z-index:1100">
+    <div class="modal" style="width:800px;max-width:90vw">
+        <h3>合并预览</h3>
+        <div class="mb-4">
+            <span class="badge badge-success">新增: <span id="mergeNewCount">0</span></span>
+            <span class="badge badge-warning">冲突: <span id="mergeConflictCount">0</span></span>
+        </div>
+        
+        <div class="table-wrap scroll-y" style="max-height:400px;margin-bottom:16px">
+            <table style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="width:40px">选</th>
+                        <th>时间</th>
+                        <th>字段</th>
+                        <th>本地值</th>
+                        <th>远程值</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="mergeTableBody"></tbody>
+            </table>
+        </div>
+        
+        <div class="actions">
+            <button class="btn" id="mergeConflictCancel">取消</button>
+            <button class="btn btn-primary" id="mergeConfirmBtn">确认合并</button>
+        </div>
+    </div>
+</div>
+
+<div id="logImportModal" class="modal-backdrop" style="z-index:1200">
+    <div class="modal" style="width:900px;max-width:95vw">
+        <h3>导入设备返回数据日志</h3>
+
+        <div id="logImportStepSelect">
+            <div class="card" style="background:var(--bg-subtle); padding:12px; border-radius:8px; margin-bottom:12px; box-shadow:none; border:1px solid var(--border);">
+                <div class="flex items-center gap-2" style="flex-wrap:wrap">
+                    <input id="logImportFile" type="file" class="input" style="max-width:420px" accept=".log,.txt,.csv,.json">
+                    <span id="logImportHint" class="text-sm text-muted">支持 TXT/LOG/CSV/JSON</span>
+                </div>
+            </div>
+
+            <div id="logImportLoading" class="text-sm text-muted" style="display:none; margin-bottom:12px">正在解析日志文件...</div>
+
+            <div id="logImportPreview" style="display:none">
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">文件</div>
+                        <div id="logImportMetaFile" style="font-weight:600"></div>
+                    </div>
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">识别格式</div>
+                        <div id="logImportMetaFmt" style="font-weight:600"></div>
+                    </div>
+                    <div class="card" style="box-shadow:none;border:1px solid var(--border);margin:0">
+                        <div class="text-sm text-muted">可导入记录数</div>
+                        <div id="logImportMetaTotal" style="font-weight:600"></div>
+                    </div>
+                </div>
+
+                <h4 style="margin:8px 0 8px 0">包含设备与时间段</h4>
+                <div class="table-wrap scroll-y" style="max-height:220px;margin-bottom:12px">
+                    <table style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>设备</th>
+                                <th>条数</th>
+                                <th>起始时间</th>
+                                <th>结束时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logImportDeviceTable"></tbody>
+                    </table>
+                </div>
+
+                <h4 style="margin:8px 0 8px 0">样例数据</h4>
+                <div class="table-wrap scroll-y" style="max-height:260px">
+                    <table style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>UUID</th>
+                                <th>时间</th>
+                                <th>IN</th>
+                                <th>OUT</th>
+                                <th>电量</th>
+                                <th>Tx电量</th>
+                                <th>信号</th>
+                                <th>告警</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logImportSampleTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="logImportStepProgress" style="display:none">
+            <div class="text-sm text-muted" style="margin-bottom:12px">正在导入，请勿关闭页面</div>
+            <div style="height:10px;border-radius:999px;background:var(--bg-subtle);border:1px solid var(--border);overflow:hidden">
+                <div id="logImportProgressBar" style="height:100%;width:0%;background:var(--primary)"></div>
+            </div>
+            <div id="logImportProgressText" class="text-sm" style="margin-top:8px"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn" id="logImportCancel">取消</button>
+            <button class="btn btn-primary" id="logImportStart" disabled>确定导入</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/legacy/static/layout.js?v=auth_v4"></script>
+<script>
+    initLayout('历史数据');
+
+    const els = {
+        device: document.getElementById('device'),
+        start: document.getElementById('start'),
+        end: document.getElementById('end'),
+        tbl: document.getElementById('tbl'),
+        adv: document.getElementById('advancedPopup'),
+        toggleAdv: document.getElementById('toggleAdvanced'),
+        selectAll: document.getElementById('selectAll'),
+        // Filters
+        fWarn: document.getElementById('filterWarn'),
+        fRec: document.getElementById('filterRecType'),
+        fMin: document.getElementById('filterBtxMin'),
+        fMax: document.getElementById('filterBtxMax'),
+        // Edit/Add
+        editModal: document.getElementById('editModal'),
+        modalTitle: document.getElementById('modalTitle'),
+        m_time: document.getElementById('m_time'),
+        m_in: document.getElementById('m_in'),
+        m_out: document.getElementById('m_out'),
+        m_bat: document.getElementById('m_bat'),
+        m_btx: document.getElementById('m_btx'),
+        m_type: document.getElementById('m_type'),
+        m_cancel: document.getElementById('m_cancel'),
+        m_save: document.getElementById('m_save'),
+        addBtn: document.getElementById('addRecordBtn'),
+        // Batch Delete
+        batchDelete: document.getElementById('batchDelete'),
+        delRangeModal: document.getElementById('deleteRangeModal'),
+        delStart: document.getElementById('delStart'),
+        delEnd: document.getElementById('delEnd'),
+        delCancel: document.getElementById('delCancel'),
+        delConfirm: document.getElementById('delConfirm'),
+        // Batch Edit
+        batchEditBtn: document.getElementById('batchEditBtn'),
+        batchEditModal: document.getElementById('batchEditModal'),
+        batchCount: document.getElementById('batchCount'),
+        batchTypeVal: document.getElementById('batchTypeVal'),
+        batchEditCancel: document.getElementById('batchEditCancel'),
+        batchEditConfirm: document.getElementById('batchEditConfirm'),
+        // Merge
+        mergeDataBtn: document.getElementById('mergeDataBtn'),
+        mergeConfigModal: document.getElementById('mergeConfigModal'),
+        mergeTargetDevice: document.getElementById('mergeTargetDevice'),
+        mergeStart: document.getElementById('mergeStart'),
+        mergeEnd: document.getElementById('mergeEnd'),
+        mergeConfigCancel: document.getElementById('mergeConfigCancel'),
+        mergeFetchBtn: document.getElementById('mergeFetchBtn'),
+        
+        mergeConflictModal: document.getElementById('mergeConflictModal'),
+        mergeNewCount: document.getElementById('mergeNewCount'),
+        mergeConflictCount: document.getElementById('mergeConflictCount'),
+        mergeTableBody: document.getElementById('mergeTableBody'),
+        mergeConflictCancel: document.getElementById('mergeConflictCancel'),
+        mergeConfirmBtn: document.getElementById('mergeConfirmBtn')
+    };
+
+    const logImportEls = {
+        openBtn: document.getElementById('dataCompletion'),
+        modal: document.getElementById('logImportModal'),
+        file: document.getElementById('logImportFile'),
+        hint: document.getElementById('logImportHint'),
+        loading: document.getElementById('logImportLoading'),
+        preview: document.getElementById('logImportPreview'),
+        metaFile: document.getElementById('logImportMetaFile'),
+        metaFmt: document.getElementById('logImportMetaFmt'),
+        metaTotal: document.getElementById('logImportMetaTotal'),
+        deviceTable: document.getElementById('logImportDeviceTable'),
+        sampleTable: document.getElementById('logImportSampleTable'),
+        stepSelect: document.getElementById('logImportStepSelect'),
+        stepProgress: document.getElementById('logImportStepProgress'),
+        bar: document.getElementById('logImportProgressBar'),
+        progressText: document.getElementById('logImportProgressText'),
+        cancel: document.getElementById('logImportCancel'),
+        start: document.getElementById('logImportStart')
+    };
+
+    let deviceMap = {};
+    let currentEditId = null;
+    let mergePlan = { creates: [], updates: [] }; // Stores pending actions
+
+    let logImportState = { importing: false, importId: '', total: 0, filename: '' };
+
+    function resetLogImportUi() {
+        logImportState = { importing: false, importId: '', total: 0, filename: '' };
+        if (logImportEls.file) logImportEls.file.value = '';
+        if (logImportEls.loading) logImportEls.loading.style.display = 'none';
+        if (logImportEls.preview) logImportEls.preview.style.display = 'none';
+        if (logImportEls.stepSelect) logImportEls.stepSelect.style.display = 'block';
+        if (logImportEls.stepProgress) logImportEls.stepProgress.style.display = 'none';
+        if (logImportEls.bar) logImportEls.bar.style.width = '0%';
+        if (logImportEls.progressText) logImportEls.progressText.textContent = '';
+        if (logImportEls.deviceTable) logImportEls.deviceTable.innerHTML = '';
+        if (logImportEls.sampleTable) logImportEls.sampleTable.innerHTML = '';
+        if (logImportEls.start) logImportEls.start.disabled = true;
+        if (logImportEls.cancel) logImportEls.cancel.disabled = false;
+        if (logImportEls.file) logImportEls.file.disabled = false;
+    }
+
+    function openLogImportModal() {
+        resetLogImportUi();
+        if (logImportEls.modal) logImportEls.modal.classList.add('show');
+    }
+
+    function closeLogImportModal() {
+        if (logImportState.importing) return;
+        if (logImportEls.modal) logImportEls.modal.classList.remove('show');
+    }
+
+    function renderLogImportPreview(data) {
+        logImportState.importId = data.import_id || '';
+        logImportState.total = data.total_records || 0;
+        logImportState.filename = data.filename || '';
+
+        logImportEls.metaFile.textContent = data.filename || '';
+        logImportEls.metaFmt.textContent = data.detected_format || '';
+        logImportEls.metaTotal.textContent = String(data.total_records || 0);
+
+        const devices = Array.isArray(data.devices) ? data.devices : [];
+        logImportEls.deviceTable.innerHTML = devices.map(d => {
+            const label = d.name ? `${d.name} (${d.uuid})` : (d.uuid || '');
+            const cat = d.category ? ` <span class="text-muted">/ ${d.category}</span>` : '';
+            return `
+                <tr>
+                    <td>${label}${cat}</td>
+                    <td>${d.count || 0}</td>
+                    <td>${d.start || ''}</td>
+                    <td>${d.end || ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const sample = Array.isArray(data.sample) ? data.sample : [];
+        logImportEls.sampleTable.innerHTML = sample.map(r => `
+            <tr>
+                <td>${r.uuid || ''}</td>
+                <td>${r.time || ''}</td>
+                <td>${r.in_count ?? ''}</td>
+                <td>${r.out_count ?? ''}</td>
+                <td>${r.battery ?? ''}</td>
+                <td>${r.btx ?? ''}</td>
+                <td>${r.signal_strength ?? ''}</td>
+                <td>${r.warn_status ?? ''}</td>
+            </tr>
+        `).join('');
+
+        logImportEls.preview.style.display = 'block';
+        logImportEls.start.disabled = !(logImportState.importId && logImportState.total > 0);
+    }
+
+    async function previewDeviceLogFile(file) {
+        if (!file) return;
+        logImportEls.loading.style.display = 'block';
+        logImportEls.preview.style.display = 'none';
+        logImportEls.start.disabled = true;
+
+        try {
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/v1/admin/device-log/preview', { method: 'POST', body: fd });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            renderLogImportPreview(data);
+        } catch (e) {
+            await showAlert('解析失败: ' + (e && e.message ? e.message : '未知错误'));
+        } finally {
+            logImportEls.loading.style.display = 'none';
+        }
+    }
+
+    async function runLogImport() {
+        if (!logImportState.importId || !logImportState.total) return;
+        const ok = await showConfirm(`确认导入 ${logImportState.total} 条记录？`);
+        if (!ok) return;
+
+        logImportState.importing = true;
+        logImportEls.cancel.disabled = true;
+        logImportEls.file.disabled = true;
+        logImportEls.start.disabled = true;
+        logImportEls.stepSelect.style.display = 'none';
+        logImportEls.stepProgress.style.display = 'block';
+
+        const total = logImportState.total;
+        const limit = 500;
+        let offset = 0;
+        let imported = 0;
+
+        while (offset < total) {
+            const res = await fetch('/api/v1/admin/device-log/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ import_id: logImportState.importId, offset: offset, limit: limit })
+            });
+            if (!res.ok) {
+                const t = await res.text();
+                logImportState.importing = false;
+                logImportEls.cancel.disabled = false;
+                logImportEls.stepSelect.style.display = 'block';
+                logImportEls.stepProgress.style.display = 'none';
+                throw new Error(t || '导入失败');
+            }
+            const data = await res.json();
+            imported += data.imported || 0;
+            offset = data.next_offset || (offset + limit);
+
+            const pct = total ? Math.min(100, Math.round((imported / total) * 100)) : 0;
+            logImportEls.bar.style.width = pct + '%';
+            logImportEls.progressText.textContent = `已导入 ${imported} / ${total} (${pct}%)`;
+        }
+
+        logImportState.importing = false;
+        await showAlert(`导入成功：${total} 条记录`);
+        closeLogImportModal();
+        loadHistory();
+    }
+
+    if (logImportEls.openBtn) logImportEls.openBtn.addEventListener('click', openLogImportModal);
+    if (logImportEls.cancel) logImportEls.cancel.addEventListener('click', closeLogImportModal);
+    if (logImportEls.file) logImportEls.file.addEventListener('change', (e) => previewDeviceLogFile(e.target.files && e.target.files[0]));
+    if (logImportEls.start) logImportEls.start.addEventListener('click', async () => {
+        try {
+            await runLogImport();
+        } catch (e) {
+            await showAlert('导入失败: ' + (e && e.message ? e.message : '未知错误'));
+        }
+    });
+
+    async function loadDevices() {
+        const mapRes = await fetch('/api/v1/devices/mapping');
+        if(mapRes.ok) deviceMap = (await mapRes.json()).mapping || {};
+
+        const res = await fetch('/api/v1/devices');
+        const list = await res.json();
+        
+        els.device.innerHTML = list.map(d => {
+            const uuid = typeof d === 'string' ? d : d.uuid;
+            const entry = deviceMap[uuid];
+            const name = entry ? (entry.name || uuid) : uuid;
+            const display = name === uuid ? uuid : `${name} (${uuid})`;
+            return `<option value="${uuid}">${display}</option>`;
+        }).join('');
+
+        const wantedDevice = els.device.getAttribute('data-persist-wanted');
+        if (wantedDevice) {
+            els.device.value = wantedDevice;
+            if (els.device.value === wantedDevice) {
+                els.device.removeAttribute('data-persist-wanted');
+            }
+        }
+    }
+
+    function fmtTime(s){ if(!s) return ''; const t = String(s).trim(); if(/^[0-9]{14}$/.test(t)) return t.slice(0,4)+'-'+t.slice(4,6)+'-'+t.slice(6,8)+' '+t.slice(8,10)+':'+t.slice(10,12)+':'+t.slice(12,14); return t; }
+    function fmtTxOnline(s){return (s===0||s==='0')?'在线':'离线'}
+    function fmtRecType(t){return (t===1||t==='1')?'实时数据':(t===2||t==='2')?'历史数据':(t??'')}
+    
+    const datePicker = {
+        btn: document.getElementById('dateRangeBtn'),
+        label: document.getElementById('dateRangeLabel'),
+        popup: document.getElementById('dateRangePopup'),
+        grid: document.getElementById('calGrid'),
+        yearSel: document.getElementById('calYear'),
+        monthSel: document.getElementById('calMonth'),
+        prev: document.getElementById('calPrev'),
+        next: document.getElementById('calNext'),
+        apply: document.getElementById('dateRangeApply'),
+        clear: document.getElementById('dateRangeClear'),
+        quickToday: document.getElementById('quickToday'),
+        quickLast7: document.getElementById('quickLast7'),
+        quickWeek: document.getElementById('quickWeek'),
+        quickMonth: document.getElementById('quickMonth')
+    };
+
+    let calViewYear = new Date().getFullYear();
+    let calViewMonth = new Date().getMonth();
+    let calPickStart = '';
+    let calPickEnd = '';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function localYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+    function parseYmd(s) {
+        const parts = String(s || '').split('-').map(x => parseInt(x, 10));
+        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    function daysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
+    function mondayIndex(jsDay) { return (jsDay + 6) % 7; }
+    function clampRange(a, b) {
+        const s = a || '';
+        const e = b || '';
+        if (s && e && e < s) return [e, s];
+        return [s, e];
+    }
+    function setRange(start, end) {
+        const [s, e] = clampRange(start, end);
+        els.start.value = s;
+        els.end.value = e;
+        updateDateLabel();
+        renderCalendar();
+    }
+    function getRange() {
+        const [s, e] = clampRange(els.start.value, els.end.value);
+        return { start: s, end: e };
+    }
+    function updateDateLabel() {
+        const { start, end } = getRange();
+        if (start && end) {
+            datePicker.label.textContent = `${start} 至 ${end}`;
+            datePicker.label.classList.remove('text-muted');
+        } else if (start) {
+            datePicker.label.textContent = start;
+            datePicker.label.classList.remove('text-muted');
+        } else {
+            datePicker.label.textContent = '选择日期范围';
+            datePicker.label.classList.add('text-muted');
+        }
+    }
+    function syncCalViewFromSelection() {
+        const { end, start } = getRange();
+        const base = parseYmd(end || start) || new Date();
+        calViewYear = base.getFullYear();
+        calViewMonth = base.getMonth();
+    }
+    function ensureCalSelectors() {
+        const nowY = new Date().getFullYear();
+        const minY = nowY - 5;
+        const maxY = nowY + 2;
+        const years = [];
+        for (let y = minY; y <= maxY; y++) years.push(y);
+        if (datePicker.yearSel) {
+            datePicker.yearSel.innerHTML = years.map(y => `<option value="${y}">${y}年</option>`).join('');
+        }
+        if (datePicker.monthSel) {
+            datePicker.monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join('');
+        }
+    }
+    function renderCalendar() {
+        const wds = ['一','二','三','四','五','六','日'];
+        const { start, end } = getRange();
+        if (datePicker.yearSel && datePicker.monthSel) {
+            if (!datePicker.yearSel.options.length || !datePicker.monthSel.options.length) ensureCalSelectors();
+            datePicker.yearSel.value = String(calViewYear);
+            datePicker.monthSel.value = String(calViewMonth);
+        }
+        datePicker.grid.innerHTML = '';
+
+        for (const wd of wds) {
+            const el = document.createElement('div');
+            el.className = 'cal-wd';
+            el.textContent = wd;
+            datePicker.grid.appendChild(el);
+        }
+
+        const first = new Date(calViewYear, calViewMonth, 1);
+        const lead = mondayIndex(first.getDay());
+        for (let i = 0; i < lead; i++) {
+            const el = document.createElement('div');
+            datePicker.grid.appendChild(el);
+        }
+
+        const dim = daysInMonth(calViewYear, calViewMonth);
+        for (let day = 1; day <= dim; day++) {
+            const d = new Date(calViewYear, calViewMonth, day);
+            const ds = localYmd(d);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-day';
+            btn.textContent = String(day);
+
+            const inRange = start && end && ds >= start && ds <= end;
+            const isSelected = (start && ds === start) || (end && ds === end);
+            if (inRange) btn.classList.add('in-range');
+            if (isSelected) btn.classList.add('selected');
+
+            btn.addEventListener('click', () => {
+                if (!calPickStart || (calPickStart && calPickEnd)) {
+                    calPickStart = ds;
+                    calPickEnd = '';
+                    setRange(calPickStart, '');
+                    return;
+                }
+                calPickEnd = ds;
+                const [s, e] = clampRange(calPickStart, calPickEnd);
+                setRange(s, e);
+            });
+
+            datePicker.grid.appendChild(btn);
+        }
+    }
+
+    function setupDatePopup() {
+        datePicker.btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const { start, end } = getRange();
+            calPickStart = start;
+            calPickEnd = end;
+            syncCalViewFromSelection();
+            ensureCalSelectors();
+            renderCalendar();
+            datePicker.popup.classList.toggle('show');
+        });
+        datePicker.popup.addEventListener('click', (e) => e.stopPropagation());
+        document.addEventListener('click', () => datePicker.popup.classList.remove('show'));
+    }
+
+    datePicker.prev.addEventListener('click', () => {
+        if (calViewMonth === 0) {
+            calViewMonth = 11;
+            calViewYear -= 1;
+        } else {
+            calViewMonth -= 1;
+        }
+        renderCalendar();
+    });
+    datePicker.next.addEventListener('click', () => {
+        if (calViewMonth === 11) {
+            calViewMonth = 0;
+            calViewYear += 1;
+        } else {
+            calViewMonth += 1;
+        }
+        renderCalendar();
+    });
+    datePicker.clear.addEventListener('click', () => {
+        calPickStart = '';
+        calPickEnd = '';
+        setRange('', '');
+    });
+    if (datePicker.yearSel) {
+        datePicker.yearSel.addEventListener('change', () => {
+            calViewYear = parseInt(datePicker.yearSel.value, 10);
+            renderCalendar();
+        });
+    }
+    if (datePicker.monthSel) {
+        datePicker.monthSel.addEventListener('change', () => {
+            calViewMonth = parseInt(datePicker.monthSel.value, 10);
+            renderCalendar();
+        });
+    }
+    datePicker.apply.addEventListener('click', () => {
+        const { start, end } = getRange();
+        if (start && !end) setRange(start, start);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickToday.addEventListener('click', () => {
+        const d = localYmd(new Date());
+        calPickStart = d;
+        calPickEnd = d;
+        setRange(d, d);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickLast7.addEventListener('click', () => {
+        const now = new Date();
+        const end = localYmd(now);
+        const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickWeek.addEventListener('click', () => {
+        const now = new Date();
+        const day = mondayIndex(now.getDay());
+        const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+        const endD = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + 6);
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickMonth.addEventListener('click', () => {
+        const now = new Date();
+        const startD = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+
+    updateDateLabel();
+    syncCalViewFromSelection();
+    ensureCalSelectors();
+    renderCalendar();
+    setupDatePopup();
+
+    async function loadHistory() {
+        const uuid = els.device.value;
+        if(!uuid) return;
+        
+        const q = new URLSearchParams({uuid});
+        if(els.start.value) q.append('start', els.start.value + ' 00:00:00');
+        if(els.end.value) q.append('end', els.end.value + ' 23:59:59');
+        if(els.fWarn.value) q.append('warn_status', els.fWarn.value);
+        if(els.fRec.value) q.append('rec_type', els.fRec.value);
+        if(els.fMin.value) q.append('batterytx_min', els.fMin.value);
+        if(els.fMax.value) q.append('batterytx_max', els.fMax.value);
+        
+        const res = await fetch('/api/v1/records/history?' + q.toString());
+        if(!res.ok) {
+             console.error("Fetch history failed", res.status);
+             return;
+        }
+        const rows = await res.json();
+        if(!Array.isArray(rows)) {
+            console.error("History data is not an array", rows);
+            return;
+        }
+        
+        els.tbl.innerHTML = rows.map(r => `
+            <tr>
+                <td><input type="checkbox" class="row-check" value="${r.id}"></td>
+                <td>${fmtTime(r.time)}</td>
+                <td>${r.in_count??r.in??''}</td>
+                <td>${r.out_count??r.out??''}</td>
+                <td>${r.battery_level??''}</td>
+                <td>${fmtTxOnline(r.warn_status)}</td>
+                <td>${r.batterytx_level??''}</td>
+                <td>${fmtRecType(r.rec_type)}</td>
+                <td>${r.activity_type || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="onEdit('${r.id}', this)">编辑</button>
+                    <button class="btn btn-sm btn-danger" onclick="onDel('${r.id}')">删除</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Reset select all
+        els.selectAll.checked = false;
+    }
+
+    document.getElementById('query').addEventListener('click', loadHistory);
+    document.getElementById('reset').addEventListener('click', () => {
+        els.device.selectedIndex = 0;
+        setRange('', '');
+        els.fWarn.value = ''; els.fRec.value = '';
+        els.fMin.value = ''; els.fMax.value = '';
+        loadHistory();
+    });
+    els.toggleAdv.addEventListener('click', () => {
+        els.adv.style.display = els.adv.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    // Select All
+    els.selectAll.addEventListener('change', (e) => {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = e.target.checked);
+    });
+
+    // --- Edit ---
+    window.onEdit = (id, btn) => {
+        currentEditId = id;
+        els.modalTitle.textContent = '编辑记录';
+        const tds = btn.closest('tr').querySelectorAll('td');
+        // tds[0] is checkbox
+        const t = tds[1].innerText.replace(' ', 'T');
+        els.m_time.value = t;
+        els.m_in.value = tds[2].innerText;
+        els.m_out.value = tds[3].innerText;
+        els.m_bat.value = tds[4].innerText;
+        els.m_btx.value = tds[6].innerText;
+        els.m_type.value = tds[8].innerText;
+        els.editModal.classList.add('show');
+    };
+
+    // --- Add ---
+    els.addBtn.addEventListener('click', () => {
+        currentEditId = null;
+        els.modalTitle.textContent = '添加记录';
+        // Default time to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        els.m_time.value = now.toISOString().slice(0,16);
+        els.m_in.value = 0;
+        els.m_out.value = 0;
+        els.m_bat.value = 100;
+        els.m_btx.value = 100;
+        els.m_type.value = '';
+        els.editModal.classList.add('show');
+    });
+
+    els.m_cancel.addEventListener('click', () => els.editModal.classList.remove('show'));
+    
+    els.m_save.addEventListener('click', async () => {
+        const timeVal = els.m_time.value.replace('T', ' ').replace(/-/g, '').replace(/:/g, '') + '00';
+        const payload = {
+            time: timeVal,
+            in_count: parseInt(els.m_in.value),
+            out_count: parseInt(els.m_out.value),
+            battery_level: parseInt(els.m_bat.value),
+            batterytx_level: parseInt(els.m_btx.value),
+            activity_type: els.m_type.value
+        };
+
+        let url = '/api/v1/admin/records';
+        let method = 'POST';
+
+        if (currentEditId) {
+            url = '/api/v1/admin/records/' + currentEditId;
+            method = 'PUT';
+        } else {
+            const uuid = els.device.value;
+            if(!uuid) return showAlert('请先选择设备');
+            payload.uuid = uuid;
+            // Default fields for create
+            payload.rec_type = 2; // History
+            payload.signal_strength = 0;
+            payload.warn_status = 0;
+        }
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if(res.ok) {
+            els.editModal.classList.remove('show');
+            loadHistory();
+        } else {
+            const msg = await res.text();
+            await showAlert('保存失败: ' + msg);
+        }
+    });
+
+    // --- Delete ---
+    window.onDel = async (id) => {
+        if(!await showConfirm('确认删除?')) return;
+        const res = await fetch('/api/v1/admin/records/' + id, {
+            method: 'DELETE'
+        });
+        if(res.ok) loadHistory();
+        else await showAlert('删除失败');
+    };
+
+    // --- Batch Delete ---
+    els.batchDelete.addEventListener('click', () => els.delRangeModal.classList.add('show'));
+    els.delCancel.addEventListener('click', () => els.delRangeModal.classList.remove('show'));
+    els.delConfirm.addEventListener('click', async () => {
+        if(!await showConfirm('确定要删除该时间段的数据吗？不可恢复！')) return;
+        // Format: YYYYMMDDHHMMSS
+        const s = els.delStart.value.replace(/[-T:]/g, '') + '00';
+        const e = els.delEnd.value.replace(/[-T:]/g, '') + '00';
+        
+        const q = new URLSearchParams({start: s, end: e});
+        const res = await fetch('/api/v1/admin/records/range?' + q.toString(), {
+            method: 'DELETE'
+        });
+        if(res.ok) {
+            els.delRangeModal.classList.remove('show');
+            loadHistory();
+        } else {
+            await showAlert('删除失败');
+        }
+    });
+
+    // --- Batch Edit ---
+    const elsBatch = {
+        radios: document.getElementsByName('batchScope'),
+        filterOpts: document.getElementById('batchFilterOptions'),
+        checkCount: document.getElementById('batchCheckCount'),
+        filterCount: document.getElementById('batchFilterCount'),
+        start: document.getElementById('batchStart'),
+        end: document.getElementById('batchEnd'),
+        device: document.getElementById('batchDevice'),
+        // Inputs
+        in: document.getElementById('batch_in'),
+        out: document.getElementById('batch_out'),
+        bat: document.getElementById('batch_bat'),
+        btx: document.getElementById('batch_btx'),
+        rec_type: document.getElementById('batch_rec_type'),
+        status: document.getElementById('batch_status'),
+        act_type: document.getElementById('batch_act_type'),
+        delFlag: document.getElementById('batchDeleteFlag')
+    };
+
+    els.batchEditBtn.addEventListener('click', () => {
+        const checked = document.querySelectorAll('.row-check:checked');
+        els.batchCount.textContent = checked.length;
+        
+        // Init UI
+        elsBatch.radios[0].checked = true;
+        elsBatch.filterOpts.style.display = 'none';
+        
+        // Populate devices if needed
+        if(elsBatch.device.children.length === 0) {
+             elsBatch.device.innerHTML = '<option value="">-- 所有设备 --</option>' + els.device.innerHTML;
+        }
+        
+        els.batchEditModal.classList.add('show');
+    });
+    
+    elsBatch.radios.forEach(r => {
+        r.addEventListener('change', () => {
+            elsBatch.filterOpts.style.display = (r.value === 'filter') ? 'block' : 'none';
+        });
+    });
+
+    elsBatch.checkCount.addEventListener('click', async () => {
+        const s = elsBatch.start.value ? elsBatch.start.value.replace('T', ' ') : '';
+        const e = elsBatch.end.value ? elsBatch.end.value.replace('T', ' ') : '';
+        const uuid = elsBatch.device.value;
+        
+        const q = new URLSearchParams({start: s, end: e, uuid: uuid, size: 1}); 
+        try {
+            const res = await fetch('/api/v1/admin/records?' + q.toString());
+            const data = await res.json();
+            elsBatch.filterCount.textContent = `匹配 ${data.total} 条`;
+        } catch(e) {
+            elsBatch.filterCount.textContent = '查询出错';
+        }
+    });
+
+    els.batchEditCancel.addEventListener('click', () => els.batchEditModal.classList.remove('show'));
+    
+    els.batchEditConfirm.addEventListener('click', async () => {
+        const scope = Array.from(elsBatch.radios).find(r => r.checked).value;
+        let ids = [];
+        
+        if(scope === 'selection') {
+            const checked = document.querySelectorAll('.row-check:checked');
+            if(checked.length === 0) return showAlert('请先选择记录');
+            ids = Array.from(checked).map(c => c.value);
+        } else {
+            const s = elsBatch.start.value ? elsBatch.start.value.replace('T', ' ') : '';
+            const e = elsBatch.end.value ? elsBatch.end.value.replace('T', ' ') : '';
+            const uuid = elsBatch.device.value;
+            
+            // Call ID fetch endpoint
+            const q = new URLSearchParams({start: s, end: e, uuid: uuid});
+            try {
+                const res = await fetch('/api/v1/admin/records/ids?' + q.toString());
+                if(!res.ok) throw new Error('查询ID失败');
+                const data = await res.json();
+                ids = data.ids;
+            } catch(err) {
+                return showAlert(err.message);
+            }
+            
+            if(ids.length === 0) return showAlert('未找到匹配记录');
+            if(!await showConfirm(`确认修改筛选出的 ${ids.length} 条记录?`)) return;
+        }
+        
+        // Delete Check
+        if(elsBatch.delFlag.checked) {
+             if(!await showConfirm(`警告: 确定要删除这 ${ids.length} 条记录吗? 此操作不可恢复！`)) return;
+             const res = await fetch('/api/v1/admin/records/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids })
+             });
+             if(res.ok) {
+                 els.batchEditModal.classList.remove('show');
+                 loadHistory();
+                 showAlert('批量删除成功');
+             } else {
+                 showAlert('批量删除失败');
+             }
+             return;
+        }
+
+        // Build updates
+        const updates = {};
+        if(elsBatch.in.value) updates.in_count = parseInt(elsBatch.in.value);
+        if(elsBatch.out.value) updates.out_count = parseInt(elsBatch.out.value);
+        if(elsBatch.bat.value) updates.battery = parseInt(elsBatch.bat.value);
+        if(elsBatch.btx.value) updates.btx = parseInt(elsBatch.btx.value);
+        if(elsBatch.rec_type.value) updates.rec_type = parseInt(elsBatch.rec_type.value);
+        if(elsBatch.status.value) updates.warn_status = parseInt(elsBatch.status.value);
+        if(elsBatch.act_type.value) updates.activity_type = elsBatch.act_type.value;
+        
+        if(Object.keys(updates).length === 0) return showAlert('未设置任何修改值');
+        
+        const res = await fetch('/api/v1/admin/records/batch-update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ids: ids,
+                updates: updates
+            })
+        });
+        
+        if(res.ok) {
+            els.batchEditModal.classList.remove('show');
+            loadHistory();
+            showAlert('批量修改成功');
+        } else {
+            await showAlert('批量修改失败');
+        }
+    });
+
+    // --- Merge Data ---
+    els.mergeDataBtn.addEventListener('click', () => {
+        // Populate device select
+        els.mergeTargetDevice.innerHTML = els.device.innerHTML;
+        els.mergeTargetDevice.value = els.device.value;
+        
+        // Default range: last 7 days
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 7);
+        
+        els.mergeStart.value = start.toISOString().slice(0,16);
+        els.mergeEnd.value = end.toISOString().slice(0,16);
+        
+        els.mergeConfigModal.classList.add('show');
+    });
+    els.mergeConfigCancel.addEventListener('click', () => els.mergeConfigModal.classList.remove('show'));
+    
+    els.mergeFetchBtn.addEventListener('click', async () => {
+        const uuid = els.mergeTargetDevice.value;
+        
+        if(!uuid) return showAlert('请选择设备');
+        
+        const s = els.mergeStart.value.replace('T', ' ') + ':00';
+        const e = els.mergeEnd.value.replace('T', ' ') + ':00';
+        
+        // 1. Fetch Remote Data (From Device via Backend)
+        let remoteData = [];
+        try {
+            const res = await fetch('/api/v1/admin/sync/fetch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    uuid: uuid,
+                    start: s,
+                    end: e
+                })
+            });
+            if(!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            remoteData = Array.isArray(data) ? data : (data.data || []); 
+        } catch(err) {
+            return showAlert('获取设备数据失败: ' + err.message);
+        }
+        
+        if(remoteData.length === 0) return showAlert('该时间段无源数据');
+        
+        // 2. Fetch Local for comparison
+        const localQ = new URLSearchParams({uuid, start: s, end: e, limit: 10000});
+        const localRes = await fetch('/api/v1/records/history?' + localQ);
+        if(!localRes.ok) return showAlert('获取本地数据失败');
+        const localData = await localRes.json();
+        if(!Array.isArray(localData)) return showAlert('本地数据格式错误');
+        
+        // 3. Compare
+        // Map local by time
+        const localMap = {};
+        localData.forEach(r => {
+            // Ensure format matches. Remote usually returns 'YYYY-MM-DD HH:MM:SS'.
+            // Local DB might return same.
+            localMap[r.time] = r;
+        });
+        
+        const conflicts = [];
+        const newItems = [];
+        
+        remoteData.forEach(r => {
+            const l = localMap[r.time];
+            if(!l) {
+                // New
+                newItems.push(r);
+            } else {
+                // Check conflict
+                // Compare in_count, out_count, battery, etc.
+                // Assuming battery_level in remote maps to battery_level in local (or battery)
+                // Remote keys based on doc: in_count, out_count, time, battery_level, signal_status
+                // Local keys: in_count, out_count, time, battery_level, signal_strength
+                
+                // Normalize remote
+                const r_bat = r.battery_level ?? r.battery;
+                const l_bat = l.battery_level ?? l.battery;
+                
+                if (r.in_count != l.in_count || r.out_count != l.out_count || r_bat != l_bat) {
+                    conflicts.push({remote: r, local: l});
+                }
+            }
+        });
+        
+        if(newItems.length === 0 && conflicts.length === 0) {
+            return showAlert('数据完全一致，无需合并');
+        }
+        
+        // 4. Show Conflict UI
+        els.mergeConfigModal.classList.remove('show');
+        
+        els.mergeNewCount.textContent = newItems.length;
+        els.mergeConflictCount.textContent = conflicts.length;
+        
+        let html = '';
+        
+        // New items preview (limit 10)
+        if(newItems.length > 0) {
+            html += `<tr style="background:#f6ffed"><td colspan="6" style="font-weight:bold;text-align:center">新增数据 (${newItems.length} 条) - 默认导入</td></tr>`;
+            newItems.slice(0, 5).forEach(r => {
+                html += `<tr style="opacity:0.7">
+                    <td><input type="checkbox" checked disabled></td>
+                    <td>${r.time}</td>
+                    <td colspan="4">IN:${r.in_count}, OUT:${r.out_count}</td>
+                </tr>`;
+            });
+            if(newItems.length > 5) html += `<tr><td colspan="6" style="text-align:center;color:#999">...还有 ${newItems.length - 5} 条...</td></tr>`;
+        }
+        
+        // Conflicts
+        if(conflicts.length > 0) {
+            html += `<tr style="background:#fff7e6"><td colspan="6" style="font-weight:bold;text-align:center">冲突数据 (${conflicts.length} 条) - 请选择处理方式</td></tr>`;
+            conflicts.forEach((c, idx) => {
+                const r = c.remote;
+                const l = c.local;
+                html += `
+                <tr>
+                    <td><input type="checkbox" class="merge-check" data-idx="${idx}"></td>
+                    <td>${r.time}</td>
+                    <td>
+                        <div>IN</div><div>OUT</div><div>电量</div>
+                    </td>
+                    <td style="color:#666">
+                        <div>${l.in_count}</div><div>${l.out_count}</div><div>${l.battery_level??l.battery}</div>
+                    </td>
+                    <td style="color:#1890ff;font-weight:bold">
+                        <div>${r.in_count}</div><div>${r.out_count}</div><div>${r.battery_level??r.battery}</div>
+                    </td>
+                    <td>
+                        <span style="font-size:12px;color:#999">勾选覆盖</span>
+                    </td>
+                </tr>`;
+            });
+        }
+        
+        els.mergeTableBody.innerHTML = html;
+        
+        // Store plan context
+        mergePlan = { creates: newItems, conflicts: conflicts };
+        
+        els.mergeConflictModal.classList.add('show');
+    });
+    
+    els.mergeConflictCancel.addEventListener('click', () => els.mergeConflictModal.classList.remove('show'));
+    
+    els.mergeConfirmBtn.addEventListener('click', async () => {
+        // Build updates from conflicts
+        const updates = [];
+        document.querySelectorAll('.merge-check:checked').forEach(el => {
+            const idx = parseInt(el.dataset.idx);
+            const c = mergePlan.conflicts[idx];
+            // Prepare update payload using remote values
+            // Need ID from local to update
+            const up = {
+                id: c.local.id,
+                time: c.remote.time,
+                in_count: c.remote.in_count,
+                out_count: c.remote.out_count,
+                battery_level: c.remote.battery_level ?? c.remote.battery,
+                // remote might not have signal/btx, keep local or update if present
+                // signal_status -> signal_strength
+                signal_strength: c.remote.signal_status ?? c.remote.signal_strength
+            };
+            updates.push(up);
+        });
+        
+        const payload = {
+            creates: mergePlan.creates.map(r => ({
+                uuid: els.mergeTargetDevice.value,
+                time: r.time,
+                in_count: r.in_count,
+                out_count: r.out_count,
+                battery_level: r.battery_level ?? r.battery,
+                signal_strength: r.signal_status ?? r.signal_strength,
+                rec_type: 2 // History
+            })),
+            updates: updates
+        };
+        
+        const res = await fetch('/api/v1/admin/record/batch-save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if(res.ok) {
+            els.mergeConflictModal.classList.remove('show');
+            await showAlert('合并成功');
+            loadHistory();
+        } else {
+            await showAlert('合并失败');
+        }
+    });
+
+    (async () => {
+        await loadDevices();
+        loadHistory();
+    })();
+
+</script>
+</body>
+</html>

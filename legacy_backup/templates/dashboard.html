@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 - InfraCount</title>
+    <link rel="stylesheet" href="/legacy/static/style.css?v=ui_v1">
+    <style>
+        .relative { position: relative; }
+        .popup-card {
+            position: absolute;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            border-radius: var(--radius);
+            padding: 16px;
+            z-index: 100;
+            display: none;
+            min-width: 250px;
+        }
+        .popup-card.show { display: block; }
+        .w-full { width: 100%; }
+        .text-left { text-align: left; }
+        .mb-2 { margin-bottom: 8px; }
+        
+        /* Dashboard specific styles */
+        .kpi-card {
+            text-align: center;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 8px 0;
+            line-height: 1.2;
+        }
+        .kpi-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chart-container {
+            height: 400px;
+            position: relative;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .date-range-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 240px;
+            cursor: pointer;
+        }
+        .cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .cal-month {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .cal-wd {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 4px 0;
+        }
+        .cal-day {
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 0;
+            transition: all 0.15s ease;
+        }
+        .cal-day:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+        .cal-day:active {
+            transform: scale(0.98);
+        }
+        .cal-day.in-range {
+            background: var(--primary-light);
+            border-color: var(--primary-light);
+        }
+        .cal-day.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="filter-bar" style="border:none; padding:0; justify-content: space-between;">
+        <div class="flex items-center gap-4 flex-wrap">
+            <div class="flex items-center gap-2">
+                <label>设备</label>
+                <select id="device" class="select" style="min-width:200px"></select>
+            </div>
+            
+            <div class="relative">
+                <button id="dateRangeBtn" class="input date-range-btn" type="button">
+                    <span id="dateRangeLabel" class="text-muted">选择日期范围</span>
+                    <span style="opacity:.7">📅</span>
+                </button>
+                <div id="dateRangePopup" class="popup-card" style="left:0;top:120%;min-width:360px">
+                    <div class="flex gap-2 mb-2" style="flex-wrap:wrap">
+                        <button class="btn btn-sm" id="quickToday" type="button">今天</button>
+                        <button class="btn btn-sm" id="quickLast7" type="button">近7天</button>
+                        <button class="btn btn-sm" id="quickWeek" type="button">本周</button>
+                        <button class="btn btn-sm" id="quickMonth" type="button">本月</button>
+                    </div>
+
+                    <div class="cal-header">
+                        <button class="btn btn-sm" id="calPrev" type="button">‹</button>
+                        <div class="flex items-center gap-2" style="flex:1;justify-content:center">
+                            <select id="calYear" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                            <select id="calMonth" class="select" style="height:28px;padding:0 8px;font-size:12px"></select>
+                        </div>
+                        <button class="btn btn-sm" id="calNext" type="button">›</button>
+                    </div>
+
+                    <div class="cal-grid" id="calGrid"></div>
+
+                    <div class="flex gap-2" style="justify-content:flex-end;margin-top:12px">
+                        <button class="btn btn-sm" id="dateRangeClear" type="button">清空</button>
+                        <button class="btn btn-primary btn-sm" id="dateRangeApply" type="button">确定</button>
+                    </div>
+                </div>
+
+                <input type="date" id="start" style="display:none">
+                <input type="date" id="end" style="display:none">
+                <input type="hidden" id="allDates" value="">
+                <input type="hidden" id="selectedDailyDate" value="">
+            </div>
+
+            <div class="flex gap-2">
+                <button class="btn btn-primary" id="load">查询</button>
+                <button class="btn" id="today">今天</button>
+                <button class="btn" id="last7">近7天</button>
+                <button class="btn" id="thisWeek">本周</button>
+                <button class="btn" id="thisMonth">本月</button>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <div class="relative">
+                <button class="btn" id="toggleAdvanced">
+                    <span style="margin-right:4px">⚙️</span> 高级筛选
+                </button>
+                <div id="advancedPopup" class="popup-card" style="right:0;top:120%;">
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">告警状态 (0/1)</label>
+                        <input id="filterWarn" type="number" class="input w-full" placeholder="全部">
+                    </div>
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">记录类型 ID</label>
+                        <input id="filterRecType" type="number" class="input w-full" placeholder="全部">
+                    </div>
+                    <div class="mb-2">
+                        <label style="display:block;margin-bottom:4px;font-size:12px">Tx电量范围 (%)</label>
+                        <div class="flex gap-2">
+                            <input id="filterBtxMin" placeholder="Min" class="input w-full">
+                            <input id="filterBtxMax" placeholder="Max" class="input w-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="relative">
+                <button class="btn" id="toggleActions">
+                    <span style="margin-right:4px">📥</span> 导出
+                </button>
+                <div id="actionsPopup" class="popup-card" style="right:0;top:120%;width:200px">
+                    <button class="btn w-full mb-2 text-left" id="exportDaily">导出日统计 (Excel)</button>
+                    <button class="btn w-full mb-2 text-left" id="exportHourly">导出小时统计 (Excel)</button>
+                    <button class="btn w-full text-left" id="exportHistory">导出历史记录 (Excel)</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 ml-2">
+                <input type="checkbox" id="auto" style="cursor:pointer">
+                <label for="auto" style="cursor:pointer;font-size:14px">自动刷新</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:24px; margin-bottom:24px">
+    <div class="card kpi-card">
+        <div class="kpi-label">IN 总计</div>
+        <div class="kpi-value text-primary" id="sum_in">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">OUT 总计</div>
+        <div class="kpi-value text-warning" id="sum_out">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">净流量</div>
+        <div class="kpi-value text-success" id="sum_net">-</div>
+    </div>
+    <div class="card kpi-card">
+        <div class="kpi-label">最近上报时间</div>
+        <div class="kpi-value text-text" style="font-size:20px;margin-top:12px" id="sum_last">-</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap:24px; margin-bottom:24px">
+    <div class="card">
+        <div class="section-header">
+            <h3 class="section-title">每日流量趋势</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="dailyChart"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="section-header">
+            <h3 class="section-title" id="hourChartTitle">每小时流量分布</h3>
+        </div>
+        <div class="chart-container">
+            <canvas id="hourChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-header">
+        <h3 class="section-title">最近记录</h3>
+        <a href="/history" class="btn btn-sm">查看全部</a>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>IN</th>
+                    <th>OUT</th>
+                    <th>电量</th>
+                    <th>Tx电量</th>
+                    <th>类型</th>
+                </tr>
+            </thead>
+            <tbody id="tbl"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/legacy/static/chart.umd.min.js"></script>
+<div id="toast" class="toast"></div>
+
+<script src="/legacy/static/layout.js?v=auth_v4"></script>
+<script>
+    initLayout('数据看板');
+    
+    const els = {
+        device: document.getElementById('device'),
+        start: document.getElementById('start'),
+        end: document.getElementById('end'),
+        load: document.getElementById('load'),
+        auto: document.getElementById('auto'),
+        // KPIs
+        s_in: document.getElementById('sum_in'),
+        s_out: document.getElementById('sum_out'),
+        s_net: document.getElementById('sum_net'),
+        s_last: document.getElementById('sum_last'),
+        tbl: document.getElementById('tbl'),
+        // Filters
+        warn: document.getElementById('filterWarn'),
+        recType: document.getElementById('filterRecType'),
+        btxMin: document.getElementById('filterBtxMin'),
+        btxMax: document.getElementById('filterBtxMax'),
+        allDates: document.getElementById('allDates'),
+        selectedDailyDate: document.getElementById('selectedDailyDate')
+    };
+    
+    let charts = {};
+    let timer = null;
+    let selectedDailyDate = '';
+    let lastDailyData = [];
+
+    const datePicker = {
+        btn: document.getElementById('dateRangeBtn'),
+        label: document.getElementById('dateRangeLabel'),
+        popup: document.getElementById('dateRangePopup'),
+        grid: document.getElementById('calGrid'),
+        yearSel: document.getElementById('calYear'),
+        monthSel: document.getElementById('calMonth'),
+        prev: document.getElementById('calPrev'),
+        next: document.getElementById('calNext'),
+        apply: document.getElementById('dateRangeApply'),
+        clear: document.getElementById('dateRangeClear'),
+        quickToday: document.getElementById('quickToday'),
+        quickLast7: document.getElementById('quickLast7'),
+        quickWeek: document.getElementById('quickWeek'),
+        quickMonth: document.getElementById('quickMonth')
+    };
+
+    let calViewYear = new Date().getFullYear();
+    let calViewMonth = new Date().getMonth();
+    let calPickStart = '';
+    let calPickEnd = '';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function localYmd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+    function parseYmd(s) {
+        const parts = String(s || '').split('-').map(x => parseInt(x, 10));
+        if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    function daysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
+    function mondayIndex(jsDay) { return (jsDay + 6) % 7; }
+    function clampRange(a, b) {
+        const s = a || '';
+        const e = b || '';
+        if (s && e && e < s) return [e, s];
+        return [s, e];
+    }
+    function requestPersistSave() {
+        if (typeof window.__spaRequestSave === 'function') window.__spaRequestSave();
+    }
+    function persistSelectedDailyDate(ds) {
+        if (!els.selectedDailyDate) return;
+        const v = String(ds || '').trim();
+        if (els.selectedDailyDate.value === v) return;
+        els.selectedDailyDate.value = v;
+        requestPersistSave();
+    }
+    function isAllDates() {
+        return !!(els.allDates && els.allDates.value === '1');
+    }
+    function setRange(start, end) {
+        const [s, e] = clampRange(start, end);
+        els.start.value = s;
+        els.end.value = e;
+        if ((s || e) && els.allDates) els.allDates.value = '';
+        updateDateLabel();
+        renderCalendar();
+        requestPersistSave();
+    }
+    function getRange() {
+        const [s, e] = clampRange(els.start.value, els.end.value);
+        return { start: s, end: e };
+    }
+    function updateDateLabel() {
+        const { start, end } = getRange();
+        if (!start && !end && isAllDates()) {
+            datePicker.label.textContent = '所有日期';
+            datePicker.label.classList.remove('text-muted');
+        } else if (start && end) {
+            datePicker.label.textContent = `${start} 至 ${end}`;
+            datePicker.label.classList.remove('text-muted');
+        } else if (start) {
+            datePicker.label.textContent = start;
+            datePicker.label.classList.remove('text-muted');
+        } else {
+            datePicker.label.textContent = '选择日期范围';
+            datePicker.label.classList.add('text-muted');
+        }
+    }
+    function syncCalViewFromSelection() {
+        const { end, start } = getRange();
+        const base = parseYmd(end || start) || new Date();
+        calViewYear = base.getFullYear();
+        calViewMonth = base.getMonth();
+    }
+    function ensureCalSelectors() {
+        const nowY = new Date().getFullYear();
+        const minY = nowY - 5;
+        const maxY = nowY + 2;
+        const years = [];
+        for (let y = minY; y <= maxY; y++) years.push(y);
+        if (datePicker.yearSel) {
+            datePicker.yearSel.innerHTML = years.map(y => `<option value="${y}">${y}年</option>`).join('');
+        }
+        if (datePicker.monthSel) {
+            datePicker.monthSel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i}">${i + 1}月</option>`).join('');
+        }
+    }
+    function renderCalendar() {
+        const wds = ['一','二','三','四','五','六','日'];
+        const { start, end } = getRange();
+        if (datePicker.yearSel && datePicker.monthSel) {
+            if (!datePicker.yearSel.options.length || !datePicker.monthSel.options.length) ensureCalSelectors();
+            datePicker.yearSel.value = String(calViewYear);
+            datePicker.monthSel.value = String(calViewMonth);
+        }
+        datePicker.grid.innerHTML = '';
+
+        for (const wd of wds) {
+            const el = document.createElement('div');
+            el.className = 'cal-wd';
+            el.textContent = wd;
+            datePicker.grid.appendChild(el);
+        }
+
+        const first = new Date(calViewYear, calViewMonth, 1);
+        const lead = mondayIndex(first.getDay());
+        for (let i = 0; i < lead; i++) {
+            const el = document.createElement('div');
+            datePicker.grid.appendChild(el);
+        }
+
+        const dim = daysInMonth(calViewYear, calViewMonth);
+        for (let day = 1; day <= dim; day++) {
+            const d = new Date(calViewYear, calViewMonth, day);
+            const ds = localYmd(d);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'cal-day';
+            btn.textContent = String(day);
+
+            const inRange = start && end && ds >= start && ds <= end;
+            const isSelected = (start && ds === start) || (end && ds === end);
+            if (inRange) btn.classList.add('in-range');
+            if (isSelected) btn.classList.add('selected');
+
+            btn.addEventListener('click', async () => {
+                if (!calPickStart || (calPickStart && calPickEnd)) {
+                    calPickStart = ds;
+                    calPickEnd = '';
+                    setRange(calPickStart, '');
+                    return;
+                }
+                calPickEnd = ds;
+                const [s, e] = clampRange(calPickStart, calPickEnd);
+                setRange(s, e);
+            });
+
+            datePicker.grid.appendChild(btn);
+        }
+    }
+
+    async function init() {
+        if (els.selectedDailyDate && els.selectedDailyDate.value) {
+            selectedDailyDate = String(els.selectedDailyDate.value || '').trim();
+        }
+
+        // Fetch Mapping
+        let deviceMap = {};
+        try {
+            const mapRes = await fetch('/api/v1/devices/mapping');
+            if(mapRes.ok) {
+                const mapData = await mapRes.json();
+                deviceMap = mapData.mapping || {};
+            }
+        } catch(e) { console.error("Load Mapping Error", e); }
+        
+        // Load Devices
+        const devRes = await fetch('/api/v1/devices');
+        const list = await devRes.json();
+        
+        els.device.innerHTML = list.map(d => {
+            const uuid = typeof d === 'string' ? d : d.uuid;
+            const entry = deviceMap[uuid];
+            const name = entry ? (entry.name || uuid) : uuid;
+            const display = name === uuid ? uuid : `${name} (${uuid})`;
+            return `<option value="${uuid}">${display}</option>`;
+        }).join('');
+
+        const wantedDevice = els.device.getAttribute('data-persist-wanted');
+        if (wantedDevice) {
+            els.device.value = wantedDevice;
+            if (els.device.value === wantedDevice) {
+                els.device.removeAttribute('data-persist-wanted');
+            }
+        }
+        
+        const existing = getRange();
+        if (existing.start || existing.end || isAllDates()) {
+            updateDateLabel();
+            syncCalViewFromSelection();
+            renderCalendar();
+        } else {
+            try {
+                const sumRes = await fetch('/api/v1/stats/summary');
+                if (sumRes.ok) {
+                    const summary = await sumRes.json();
+                    if (summary.last_time) {
+                        const lastDate = summary.last_time.split(' ')[0];
+                        setRange(lastDate, lastDate);
+                    } else {
+                        throw new Error('No data');
+                    }
+                } else {
+                    throw new Error('API Error');
+                }
+            } catch(e) {
+                const now = new Date();
+                const ymd = localYmd(now);
+                setRange(ymd, ymd);
+            }
+        }
+        
+        loadData();
+    }
+    
+    async function loadData() {
+        const uuid = els.device.value;
+        if(!uuid) return;
+        
+        const { start, end } = getRange();
+        const endForHourly = end || start || localYmd(new Date());
+        const startTs = start ? `${start} 00:00:00` : '';
+        const endTs = end ? `${end} 23:59:59` : '';
+        
+        // Query Params
+        const q = new URLSearchParams({ uuid });
+        if(startTs) q.append('start', startTs);
+        if(endTs) q.append('end', endTs);
+        
+        // Fetch Data
+        try {
+            const [daily, summary, history] = await Promise.all([
+                fetch(`/api/v1/stats/daily?${q}`).then(r=>r.json()),
+                fetch(`/api/v1/stats/summary?uuid=${uuid}`).then(r=>r.json()),
+                fetch(`/api/v1/records/history?uuid=${uuid}&limit=10`).then(r=>r.json())
+            ]);
+
+            const dailyDates = Array.isArray(daily) ? daily.map(d => d && d.date ? String(d.date) : '').filter(Boolean) : [];
+            let targetDate = selectedDailyDate;
+            if (!targetDate || !dailyDates.includes(targetDate)) {
+                targetDate = dailyDates.includes(endForHourly) ? endForHourly : (dailyDates[dailyDates.length - 1] || endForHourly);
+            }
+            selectedDailyDate = targetDate;
+            persistSelectedDailyDate(selectedDailyDate);
+            const hourlyRes = await fetch(`/api/v1/stats/hourly?uuid=${encodeURIComponent(uuid)}&date=${encodeURIComponent(targetDate)}`);
+            const hourly = hourlyRes.ok ? await hourlyRes.json() : [];
+            
+            // Update KPIs
+            els.s_in.textContent = (summary.in || 0).toLocaleString();
+            els.s_out.textContent = (summary.out || 0).toLocaleString();
+            els.s_net.textContent = ((summary.in||0) - (summary.out||0)).toLocaleString();
+            els.s_last.textContent = summary.last_time || '-';
+            
+            // Render Charts
+            renderDaily(daily, selectedDailyDate);
+            renderHourly(hourly, selectedDailyDate);
+            
+            // Render Table
+            els.tbl.innerHTML = history.map(r => `
+                <tr>
+                    <td>${r.time}</td>
+                    <td>${r.in_count}</td>
+                    <td>${r.out_count}</td>
+                    <td>${r.battery != null ? r.battery + '%' : '-'}</td>
+                    <td>${r.btx != null ? r.btx + '%' : '-'}</td>
+                    <td>${r.rec_type != null ? r.rec_type : '-'}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            console.error("Failed to load data", e);
+        }
+    }
+    
+    function setHourlyTitle(date) {
+        const title = document.getElementById('hourChartTitle');
+        if (!title) return;
+        const ds = String(date || '').trim();
+        title.textContent = ds ? `每小时流量分布（${ds}）` : '每小时流量分布';
+    }
+
+    async function selectDailyDate(date) {
+        const uuid = els.device.value;
+        const ds = String(date || '').trim();
+        if (!uuid || !ds) return;
+        selectedDailyDate = ds;
+        persistSelectedDailyDate(selectedDailyDate);
+        if (Array.isArray(lastDailyData) && lastDailyData.length) {
+            renderDaily(lastDailyData, selectedDailyDate);
+        }
+        try {
+            const res = await fetch(`/api/v1/stats/hourly?uuid=${encodeURIComponent(uuid)}&date=${encodeURIComponent(ds)}`);
+            if (!res.ok) throw new Error(await res.text());
+            const hourly = await res.json();
+            renderHourly(hourly, selectedDailyDate);
+        } catch (e) {
+            console.error('Failed to load hourly', e);
+            renderHourly([], selectedDailyDate);
+        }
+    }
+
+    function renderDaily(data, selectedDate) {
+        lastDailyData = Array.isArray(data) ? data : [];
+        const ctx = document.getElementById('dailyChart');
+        if(charts.daily) charts.daily.destroy();
+
+        const labels = lastDailyData.map(d => d.date);
+        const selectedIdx = selectedDate ? labels.indexOf(selectedDate) : -1;
+        const inBg = labels.map((_, i) => i === selectedIdx ? '#4dabf7' : '#228be6');
+        const outBg = labels.map((_, i) => i === selectedIdx ? '#ffd43b' : '#fab005');
+        const borderW = labels.map((_, i) => i === selectedIdx ? 2 : 0);
+        const borderC = labels.map((_, i) => i === selectedIdx ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0)');
+
+        charts.daily = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'IN', data: lastDailyData.map(d=>d.in), backgroundColor: inBg, borderColor: borderC, borderWidth: borderW, borderRadius: 4, borderSkipped: false },
+                    { label: 'OUT', data: lastDailyData.map(d=>d.out), backgroundColor: outBg, borderColor: borderC, borderWidth: borderW, borderRadius: 4, borderSkipped: false }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                onClick: (_evt, elements) => {
+                    if (!elements || !elements.length) return;
+                    const idx = elements[0].index;
+                    const ds = labels[idx];
+                    selectDailyDate(ds);
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } }
+                }
+            }
+        });
+    }
+    
+    function renderHourly(data, date) {
+        setHourlyTitle(date);
+        const ctx = document.getElementById('hourChart');
+        if(charts.hourly) charts.hourly.destroy();
+        
+        charts.hourly = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.hour.substring(11, 16)),
+                datasets: [
+                    { 
+                        label: 'IN', 
+                        data: data.map(d=>d.in), 
+                        borderColor: '#228be6', 
+                        backgroundColor: 'rgba(34, 139, 230, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    { 
+                        label: 'OUT', 
+                        data: data.map(d=>d.out), 
+                        borderColor: '#fab005', 
+                        backgroundColor: 'rgba(250, 176, 5, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { borderDash: [2, 4] } }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+    
+    // Listeners
+    els.load.addEventListener('click', loadData);
+    
+    document.getElementById('today').addEventListener('click', () => {
+        const ymd = localYmd(new Date());
+        setRange(ymd, ymd);
+    });
+    
+    document.getElementById('last7').addEventListener('click', () => {
+        const now = new Date();
+        const end = localYmd(now);
+        const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        setRange(start, end);
+    });
+
+    document.getElementById('thisWeek').addEventListener('click', () => {
+        const now = new Date();
+        const day = mondayIndex(now.getDay());
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+        const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+        setRange(localYmd(start), localYmd(end));
+    });
+
+    document.getElementById('thisMonth').addEventListener('click', () => {
+        const now = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
+        setRange(localYmd(start), localYmd(end));
+    });
+    
+    // Auto Refresh
+    els.auto.addEventListener('change', () => {
+        if(els.auto.checked) {
+            timer = setInterval(loadData, 10000);
+        } else {
+            clearInterval(timer);
+        }
+    });
+
+    // Popups
+    function setupPopup(btnId, popupId) {
+        const btn = document.getElementById(btnId);
+        const popup = document.getElementById(popupId);
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popup.classList.toggle('show');
+        });
+        popup.addEventListener('click', e => e.stopPropagation());
+    }
+    setupPopup('toggleAdvanced', 'advancedPopup');
+    setupPopup('toggleActions', 'actionsPopup');
+    setupPopup('dateRangeBtn', 'dateRangePopup');
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.popup-card').forEach(p => p.classList.remove('show'));
+    });
+    
+    // Exports
+    function getExportQuery() {
+        const { start, end } = getRange();
+        const startTs = start ? `${start} 00:00:00` : '';
+        const endTs = end ? `${end} 23:59:59` : '';
+        const q = new URLSearchParams({
+            uuid: els.device.value,
+            start: startTs,
+            end: endTs
+        });
+        return q.toString();
+    }
+    
+    document.getElementById('exportDaily').addEventListener('click', () => {
+        window.open(`/api/v1/export/daily?${getExportQuery()}`, '_blank');
+    });
+    document.getElementById('exportHourly').addEventListener('click', () => {
+        const { start, end } = getRange();
+        const date = end || start || localYmd(new Date());
+        const q = new URLSearchParams({
+            uuid: els.device.value,
+            date
+        });
+        window.open(`/api/v1/export/hourly?${q}`, '_blank');
+    });
+    document.getElementById('exportHistory').addEventListener('click', () => {
+        window.open(`/api/v1/export/history?${getExportQuery()}`, '_blank');
+    });
+    
+    datePicker.prev.addEventListener('click', () => {
+        if (calViewMonth === 0) {
+            calViewMonth = 11;
+            calViewYear -= 1;
+        } else {
+            calViewMonth -= 1;
+        }
+        renderCalendar();
+    });
+    datePicker.next.addEventListener('click', () => {
+        if (calViewMonth === 11) {
+            calViewMonth = 0;
+            calViewYear += 1;
+        } else {
+            calViewMonth += 1;
+        }
+        renderCalendar();
+    });
+    datePicker.clear.addEventListener('click', () => {
+        calPickStart = '';
+        calPickEnd = '';
+        if (els.allDates) els.allDates.value = '1';
+        setRange('', '');
+    });
+    if (datePicker.yearSel) {
+        datePicker.yearSel.addEventListener('change', () => {
+            calViewYear = parseInt(datePicker.yearSel.value, 10);
+            renderCalendar();
+        });
+    }
+    if (datePicker.monthSel) {
+        datePicker.monthSel.addEventListener('change', () => {
+            calViewMonth = parseInt(datePicker.monthSel.value, 10);
+            renderCalendar();
+        });
+    }
+    datePicker.apply.addEventListener('click', () => {
+        const { start, end } = getRange();
+        if (start && !end) setRange(start, start);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickToday.addEventListener('click', () => {
+        const d = localYmd(new Date());
+        calPickStart = d;
+        calPickEnd = d;
+        setRange(d, d);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickLast7.addEventListener('click', () => {
+        const now = new Date();
+        const end = localYmd(now);
+        const start = localYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickWeek.addEventListener('click', () => {
+        const now = new Date();
+        const day = mondayIndex(now.getDay());
+        const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+        const endD = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + 6);
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+    datePicker.quickMonth.addEventListener('click', () => {
+        const now = new Date();
+        const startD = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endD = new Date(now.getFullYear(), now.getMonth(), daysInMonth(now.getFullYear(), now.getMonth()));
+        const start = localYmd(startD);
+        const end = localYmd(endD);
+        calPickStart = start;
+        calPickEnd = end;
+        setRange(start, end);
+        datePicker.popup.classList.remove('show');
+    });
+
+    datePicker.btn.addEventListener('click', () => {
+        const { start, end } = getRange();
+        calPickStart = start;
+        calPickEnd = end;
+        syncCalViewFromSelection();
+        ensureCalSelectors();
+        renderCalendar();
+    });
+
+    updateDateLabel();
+    syncCalViewFromSelection();
+    renderCalendar();
+
+    init();
+
+</script>
+</body>
+</html>

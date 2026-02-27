@@ -1,0 +1,29 @@
+{
+  "url": "http://127.0.0.1:8000/spa/",
+  "fetchTime": "2026-02-27T15:01:00.823Z",
+  "lighthouseVersion": "12.8.2",
+  "performanceScore": 0,
+  "metrics": {
+    "fcp": {
+      "numericValue": 416.98862499999996,
+      "displayValue": "0.4 s"
+    },
+    "lcp": {},
+    "speedIndex": {
+      "numericValue": 416.98862499999996,
+      "displayValue": "0.4 s"
+    },
+    "tti": {},
+    "tbt": {},
+    "cls": {
+      "numericValue": 0,
+      "displayValue": "0"
+    }
+  },
+  "paths": {
+    "json": "E:\\InfraCount\\data\\lighthouse.performance.20260227T150056Z.report.json",
+    "html": "E:\\InfraCount\\data\\lighthouse.performance.20260227T150056Z.report.html",
+    "latestJson": "E:\\InfraCount\\data\\lighthouse.performance.json",
+    "latestHtml": "E:\\InfraCount\\data\\lighthouse.performance.html"
+  }
+}
