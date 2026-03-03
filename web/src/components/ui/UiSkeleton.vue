@@ -27,7 +27,12 @@ const style = computed(() => ({
 
 <style scoped>
 .ui-skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.04)
+  );
   background-size: 200% 100%;
   animation: ui-shimmer 1200ms var(--ease-强调) infinite;
 }

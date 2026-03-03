@@ -185,8 +185,8 @@ const 渲染键 = computed(() => {
   width: 100%;
   overflow: auto;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.12);
+  border: var(--边框-卡片);
+  background: var(--颜色-面板2);
 }
 
 .图表SVG {
@@ -196,17 +196,17 @@ const 渲染键 = computed(() => {
 }
 
 .轴线 {
-  stroke: rgba(255, 255, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 1;
 }
 
 .网格线 {
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.06);
   stroke-width: 1;
 }
 
 .刻度文字 {
-  fill: rgba(255, 255, 255, 0.55);
+  fill: var(--颜色-次要文本);
   font-size: 11px;
 }
 
@@ -233,7 +233,7 @@ const 渲染键 = computed(() => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--颜色-文本);
 }
 
 .图例色块 {

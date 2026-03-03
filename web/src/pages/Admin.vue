@@ -23,6 +23,15 @@
       </div>
 
       <div class="卡片 面板">
+        <div class="区块头">
+          <div>
+            <div class="区块标题">用户明细</div>
+            <div class="区块说明">当前列表共 {{ users.length }} 个用户。</div>
+          </div>
+        </div>
+
+        <div class="分隔线" />
+
         <div class="表格容器">
           <table class="表格">
             <thead>

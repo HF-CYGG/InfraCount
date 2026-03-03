@@ -2,9 +2,14 @@
   <AppLayout title="场地" subtitle="标准库维护 + 候选/扫描 + 批量纠错">
     <div class="两列栅格">
       <div class="卡片 面板">
-        <div class="区块标题">标准场地库（Location → Academy）</div>
-        <div class="区块说明">
-          标准库用于：设备场地绑定联动书院、CSV 导入时的智能归属、散客同步时的归属推断等。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">标准场地库（Location → Academy）</div>
+            <div class="区块说明">
+              标准库用于：设备场地绑定联动书院、CSV 导入时的智能归属、散客同步时的归属推断等。
+            </div>
+          </div>
+          <div class="提示-次要 小字">共 {{ 标准库过滤后列表.length }} 条</div>
         </div>
 
         <div class="分隔线" />
@@ -99,8 +104,13 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="区块标题">书院分类维护</div>
-        <div class="区块说明">用于设备分类、标准库归属、统计维度等。</div>
+        <div class="区块头">
+          <div>
+            <div class="区块标题">书院分类维护</div>
+            <div class="区块说明">用于设备分类、标准库归属、统计维度等。</div>
+          </div>
+          <div class="提示-次要 小字">共 {{ 书院对象列表.length }} 条</div>
+        </div>
 
         <div class="分隔线" />
 
@@ -162,9 +172,14 @@
     </div>
 
     <div class="卡片 面板">
-      <div class="区块标题">候选/扫描与批量纠错</div>
-      <div class="区块说明">
-        通过候选匹配或自动扫描，把非标准场地合并到标准场地，并统一书院归属。
+      <div class="区块头">
+        <div>
+          <div class="区块标题">候选/扫描与批量纠错</div>
+          <div class="区块说明">
+            通过候选匹配或自动扫描，把非标准场地合并到标准场地，并统一书院归属。
+          </div>
+        </div>
+        <div class="提示-次要 小字">候选 {{ 纠错.candidates.length }} 条</div>
       </div>
 
       <div class="分隔线" />

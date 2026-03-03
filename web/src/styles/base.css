@@ -11,8 +11,7 @@ body {
 
 body {
   margin: 0;
-  background: radial-gradient(1000px 600px at 20% 0%, rgba(78, 161, 255, 0.18), transparent 55%),
-    radial-gradient(900px 600px at 80% 10%, rgba(51, 214, 159, 0.14), transparent 60%), var(--颜色-背景);
+  background: var(--颜色-背景);
   color: var(--颜色-文本);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
@@ -33,6 +32,6 @@ textarea {
 }
 
 :focus-visible {
-  outline: 2px solid rgba(78, 161, 255, 0.6);
+  outline: 2px solid rgba(var(--颜色-强调-rgb), 0.55);
   outline-offset: 2px;
 }

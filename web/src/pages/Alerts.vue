@@ -39,6 +39,17 @@
     </div>
 
     <div class="卡片 面板">
+      <div class="区块头">
+        <div>
+          <div class="区块标题">告警列表</div>
+          <div class="区块说明">
+            当前展示 {{ 过滤后列表.length }} 条（{{ 筛选.onlyOpen ? "仅未确认" : "全部" }}）
+          </div>
+        </div>
+      </div>
+
+      <div class="分隔线" />
+
       <div class="表格容器">
         <table class="表格">
           <thead>

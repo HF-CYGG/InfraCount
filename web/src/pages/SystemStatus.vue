@@ -10,13 +10,16 @@
 <template>
   <AppLayout title="系统状态" subtitle="示例：调用后端 /api/v1/system/status 并展示 JSON">
     <div class="卡片 面板">
-      <div class="区块标题">接口调用结果</div>
-      <div class="区块说明">
-        {{ 说明文本 }}
-      </div>
-
-      <div class="行 上间距-12">
-        <UiButton variant="primary" :loading="loading" @click="刷新">{{ loading ? "正在刷新..." : "刷新" }}</UiButton>
+      <div class="区块头">
+        <div>
+          <div class="区块标题">接口调用结果</div>
+          <div class="区块说明">
+            {{ 说明文本 }}
+          </div>
+        </div>
+        <div class="行">
+          <UiButton variant="primary" :loading="loading" @click="刷新">{{ loading ? "正在刷新..." : "刷新" }}</UiButton>
+        </div>
       </div>
 
       <div v-if="错误信息" class="提示-错误 上间距-10">{{ 错误信息 }}</div>
@@ -93,7 +96,7 @@ onMounted(() => {
   padding: var(--间距-12);
   border-radius: var(--圆角-10);
   border: 1px solid var(--颜色-边框);
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--颜色-面板2);
   overflow: auto;
   max-height: 60vh;
 }

@@ -1,13 +1,21 @@
 <template>
   <AppLayout title="账户" subtitle="修改密码">
     <div class="卡片 面板">
-      <div class="区块标题">当前用户</div>
-      <div class="区块说明">用户名：{{ 当前用户?.username || "-" }}；角色：{{ 当前用户?.role || "-" }}</div>
+      <div class="区块头">
+        <div>
+          <div class="区块标题">当前用户</div>
+          <div class="区块说明">用户名：{{ 当前用户?.username || "-" }}；角色：{{ 当前用户?.role || "-" }}</div>
+        </div>
+      </div>
     </div>
 
     <div class="卡片 面板">
-      <div class="区块标题">修改密码</div>
-      <div class="区块说明">密码会立即生效。建议使用强密码并妥善保管。</div>
+      <div class="区块头">
+        <div>
+          <div class="区块标题">修改密码</div>
+          <div class="区块说明">密码会立即生效。建议使用强密码并妥善保管。</div>
+        </div>
+      </div>
 
       <div class="分隔线" />
 

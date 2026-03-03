@@ -23,13 +23,13 @@ withDefaults(
   display: inline-flex;
   align-items: center;
   gap: var(--间距-10);
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--颜色-次要文本);
 }
 
 .ui-loading__spinner {
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  border-top-color: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(var(--颜色-强调-rgb), 0.85);
   animation: ui-spin 700ms linear infinite;
 }
 

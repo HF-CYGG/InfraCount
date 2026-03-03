@@ -34,7 +34,7 @@ withDefaults(
 <style scoped>
 .ui-button {
   border: var(--边框-卡片);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--颜色-面板2);
   color: var(--颜色-文本);
   border-radius: var(--圆角-10);
   cursor: pointer;
@@ -58,8 +58,8 @@ withDefaults(
 }
 
 .ui-button:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .ui-button:active {
@@ -72,13 +72,13 @@ withDefaults(
 }
 
 .ui-button--primary {
-  background: rgba(78, 161, 255, 0.18);
-  border-color: rgba(78, 161, 255, 0.42);
+  background: rgba(var(--颜色-强调-rgb), 0.2);
+  border-color: rgba(var(--颜色-强调-rgb), 0.42);
 }
 
 .ui-button--danger {
-  background: rgba(255, 90, 95, 0.14);
-  border-color: rgba(255, 90, 95, 0.38);
+  background: rgba(var(--颜色-危险-rgb), 0.18);
+  border-color: rgba(var(--颜色-危险-rgb), 0.4);
 }
 
 .ui-button__spinner {

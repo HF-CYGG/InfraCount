@@ -61,6 +61,13 @@
       <div v-if="错误信息" class="提示-错误 上间距-10">{{ 错误信息 }}</div>
     </div>
 
+    <div class="区块头">
+      <div>
+        <div class="区块标题">关键指标</div>
+        <div class="区块说明">汇总数据与设备规模概览。</div>
+      </div>
+    </div>
+
     <div class="三列栅格">
       <div class="卡片 面板">
         <div class="卡片标题">累计进入</div>

@@ -7,9 +7,14 @@
 
     <template v-else>
       <div class="卡片 面板">
-        <div class="区块标题">1）上传 SQLite 数据库文件</div>
-        <div class="区块说明">
-          支持 .db / .sqlite / .sqlite3。上传后会生成 import_id，用于后续预览与执行。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">1）上传 SQLite 数据库文件</div>
+            <div class="区块说明">
+              支持 .db / .sqlite / .sqlite3。上传后会生成 import_id，用于后续预览与执行。
+            </div>
+          </div>
+          <div class="提示-次要 小字">import_id：{{ importId || "-" }}</div>
         </div>
 
         <div class="行 上间距-12">
@@ -30,9 +35,13 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="区块标题">2）选择合并策略</div>
-        <div class="区块说明">
-          说明：预览统计会按你选择的策略给出“预计插入/预计更新/预计跳过”。执行时也会严格按该策略落库。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">2）选择合并策略</div>
+            <div class="区块说明">
+              说明：预览统计会按你选择的策略给出“预计插入/预计更新/预计跳过”。执行时也会严格按该策略落库。
+            </div>
+          </div>
         </div>
 
         <div class="行 上间距-12">
@@ -55,9 +64,13 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="区块标题">3）预览差异</div>
-        <div class="区块说明">
-          预览会统计每张表：导入总数、可新增、冲突、无效行，并给出按策略计算的预计动作。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">3）预览差异</div>
+            <div class="区块说明">
+              预览会统计每张表：导入总数、可新增、冲突、无效行，并给出按策略计算的预计动作。
+            </div>
+          </div>
         </div>
 
         <div class="行 上间距-12">
@@ -107,9 +120,13 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="区块标题">4）执行合并</div>
-        <div class="区块说明">
-          执行在事务中进行：任意表合并失败会整体回滚，不会产生“部分导入”的中间状态；并会写入 audit_logs 便于审计。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">4）执行合并</div>
+            <div class="区块说明">
+              执行在事务中进行：任意表合并失败会整体回滚，不会产生“部分导入”的中间状态；并会写入 audit_logs 便于审计。
+            </div>
+          </div>
         </div>
 
         <div class="行 上间距-12">

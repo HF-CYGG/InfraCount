@@ -22,29 +22,29 @@ withDefaults(
   gap: var(--间距-6);
   padding: var(--间距-4) var(--间距-8);
   border-radius: var(--圆角-999);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   font-size: var(--字号-12);
   color: rgba(255, 255, 255, 0.86);
 }
 
 .ui-tag--success {
-  border-color: rgba(51, 214, 159, 0.35);
-  background: rgba(51, 214, 159, 0.14);
+  border-color: rgba(var(--颜色-成功-rgb), 0.35);
+  background: rgba(var(--颜色-成功-rgb), 0.14);
 }
 
 .ui-tag--danger {
-  border-color: rgba(255, 90, 95, 0.35);
-  background: rgba(255, 90, 95, 0.14);
+  border-color: rgba(var(--颜色-危险-rgb), 0.35);
+  background: rgba(var(--颜色-危险-rgb), 0.14);
 }
 
 .ui-tag--primary {
-  border-color: rgba(78, 161, 255, 0.35);
-  background: rgba(78, 161, 255, 0.14);
+  border-color: rgba(var(--颜色-强调-rgb), 0.35);
+  background: rgba(var(--颜色-强调-rgb), 0.14);
 }
 
 .ui-tag--warning {
-  border-color: rgba(255, 176, 32, 0.35);
-  background: rgba(255, 176, 32, 0.14);
+  border-color: rgba(var(--颜色-警告-rgb), 0.35);
+  background: rgba(var(--颜色-警告-rgb), 0.14);
 }
 </style>

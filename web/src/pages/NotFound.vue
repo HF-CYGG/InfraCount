@@ -28,11 +28,11 @@ import UiLinkButton from "@/components/ui/UiLinkButton.vue";
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 14px;
+  padding: var(--间距-14);
 }
 
 .面板 {
-  padding: 18px;
+  padding: var(--间距-18);
   width: min(520px, 100%);
 }
 
@@ -42,14 +42,14 @@ import UiLinkButton from "@/components/ui/UiLinkButton.vue";
 }
 
 .说明 {
-  margin-top: 10px;
+  margin-top: var(--间距-10);
   line-height: 1.6;
 }
 
 .操作区 {
-  margin-top: 14px;
+  margin-top: var(--间距-14);
   display: flex;
-  gap: 10px;
+  gap: var(--间距-10);
   flex-wrap: wrap;
 }
 </style>

@@ -6,9 +6,14 @@
 
     <template v-else>
       <div class="卡片 面板">
-        <div class="区块标题">1) 选择日志文件</div>
-        <div class="区块说明">
-          支持 txt/log/json 等文本格式（后端会自动识别并解析）。建议先“预览”，确认识别无误再导入。
+        <div class="区块头">
+          <div>
+            <div class="区块标题">1) 选择日志文件</div>
+            <div class="区块说明">
+              支持 txt/log/json 等文本格式（后端会自动识别并解析）。建议先“预览”，确认识别无误再导入。
+            </div>
+          </div>
+          <div class="提示-次要 小字">已选：{{ 选中文件?.name || "-" }}</div>
         </div>
 
         <div class="分隔线" />
@@ -27,9 +32,13 @@
       </div>
 
       <div v-if="预览结果" class="卡片 面板">
-        <div class="区块标题">2) 解析预览</div>
-        <div class="区块说明">
-          文件：{{ 预览结果.filename || "-" }}；识别格式：{{ 预览结果.detected_format }}；总记录数：{{ 预览结果.total_records }}
+        <div class="区块头">
+          <div>
+            <div class="区块标题">2) 解析预览</div>
+            <div class="区块说明">
+              文件：{{ 预览结果.filename || "-" }}；识别格式：{{ 预览结果.detected_format }}；总记录数：{{ 预览结果.total_records }}
+            </div>
+          </div>
         </div>
 
         <div class="分隔线" />
@@ -106,8 +115,12 @@
       </div>
 
       <div v-if="导入中 || 导入完成" class="卡片 面板">
-        <div class="区块标题">3) 导入进度</div>
-        <div class="区块说明">已导入 {{ 导入进度.imported }} / {{ 导入进度.total }}（{{ 导入百分比 }}%）</div>
+        <div class="区块头">
+          <div>
+            <div class="区块标题">3) 导入进度</div>
+            <div class="区块说明">已导入 {{ 导入进度.imported }} / {{ 导入进度.total }}（{{ 导入百分比 }}%）</div>
+          </div>
+        </div>
 
         <div class="进度条外壳">
           <div class="进度条内" :style="{ width: 导入百分比 + '%' }" />
@@ -260,14 +273,14 @@ function 取消导入(): void {
   margin-top: var(--间距-10);
   height: 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }
 
 .进度条内 {
   height: 100%;
-  background: linear-gradient(90deg, rgba(78, 161, 255, 0.9), rgba(51, 214, 159, 0.9));
+  background: rgba(var(--颜色-强调-rgb), 0.9);
 }
 </style>
 

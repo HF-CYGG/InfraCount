@@ -27,9 +27,8 @@ import { toastStore } from "@/stores/toast";
   pointer-events: auto;
   min-width: min(360px, calc(100vw - 28px));
   border-radius: var(--圆角-12);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 23, 41, 0.92);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 25, 34, 0.96);
   box-shadow: var(--阴影);
   padding: var(--间距-10) var(--间距-12);
   display: flex;
@@ -44,8 +43,8 @@ import { toastStore } from "@/stores/toast";
 }
 
 .ui-toast__close {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.8);
   width: 28px;
   height: 28px;
@@ -54,18 +53,18 @@ import { toastStore } from "@/stores/toast";
 }
 
 .ui-toast--success {
-  border-color: rgba(51, 214, 159, 0.28);
+  border-color: rgba(var(--颜色-成功-rgb), 0.28);
 }
 
 .ui-toast--danger {
-  border-color: rgba(255, 90, 95, 0.28);
+  border-color: rgba(var(--颜色-危险-rgb), 0.28);
 }
 
 .ui-toast--primary {
-  border-color: rgba(78, 161, 255, 0.28);
+  border-color: rgba(var(--颜色-强调-rgb), 0.28);
 }
 
 .ui-toast--warning {
-  border-color: rgba(255, 176, 32, 0.28);
+  border-color: rgba(var(--颜色-警告-rgb), 0.28);
 }
 </style>

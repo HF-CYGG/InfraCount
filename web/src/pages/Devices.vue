@@ -11,7 +11,6 @@
           <UiButton variant="primary" :loading="loading" @click="刷新">
             {{ loading ? "正在加载..." : "刷新" }}
           </UiButton>
-          <div class="提示-次要 小字">共 {{ 过滤后总数 }} 台设备；已绑定场地 {{ 已绑定数量 }} 台</div>
         </div>
       </div>
 
@@ -19,6 +18,15 @@
     </div>
 
     <div class="卡片 面板">
+      <div class="区块头">
+        <div>
+          <div class="区块标题">设备列表</div>
+          <div class="区块说明">共 {{ 过滤后总数 }} 台设备；已绑定场地 {{ 已绑定数量 }} 台</div>
+        </div>
+      </div>
+
+      <div class="分隔线" />
+
       <div class="表格容器">
         <table class="表格">
           <thead>

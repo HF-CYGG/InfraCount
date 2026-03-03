@@ -107,14 +107,14 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   padding: var(--间距-14);
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .ui-dialog {
   width: min(560px, 100%);
   border-radius: var(--圆角-12);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 23, 41, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--颜色-面板);
   box-shadow: var(--阴影);
   overflow: hidden;
 }
@@ -134,8 +134,8 @@ onBeforeUnmount(() => {
 }
 
 .ui-dialog__close {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.8);
   width: 32px;
   height: 32px;
@@ -146,8 +146,8 @@ onBeforeUnmount(() => {
 }
 
 .ui-dialog__close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .ui-dialog__close:active {
@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
 .ui-dialog__body {
   padding: var(--间距-14);
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--颜色-文本);
 }
 
 .ui-dialog__footer {

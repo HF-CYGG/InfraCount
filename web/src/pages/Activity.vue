@@ -71,8 +71,12 @@
 
     <div class="两列栅格">
       <div class="卡片 面板">
-        <div class="区块标题">聚合统计</div>
-        <div class="区块说明">基于当前筛选条件统计（KPI + Top 列表）。</div>
+        <div class="区块头">
+          <div>
+            <div class="区块标题">聚合统计</div>
+            <div class="区块说明">基于当前筛选条件统计（KPI + Top 列表）。</div>
+          </div>
+        </div>
 
         <div class="分隔线" />
 
@@ -121,8 +125,12 @@
       </div>
 
       <div class="卡片 面板">
-        <div class="区块标题">CSV / Excel 导入</div>
-        <div class="区块说明">导入后会自动刷新列表与聚合统计。</div>
+        <div class="区块头">
+          <div>
+            <div class="区块标题">CSV / Excel 导入</div>
+            <div class="区块说明">导入后会自动刷新列表与聚合统计。</div>
+          </div>
+        </div>
 
         <div class="分隔线" />
 
@@ -149,9 +157,12 @@
     </div>
 
     <div class="卡片 面板">
-      <div class="区块标题">活动列表</div>
-      <div class="区块说明">
-        共 {{ 分页.total }} 条；当前第 {{ 分页.page }} / {{ 总页数 }} 页
+      <div class="区块头">
+        <div>
+          <div class="区块标题">活动列表</div>
+          <div class="区块说明">按当前筛选条件展示。</div>
+        </div>
+        <div class="提示-次要 小字">共 {{ 分页.total }} 条；第 {{ 分页.page }} / {{ 总页数 }} 页</div>
       </div>
 
       <div class="分隔线" />
@@ -220,9 +231,14 @@
     </div>
 
     <div class="卡片 面板">
-      <div class="区块标题">散客同步预览</div>
-      <div class="区块说明">
-        从设备 records 统计散客访问（30 分钟粒度），预览后可写入 activity_events（类型：散客访问）。
+      <div class="区块头">
+        <div>
+          <div class="区块标题">散客同步预览</div>
+          <div class="区块说明">
+            从设备 records 统计散客访问（30 分钟粒度），预览后可写入 activity_events（类型：散客访问）。
+          </div>
+        </div>
+        <div class="提示-次要 小字">预览 {{ 散客预览全量.length }} 条</div>
       </div>
 
       <div class="分隔线" />

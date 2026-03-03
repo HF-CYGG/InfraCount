@@ -92,17 +92,17 @@ async function 退出登录(): Promise<void> {
 <style scoped>
 .布局 {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: var(--间距-14);
-  padding: var(--间距-14);
+  grid-template-columns: 240px 1fr;
+  gap: var(--间距-16);
+  padding: var(--间距-16);
   min-height: 100vh;
 }
 
 .侧栏 {
-  padding: var(--间距-14);
+  padding: var(--间距-16);
   position: sticky;
-  top: var(--间距-14);
-  height: calc(100vh - var(--间距-14) - var(--间距-14));
+  top: var(--间距-16);
+  height: calc(100vh - var(--间距-16) - var(--间距-16));
   display: flex;
   flex-direction: column;
   gap: var(--间距-14);
@@ -140,16 +140,19 @@ async function 退出登录(): Promise<void> {
   color: var(--颜色-次要文本);
   transition: background var(--动效-中) var(--ease-标准), border-color var(--动效-中) var(--ease-标准),
     color var(--动效-中) var(--ease-标准);
+  display: flex;
+  align-items: center;
+  gap: var(--间距-8);
 }
 
 .导航项:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--颜色-文本);
 }
 
 .导航项.router-link-active {
-  background: rgba(78, 161, 255, 0.14);
-  border-color: rgba(78, 161, 255, 0.35);
+  background: rgba(var(--颜色-强调-rgb), 0.16);
+  border-color: rgba(var(--颜色-强调-rgb), 0.36);
   color: var(--颜色-文本);
 }
 
@@ -164,7 +167,7 @@ async function 退出登录(): Promise<void> {
   padding: var(--间距-10) var(--间距-12);
   border: 1px solid var(--颜色-边框);
   border-radius: var(--圆角-10);
-  background: rgba(0, 0, 0, 0.14);
+  background: var(--颜色-面板2);
 }
 
 .用户名称 {
@@ -179,12 +182,12 @@ async function 退出登录(): Promise<void> {
 .内容区 {
   display: flex;
   flex-direction: column;
-  gap: var(--间距-14);
+  gap: var(--间距-16);
   min-width: 0;
 }
 
 .顶部栏 {
-  padding: var(--间距-14);
+  padding: var(--间距-16);
 }
 
 .页面标题 {
@@ -206,7 +209,7 @@ async function 退出登录(): Promise<void> {
 .页面内容 {
   display: flex;
   flex-direction: column;
-  gap: var(--间距-14);
+  gap: var(--间距-16);
 }
 
 @media (max-width: 920px) {

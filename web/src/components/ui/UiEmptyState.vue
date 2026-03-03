@@ -26,9 +26,9 @@ withDefaults(
   padding: var(--间距-16);
   text-align: center;
   border-radius: var(--圆角-12);
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  background: rgba(0, 0, 0, 0.08);
-  color: rgba(255, 255, 255, 0.78);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: var(--颜色-面板2);
+  color: var(--颜色-次要文本);
 }
 
 .ui-empty__title {
