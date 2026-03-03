@@ -392,6 +392,20 @@ export const api = {
       path: "/api/v1/admin/records",
       query: params as any
     }),
+  adminRecordCreate: (payload: Record<string, unknown>) =>
+    apiRequest<{ status: string }>({ method: "POST", path: "/api/v1/admin/records", body: payload }),
+  adminRecordUpdate: (recordId: number, payload: Record<string, unknown>) =>
+    apiRequest<{ status: string }>({ method: "PUT", path: `/api/v1/admin/records/${recordId}`, body: payload }),
+  adminRecordDelete: (recordId: number) =>
+    apiRequest<{ status: string }>({ method: "DELETE", path: `/api/v1/admin/records/${recordId}` }),
+  adminRecordsIds: (params: { uuid?: string; start?: string; end?: string }) =>
+    apiRequest<{ ids: number[] }>({ method: "GET", path: "/api/v1/admin/records/ids", query: params as any }),
+  adminRecordsBatchUpdate: (payload: { ids: number[]; updates: Record<string, unknown> }) =>
+    apiRequest<{ status: string }>({ method: "POST", path: "/api/v1/admin/records/batch-update", body: payload }),
+  adminRecordsBatchDelete: (payload: { ids: number[] }) =>
+    apiRequest<{ status: string }>({ method: "POST", path: "/api/v1/admin/records/batch-delete", body: payload }),
+  adminRecordsDeleteRange: (params: { start: string; end: string }) =>
+    apiRequest<{ status: string }>({ method: "DELETE", path: "/api/v1/admin/records/range", query: params }),
 
   /**
    * --- 告警 ---
