@@ -7,7 +7,8 @@ from typing import Optional, List, Dict, Any, Callable, Literal, Tuple
 
 import aiomysql
 import aiosqlite
-from . import config
+from . import config, security
+from app.storage import sqlite as sqlite_storage
 
 _pool = None
 _sqlite = None
@@ -15,16 +16,28 @@ _sqlite = None
 def use_sqlite():
     return config.DB_DRIVER == "sqlite"
 
-import hashlib
 import uuid
 
 def hash_password(password: str) -> str:
-    # Simple salted hash (SHA256)
-    salt = "infrared_salt_v1" # In prod this should be per-user random
-    return hashlib.sha256((password + salt).encode()).hexdigest()
+    return security.hash_password(password)
+
+
+async def _store_password_hash(user_id: int, password_hash: str) -> None:
+    sql = "UPDATE users SET password_hash=? WHERE id=?" if use_sqlite() else "UPDATE users SET password_hash=%s WHERE id=%s"
+    if use_sqlite():
+        if not _sqlite:
+            await init_sqlite()
+        await _sqlite.execute(sql, (password_hash, user_id))
+        await _sqlite.commit()
+        return
+
+    if not _pool:
+        await init_pool()
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(sql, (password_hash, user_id))
 
 async def authenticate_user(username, password):
-    p_hash = hash_password(password)
     sql = "SELECT id, username, password_hash, role FROM users WHERE username=?" if use_sqlite() else "SELECT id, username, password_hash, role FROM users WHERE username=%s"
     
     if use_sqlite():
@@ -40,7 +53,9 @@ async def authenticate_user(username, password):
                 
     if row:
         stored_hash = row["password_hash"]
-        if stored_hash == p_hash:
+        if security.verify_password(password, stored_hash):
+            if security.needs_password_rehash(stored_hash):
+                await _store_password_hash(row["id"], security.hash_password(password))
             return {"id": row["id"], "username": row["username"], "role": row["role"]}
             
     return None
@@ -219,9 +234,7 @@ async def init_sqlite():
     if _sqlite:
         return
     db_path = config.DB_SQLITE_PATH
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    _sqlite = await aiosqlite.connect(db_path)
-    _sqlite.row_factory = aiosqlite.Row
+    _sqlite = await sqlite_storage.connect(db_path)
     
     # Init tables
     await _sqlite.execute("""

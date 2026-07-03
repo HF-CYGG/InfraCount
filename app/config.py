@@ -1,5 +1,13 @@
 import os
 
+
+def _env_bool(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_csv(name: str, default: str) -> list[str]:
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
 DB_DRIVER = os.getenv("DB_DRIVER", "sqlite")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", "3306"))
@@ -7,6 +15,15 @@ DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "infrared")
 DB_SQLITE_PATH = os.getenv("DB_SQLITE_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "infrared.db"))
+
+SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "session_token")
+SESSION_MAX_AGE_SEC = int(os.getenv("SESSION_MAX_AGE_SEC", str(7 * 24 * 3600)))
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", "0")
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "lax")
+CORS_ALLOW_ORIGINS = _env_csv(
+    "CORS_ALLOW_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,http://127.0.0.1:5173",
+)
 
 TCP_HOST = os.getenv("TCP_HOST", "0.0.0.0")
 TCP_PORT = int(os.getenv("TCP_PORT", "8085"))

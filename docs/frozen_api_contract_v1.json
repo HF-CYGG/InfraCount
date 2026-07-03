@@ -12,7 +12,7 @@
       "max_age_sec": 604800
     }
   },
-  "generated_at": "2026-02-27T05:27:13.527964+00:00",
+  "generated_at": "2026-07-03T13:59:15.338814+00:00",
   "routes": [
     {
       "auth": "public",
@@ -27,7 +27,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:account_page",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -37,7 +37,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:activity",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -57,7 +57,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:alerts",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -65,7 +65,7 @@
       "path": "/alerts"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_academies",
       "include_in_schema": true,
       "methods": [
@@ -75,7 +75,7 @@
       "path": "/api/v1/academies"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:add_academy",
       "include_in_schema": true,
       "methods": [
@@ -85,7 +85,17 @@
       "path": "/api/v1/academies"
     },
     {
-      "auth": "public",
+      "auth": "admin",
+      "endpoint": "api.main:academies_reorder_legacy",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "academies_reorder_legacy",
+      "path": "/api/v1/academies-reorder"
+    },
+    {
+      "auth": "admin",
       "endpoint": "api.main:update_academy_order",
       "include_in_schema": true,
       "methods": [
@@ -95,7 +105,7 @@
       "path": "/api/v1/academies/order"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:delete_academy",
       "include_in_schema": true,
       "methods": [
@@ -105,7 +115,7 @@
       "path": "/api/v1/academies/{id}"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_aggregations",
       "include_in_schema": true,
       "methods": [
@@ -115,7 +125,7 @@
       "path": "/api/v1/activity/aggregations"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_events",
       "include_in_schema": true,
       "methods": [
@@ -125,7 +135,7 @@
       "path": "/api/v1/activity/events"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:api_activity_import_excel",
       "include_in_schema": true,
       "methods": [
@@ -135,7 +145,7 @@
       "path": "/api/v1/activity/import-excel"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_list",
       "include_in_schema": true,
       "methods": [
@@ -145,7 +155,7 @@
       "path": "/api/v1/activity/list"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_options",
       "include_in_schema": true,
       "methods": [
@@ -155,7 +165,7 @@
       "path": "/api/v1/activity/options"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_options",
       "include_in_schema": true,
       "methods": [
@@ -165,7 +175,7 @@
       "path": "/api/v1/activity/options"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:activity_stats",
       "include_in_schema": true,
       "methods": [
@@ -175,7 +185,7 @@
       "path": "/api/v1/activity/stats"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:api_activity_sync_visitors",
       "include_in_schema": true,
       "methods": [
@@ -185,7 +195,7 @@
       "path": "/api/v1/activity/sync-visitors"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:activity_upload",
       "include_in_schema": true,
       "methods": [
@@ -195,7 +205,7 @@
       "path": "/api/v1/activity/upload"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:walkin_dates",
       "include_in_schema": true,
       "methods": [
@@ -205,7 +215,7 @@
       "path": "/api/v1/activity/walkin/dates"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:walkin_preview",
       "include_in_schema": true,
       "methods": [
@@ -215,7 +225,7 @@
       "path": "/api/v1/activity/walkin/preview"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:walkin_preview_dates",
       "include_in_schema": true,
       "methods": [
@@ -225,7 +235,7 @@
       "path": "/api/v1/activity/walkin/preview-dates"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:walkin_sync",
       "include_in_schema": true,
       "methods": [
@@ -235,7 +245,7 @@
       "path": "/api/v1/activity/walkin/sync"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:api_activity_delete",
       "include_in_schema": true,
       "methods": [
@@ -245,7 +255,47 @@
       "path": "/api/v1/activity/{id}"
     },
     {
-      "auth": "public",
+      "auth": "admin",
+      "endpoint": "api.main:admin_db_merge_execute",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_db_merge_execute",
+      "path": "/api/v1/admin/db-merge/execute"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:admin_db_merge_preview",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_db_merge_preview",
+      "path": "/api/v1/admin/db-merge/preview"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:admin_db_merge_status",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_db_merge_status",
+      "path": "/api/v1/admin/db-merge/status"
+    },
+    {
+      "auth": "admin",
+      "endpoint": "api.main:admin_db_merge_upload",
+      "include_in_schema": true,
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_db_merge_upload",
+      "path": "/api/v1/admin/db-merge/upload"
+    },
+    {
+      "auth": "admin",
       "endpoint": "api.main:admin_device_log_import",
       "include_in_schema": true,
       "methods": [
@@ -255,7 +305,7 @@
       "path": "/api/v1/admin/device-log/import"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_device_log_preview",
       "include_in_schema": true,
       "methods": [
@@ -265,7 +315,7 @@
       "path": "/api/v1/admin/device-log/preview"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_list_records",
       "include_in_schema": true,
       "methods": [
@@ -275,7 +325,7 @@
       "path": "/api/v1/admin/records"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_create_record",
       "include_in_schema": true,
       "methods": [
@@ -285,7 +335,7 @@
       "path": "/api/v1/admin/records"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_batch_delete",
       "include_in_schema": true,
       "methods": [
@@ -295,7 +345,7 @@
       "path": "/api/v1/admin/records/batch-delete"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_batch_save_records",
       "include_in_schema": true,
       "methods": [
@@ -305,7 +355,7 @@
       "path": "/api/v1/admin/records/batch-save"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_batch_update",
       "include_in_schema": true,
       "methods": [
@@ -315,7 +365,7 @@
       "path": "/api/v1/admin/records/batch-update"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_get_record_ids",
       "include_in_schema": true,
       "methods": [
@@ -325,7 +375,7 @@
       "path": "/api/v1/admin/records/ids"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_delete_range",
       "include_in_schema": true,
       "methods": [
@@ -335,7 +385,7 @@
       "path": "/api/v1/admin/records/range"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_delete_record",
       "include_in_schema": true,
       "methods": [
@@ -345,7 +395,7 @@
       "path": "/api/v1/admin/records/{id}"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_update_record",
       "include_in_schema": true,
       "methods": [
@@ -355,7 +405,7 @@
       "path": "/api/v1/admin/records/{id}"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_list_registry",
       "include_in_schema": true,
       "methods": [
@@ -365,7 +415,7 @@
       "path": "/api/v1/admin/registry"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:admin_upsert_registry",
       "include_in_schema": true,
       "methods": [
@@ -375,7 +425,7 @@
       "path": "/api/v1/admin/registry"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:list_alerts",
       "include_in_schema": true,
       "methods": [
@@ -385,7 +435,7 @@
       "path": "/api/v1/alerts"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:ack_alert",
       "include_in_schema": true,
       "methods": [
@@ -396,7 +446,7 @@
     },
     {
       "auth": "public",
-      "endpoint": "api.main:auth_login",
+      "endpoint": "api.routers.auth:auth_login",
       "include_in_schema": true,
       "methods": [
         "POST"
@@ -406,7 +456,7 @@
     },
     {
       "auth": "optional_session",
-      "endpoint": "api.main:auth_logout",
+      "endpoint": "api.routers.auth:auth_logout",
       "include_in_schema": true,
       "methods": [
         "POST"
@@ -416,7 +466,7 @@
     },
     {
       "auth": "session",
-      "endpoint": "api.main:auth_me",
+      "endpoint": "api.routers.auth:auth_me",
       "include_in_schema": true,
       "methods": [
         "GET"
@@ -426,7 +476,7 @@
     },
     {
       "auth": "session",
-      "endpoint": "api.main:auth_change_password",
+      "endpoint": "api.routers.auth:auth_change_password",
       "include_in_schema": true,
       "methods": [
         "POST"
@@ -435,7 +485,7 @@
       "path": "/api/v1/auth/password"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_device_mapping_singular",
       "include_in_schema": true,
       "methods": [
@@ -445,7 +495,7 @@
       "path": "/api/v1/device/mapping"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:list_devices",
       "include_in_schema": true,
       "methods": [
@@ -455,7 +505,7 @@
       "path": "/api/v1/devices"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_device_mapping",
       "include_in_schema": true,
       "methods": [
@@ -475,7 +525,7 @@
       "path": "/api/v1/health"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_all_locations",
       "include_in_schema": true,
       "methods": [
@@ -485,7 +535,7 @@
       "path": "/api/v1/locations/all"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:auto_correct_scan",
       "include_in_schema": true,
       "methods": [
@@ -495,7 +545,7 @@
       "path": "/api/v1/locations/auto-correct-scan"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:batch_correct",
       "include_in_schema": true,
       "methods": [
@@ -505,7 +555,7 @@
       "path": "/api/v1/locations/batch-correct"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:execute_correction",
       "include_in_schema": true,
       "methods": [
@@ -515,7 +565,7 @@
       "path": "/api/v1/locations/correct"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_correction_candidates",
       "include_in_schema": true,
       "methods": [
@@ -525,7 +575,7 @@
       "path": "/api/v1/locations/correction-candidates"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:delete_location_mapping",
       "include_in_schema": true,
       "methods": [
@@ -535,7 +585,7 @@
       "path": "/api/v1/locations/mapping"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_location_mapping",
       "include_in_schema": true,
       "methods": [
@@ -545,7 +595,7 @@
       "path": "/api/v1/locations/mapping"
     },
     {
-      "auth": "public",
+      "auth": "admin",
       "endpoint": "api.main:update_location_mapping",
       "include_in_schema": true,
       "methods": [
@@ -555,7 +605,7 @@
       "path": "/api/v1/locations/mapping"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_records_history",
       "include_in_schema": true,
       "methods": [
@@ -565,7 +615,7 @@
       "path": "/api/v1/records/history"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_records_latest",
       "include_in_schema": true,
       "methods": [
@@ -575,7 +625,7 @@
       "path": "/api/v1/records/latest"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_stats_daily",
       "include_in_schema": true,
       "methods": [
@@ -585,7 +635,7 @@
       "path": "/api/v1/stats/daily"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_stats_hourly",
       "include_in_schema": true,
       "methods": [
@@ -595,7 +645,7 @@
       "path": "/api/v1/stats/hourly"
     },
     {
-      "auth": "public",
+      "auth": "session",
       "endpoint": "api.main:get_stats_summary",
       "include_in_schema": true,
       "methods": [
@@ -616,7 +666,7 @@
     },
     {
       "auth": "admin",
-      "endpoint": "api.main:list_users",
+      "endpoint": "api.routers.users:list_users",
       "include_in_schema": true,
       "methods": [
         "GET"
@@ -626,7 +676,7 @@
     },
     {
       "auth": "admin",
-      "endpoint": "api.main:create_user_api",
+      "endpoint": "api.routers.users:create_user_api",
       "include_in_schema": true,
       "methods": [
         "POST"
@@ -636,7 +686,7 @@
     },
     {
       "auth": "admin",
-      "endpoint": "api.main:delete_user_api",
+      "endpoint": "api.routers.users:delete_user_api",
       "include_in_schema": true,
       "methods": [
         "DELETE"
@@ -646,7 +696,7 @@
     },
     {
       "auth": "admin",
-      "endpoint": "api.main:update_user_api",
+      "endpoint": "api.routers.users:update_user_api",
       "include_in_schema": true,
       "methods": [
         "PUT"
@@ -657,7 +707,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:dashboard",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -667,7 +717,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:devices",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -709,7 +759,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:history",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -719,7 +769,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:history_academy",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -729,7 +779,7 @@
     {
       "auth": "public",
       "endpoint": "api.main:history_device",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -738,8 +788,28 @@
     },
     {
       "auth": "public",
+      "endpoint": "api.main:legacy_root",
+      "include_in_schema": false,
+      "methods": [
+        "GET"
+      ],
+      "name": "legacy_root",
+      "path": "/legacy"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:legacy_any",
+      "include_in_schema": false,
+      "methods": [
+        "GET"
+      ],
+      "name": "legacy_any",
+      "path": "/legacy/{full_path:path}"
+    },
+    {
+      "auth": "public",
       "endpoint": "api.main:login_page",
-      "include_in_schema": true,
+      "include_in_schema": false,
       "methods": [
         "GET"
       ],
@@ -767,6 +837,26 @@
       ],
       "name": "redoc_html",
       "path": "/redoc"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:spa_root",
+      "include_in_schema": false,
+      "methods": [
+        "GET"
+      ],
+      "name": "spa_root",
+      "path": "/spa"
+    },
+    {
+      "auth": "public",
+      "endpoint": "api.main:spa_any",
+      "include_in_schema": false,
+      "methods": [
+        "GET"
+      ],
+      "name": "spa_any",
+      "path": "/spa/{full_path:path}"
     }
   ]
 }

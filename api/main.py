@@ -26,6 +26,12 @@ import aiosqlite
 from app import db
 from app import config
 from app.matcher import matcher
+from api.dependencies import (
+    api_auth_middleware,
+    require_admin_user,
+)
+from api.routers import auth as auth_router
+from api.routers import users as users_router
 
 app = FastAPI(title="InfraCount API", version="1.0.0")
 
@@ -81,15 +87,7 @@ async def _require_admin_user(request: Request) -> Dict[str, Any]:
     - 调用数据库查询当前用户；
     - 要求 role=admin，否则拒绝访问。
     """
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user:
-        raise HTTPException(401, "Invalid session")
-    if user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
-    return user
+    return await require_admin_user(request)
 
 def _parse_mail_list(v: str) -> List[str]:
     s = str(v or "").strip()
@@ -601,11 +599,12 @@ def _parse_device_log_text(text: str) -> Dict[str, Any]:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.CORS_ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.middleware("http")(api_auth_middleware)
 
 def _task_status(task: Optional[asyncio.Task]) -> Dict[str, Any]:
     if task is None:
@@ -634,12 +633,7 @@ async def health():
 
 @app.get("/api/v1/system/status")
 async def system_status(request: Request):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user or user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
+    await require_admin_user(request)
 
     db_info: Dict[str, Any] = {"driver": config.DB_DRIVER}
     if db.use_sqlite():
@@ -713,126 +707,8 @@ async def shutdown_event():
         _ALERT_EMAIL_TASK = None
     await db.close_pool()
 
-# --- Auth ---
-
-@app.post("/api/v1/auth/login")
-async def auth_login(response: Response, payload: Dict[str, str] = Body(...)):
-    username = payload.get("username")
-    password = payload.get("password")
-    user = await db.authenticate_user(username, password)
-    if not user:
-        raise HTTPException(401, "Invalid credentials")
-    
-    session_token = await db.create_session(user["id"])
-    # Set cookie
-    response.set_cookie(key="session_token", value=session_token, httponly=True, max_age=7*24*3600)
-    return {"status": "ok", "user": user}
-
-@app.post("/api/v1/auth/logout")
-async def auth_logout(request: Request, response: Response):
-    token = request.cookies.get("session_token")
-    if token:
-        await db.delete_session(token)
-    response.delete_cookie("session_token")
-    return {"status": "ok"}
-
-@app.get("/api/v1/auth/me")
-async def auth_me(request: Request):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user:
-        raise HTTPException(401, "Invalid session")
-    return {"user": user}
-
-@app.post("/api/v1/auth/password")
-async def auth_change_password(request: Request, payload: Dict[str, str] = Body(...)):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user:
-        raise HTTPException(401, "Invalid session")
-        
-    new_pw = payload.get("new_password")
-    if not new_pw:
-        raise HTTPException(400, "Missing password")
-        
-    await db.change_password(user["id"], new_pw)
-    return {"status": "ok"}
-
-# --- User Management (Admin) ---
-
-@app.get("/api/v1/users")
-async def list_users(request: Request):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user or user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
-        
-    users = await db.get_all_users()
-    return {"users": users}
-
-@app.post("/api/v1/users")
-async def create_user_api(request: Request, payload: Dict[str, str] = Body(...)):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user or user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
-        
-    username = payload.get("username")
-    password = payload.get("password")
-    role = payload.get("role", "user")
-    
-    if not username or not password:
-        raise HTTPException(400, "Missing username or password")
-        
-    success = await db.create_user(username, password, role)
-    if not success:
-        raise HTTPException(400, "Failed to create user (might already exist)")
-        
-    return {"status": "ok"}
-
-@app.put("/api/v1/users/{user_id}")
-async def update_user_api(user_id: int, request: Request, payload: Dict[str, Any] = Body(...)):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user or user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
-        
-    # Prevent self-lockout or critical edits if needed, but let's allow for now.
-    
-    username = payload.get("username")
-    password = payload.get("password")
-    role = payload.get("role")
-    
-    success = await db.update_user(user_id, username, password, role)
-    if not success:
-        raise HTTPException(400, "Failed to update user")
-        
-    return {"status": "ok"}
-
-@app.delete("/api/v1/users/{user_id}")
-async def delete_user_api(user_id: int, request: Request):
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(401, "Not logged in")
-    user = await db.get_user_by_token(token)
-    if not user or user.get("role") != "admin":
-        raise HTTPException(403, "Access denied")
-        
-    if user["id"] == user_id:
-        raise HTTPException(400, "Cannot delete yourself")
-        
-    await db.delete_user(user_id)
-    return {"status": "ok"}
+app.include_router(auth_router.router)
+app.include_router(users_router.router)
 
 
 # --- Pages ---

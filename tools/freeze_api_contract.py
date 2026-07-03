@@ -11,18 +11,10 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 def _infer_auth(path: str, methods: List[str]) -> str:
-    p = str(path or "")
-    if p == "/api/v1/auth/login":
-        return "public"
-    if p == "/api/v1/auth/logout":
-        return "optional_session"
-    if p in {"/api/v1/auth/me", "/api/v1/auth/password"}:
-        return "session"
-    if p.startswith("/api/v1/users"):
-        return "admin"
-    if p == "/api/v1/system/status":
-        return "admin"
-    return "public"
+    from api.dependencies import classify_api_auth
+
+    method = sorted(methods or ["GET"])[0]
+    return classify_api_auth(path, method)
 
 
 def build_contract() -> Dict[str, Any]:

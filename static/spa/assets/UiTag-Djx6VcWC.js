@@ -1,0 +1,1 @@
+import{d as s,k as t,c as o,G as n,H as c,_ as r}from"./index-BN-VJZne.js";const l=s({__name:"UiTag",props:{tone:{default:"default"}},setup(a){return(e,p)=>(t(),o("span",{class:c(["ui-tag",[`ui-tag--${a.tone}`]])},[n(e.$slots,"default",{},void 0)],2))}}),d=r(l,[["__scopeId","data-v-09942c0c"]]);export{d as U};
