@@ -22,6 +22,15 @@ def hash_password(password: str) -> str:
     return security.hash_password(password)
 
 
+def _require_initial_admin_password() -> str:
+    password = config.INITIAL_ADMIN_PASSWORD
+    if not password:
+        raise RuntimeError(
+            "INITIAL_ADMIN_PASSWORD is required when initializing a new database"
+        )
+    return password
+
+
 async def _store_password_hash(user_id: int, password_hash: str) -> None:
     sql = "UPDATE users SET password_hash=? WHERE id=?" if use_sqlite() else "UPDATE users SET password_hash=%s WHERE id=%s"
     if use_sqlite():
@@ -254,11 +263,21 @@ async def init_sqlite():
         )
     """)
     
-    # Check if admin exists, if not create default
+    # Bootstrap exactly once. INSERT OR IGNORE handles concurrent process startup.
     async with _sqlite.execute("SELECT id FROM users WHERE username='admin'") as cur:
-        if not await cur.fetchone():
-            p_hash = hash_password("admin")
-            await _sqlite.execute("INSERT INTO users (username, password_hash, role) VALUES ('admin', ?, 'admin')", (p_hash,))
+        admin_exists = await cur.fetchone()
+    if not admin_exists:
+        try:
+            p_hash = hash_password(_require_initial_admin_password())
+        except RuntimeError:
+            await _sqlite.close()
+            _sqlite = None
+            raise
+        await _sqlite.execute(
+            "INSERT OR IGNORE INTO users (username, password_hash, role) "
+            "VALUES ('admin', ?, 'admin')",
+            (p_hash,),
+        )
 
     # Migration: Add created_at if not exists
     try:
@@ -453,8 +472,12 @@ async def init_pool():
                 # Check admin
                 await cur.execute("SELECT id FROM users WHERE username='admin'")
                 if not await cur.fetchone():
-                    p_hash = hash_password("admin")
-                    await cur.execute("INSERT INTO users (username, password_hash, role) VALUES ('admin', %s, 'admin')", (p_hash,))
+                    p_hash = hash_password(_require_initial_admin_password())
+                    await cur.execute(
+                        "INSERT IGNORE INTO users (username, password_hash, role) "
+                        "VALUES ('admin', %s, 'admin')",
+                        (p_hash,),
+                    )
                 
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS records (
@@ -585,16 +608,43 @@ async def init_pool():
                     """)
                 except Exception:
                     pass
-    except Exception as e:
-        logging.error(f"DB init failed: {e}")
+    except Exception as error:
+        pool = _pool
+        _pool = None
+        if pool:
+            try:
+                pool.close()
+            except Exception as cleanup_error:
+                logging.error(
+                    "MySQL database pool close failed (%s)",
+                    type(cleanup_error).__name__,
+                )
+            try:
+                await pool.wait_closed()
+            except Exception as cleanup_error:
+                logging.error(
+                    "MySQL database pool wait-close failed (%s)",
+                    type(cleanup_error).__name__,
+                )
+        logging.error(
+            "MySQL database initialization failed (%s)", type(error).__name__
+        )
+        raise
 
 async def close_pool():
     global _pool, _sqlite
-    if _pool:
-        _pool.close()
-        await _pool.wait_closed()
-    if _sqlite:
-        await _sqlite.close()
+    pool = _pool
+    sqlite_conn = _sqlite
+    _pool = None
+    _sqlite = None
+    if pool:
+        pool.close()
+        await pool.wait_closed()
+    if sqlite_conn:
+        try:
+            await sqlite_conn.close()
+        except ValueError:
+            pass
 
 async def ping() -> Dict[str, Any]:
     start_ts = time.time()

@@ -621,15 +621,18 @@ def _uptime_sec() -> int:
 
 @app.get("/api/v1/health")
 async def health():
-    return {
-        "status": "ok",
+    db_status = await db.ping()
+    is_healthy = bool(db_status.get("ok"))
+    payload = {
+        "status": "ok" if is_healthy else "degraded",
         "time": datetime.now(timezone.utc).isoformat(),
         "uptime_sec": _uptime_sec(),
         "db": {
             "driver": config.DB_DRIVER,
-            **(await db.ping()),
-        }
+            **db_status,
+        },
     }
+    return JSONResponse(content=payload, status_code=200 if is_healthy else 503)
 
 @app.get("/api/v1/system/status")
 async def system_status(request: Request):

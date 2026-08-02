@@ -3,6 +3,8 @@ import sys
 import time
 import os
 import signal
+import threading
+import urllib.request
 import webbrowser
 
 def _tail_file_bytes(path: str, max_bytes: int = 6000) -> str:
@@ -37,7 +39,41 @@ def _terminate_process(proc: subprocess.Popen, timeout_sec: float = 3.0) -> None
     except Exception:
         pass
 
-def main():
+
+def _is_stdio_mode(value: str) -> bool:
+    return str(value or "").strip().lower() == "stdio"
+
+
+def _wait_for_web_ready(
+    process: subprocess.Popen,
+    port: int | str,
+    timeout_sec: float = 30.0,
+    poll_interval_sec: float = 0.25,
+) -> bool:
+    deadline = time.monotonic() + timeout_sec
+    url = f"http://127.0.0.1:{port}/api/v1/health"
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return False
+        try:
+            with urllib.request.urlopen(url, timeout=2) as response:
+                response.read(1)
+            return True
+        except Exception:
+            if poll_interval_sec > 0:
+                time.sleep(poll_interval_sec)
+    return False
+
+
+def _install_signal_handlers(stop_event: threading.Event) -> None:
+    def request_shutdown(_signum, _frame):
+        stop_event.set()
+
+    signal.signal(signal.SIGINT, request_shutdown)
+    signal.signal(signal.SIGTERM, request_shutdown)
+
+
+def main() -> int:
     # Paths
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     data_dir = os.path.join(root_dir, "data")
@@ -57,43 +93,65 @@ def main():
     no_browser = env.get("INFRACOUNT_NO_BROWSER", "").strip() == "1"
     open_browser = env.get("INFRACOUNT_OPEN_BROWSER", "").strip() == "1"
     reset_logs = env.get("INFRACOUNT_RESET_LOGS", "").strip() == "1"
+    stdio_mode = _is_stdio_mode(env.get("INFRACOUNT_LOG_MODE", "files"))
 
     tcp_out_path = os.path.join(data_dir, "tcp_server.out")
     tcp_err_path = os.path.join(data_dir, "tcp_server.err")
     web_out_path = os.path.join(data_dir, "uvicorn.out")
     web_err_path = os.path.join(data_dir, "uvicorn.err")
 
-    mode = "wb" if reset_logs else "ab"
-    tcp_out = open(tcp_out_path, mode, buffering=0)
-    tcp_err = open(tcp_err_path, mode, buffering=0)
-    web_out = open(web_out_path, mode, buffering=0)
-    web_err = open(web_err_path, mode, buffering=0)
+    log_handles = []
+    if stdio_mode:
+        tcp_out = tcp_err = web_out = web_err = None
+    else:
+        mode = "wb" if reset_logs else "ab"
+        tcp_out = open(tcp_out_path, mode, buffering=0)
+        tcp_err = open(tcp_err_path, mode, buffering=0)
+        web_out = open(web_out_path, mode, buffering=0)
+        web_err = open(web_err_path, mode, buffering=0)
+        log_handles.extend((tcp_out, tcp_err, web_out, web_err))
 
     print(f"Starting services from {root_dir}...")
+    stop_event = threading.Event()
+    _install_signal_handlers(stop_event)
+    web_process = None
+    tcp_process = None
+    exit_code = 0
 
-    # Start TCP Server
-    tcp_process = subprocess.Popen(
-        [python_exe, "tcp_server.py"],
-        cwd=root_dir,
-        stdout=tcp_out,
-        stderr=tcp_err,
-        env={**env, "TCP_HOST": str(tcp_host), "TCP_PORT": str(tcp_port)},
-    )
-    print(f"TCP Server started (PID: {tcp_process.pid})")
-
-    # Start Web Server
-    web_process = subprocess.Popen(
-        [python_exe, "-m", "uvicorn", "api.main:app", "--host", str(web_host), "--port", str(web_port)],
-        cwd=root_dir,
-        stdout=web_out,
-        stderr=web_err,
-        env=env,
-    )
-    print(f"Web Server started (PID: {web_process.pid})")
-
-    # Open Dashboard
     try:
-        time.sleep(2)
+        web_process = subprocess.Popen(
+            [
+                python_exe,
+                "-m",
+                "uvicorn",
+                "api.main:app",
+                "--host",
+                str(web_host),
+                "--port",
+                str(web_port),
+            ],
+            cwd=root_dir,
+            stdout=web_out,
+            stderr=web_err,
+            env=env,
+        )
+        print(f"Web Server started (PID: {web_process.pid})")
+        if not _wait_for_web_ready(web_process, web_port):
+            print("Web Server failed to become healthy.")
+            tail = _tail_file_bytes(web_err_path)
+            if tail:
+                print(tail)
+            return 1
+
+        tcp_process = subprocess.Popen(
+            [python_exe, "tcp_server.py"],
+            cwd=root_dir,
+            stdout=tcp_out,
+            stderr=tcp_err,
+            env={**env, "TCP_HOST": str(tcp_host), "TCP_PORT": str(tcp_port)},
+        )
+        print(f"TCP Server started (PID: {tcp_process.pid})")
+
         url = f"http://127.0.0.1:{web_port}/login"
         # 兼容性说明：
         # - 旧版本默认会尝试打开浏览器；新版本默认不再自动打开，避免受限环境（无桌面/无默认浏览器）
@@ -104,12 +162,7 @@ def main():
             webbrowser.open(url)
         else:
             print(f"Dashboard: {url}")
-    except Exception:
-        pass
-
-    try:
-        while True:
-            time.sleep(1)
+        while not stop_event.wait(1):
             # Check if processes are alive
             if tcp_process.poll() is not None:
                 print(f"TCP Server exited unexpectedly with code {tcp_process.returncode}.")
@@ -118,7 +171,7 @@ def main():
                 tail = _tail_file_bytes(tcp_err_path)
                 if tail:
                     print(tail)
-                _terminate_process(web_process)
+                exit_code = 1
                 break
             if web_process.poll() is not None:
                 print(f"Web Server exited unexpectedly with code {web_process.returncode}.")
@@ -127,17 +180,20 @@ def main():
                 tail = _tail_file_bytes(web_err_path)
                 if tail:
                     print(tail)
-                _terminate_process(tcp_process)
+                exit_code = 1
                 break
     except KeyboardInterrupt:
+        stop_event.set()
+    except Exception as exc:
+        print(f"Launcher failed: {exc}")
+        exit_code = 1
+    finally:
         print("Stopping services...")
         _terminate_process(tcp_process)
         _terminate_process(web_process)
-    finally:
-        tcp_out.close()
-        tcp_err.close()
-        web_out.close()
-        web_err.close()
+        for handle in log_handles:
+            handle.close()
+    return exit_code
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

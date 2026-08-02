@@ -9,25 +9,62 @@ services:
       - "${WEB_PORT:-8000}:8000"
       - "${TCP_PORT:-8085}:8085"
     environment:
-      WEB_HOST: "0.0.0.0"
+      WEB_HOST: "${WEB_HOST:-0.0.0.0}"
       WEB_PORT: "8000"
-      TCP_HOST: "0.0.0.0"
+      TCP_HOST: "${TCP_HOST:-0.0.0.0}"
       TCP_PORT: "8085"
       INFRACOUNT_NO_BROWSER: "1"
+      INFRACOUNT_LOG_MODE: "${INFRACOUNT_LOG_MODE:-stdio}"
       DB_DRIVER: "${DB_DRIVER:-sqlite}"
+      DB_HOST: "${DB_HOST:-localhost}"
+      DB_PORT: "${DB_PORT:-3306}"
+      DB_USER: "${DB_USER:-root}"
+      DB_PASSWORD: "${DB_PASSWORD:-}"
+      DB_NAME: "${DB_NAME:-infrared}"
       DB_SQLITE_PATH: "${DB_SQLITE_PATH:-/app/data/infrared.db}"
+      INITIAL_ADMIN_PASSWORD: "${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD must be set}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+      CSRF_ENABLE: "${CSRF_ENABLE:-1}"
+      CSRF_TTL: "${CSRF_TTL:-600}"
+      TIME_SYNC_DIGITS: "${TIME_SYNC_DIGITS:-1}"
+      UPLOAD_INTERVAL: "${UPLOAD_INTERVAL:-0005}"
+      DATA_START_TIME: "${DATA_START_TIME:-0000}"
+      DATA_END_TIME: "${DATA_END_TIME:-2359}"
+      BTX_LOW: "${BTX_LOW:-30}"
+      BAT_LOW: "${BAT_LOW:-20}"
+      SIGNAL_OFFLINE_VALUE: "${SIGNAL_OFFLINE_VALUE:-1}"
+      REC_TYPE_BACKLOG: "${REC_TYPE_BACKLOG:-1}"
+      SESSION_COOKIE_NAME: "${SESSION_COOKIE_NAME:-session_token}"
+      SESSION_MAX_AGE_SEC: "${SESSION_MAX_AGE_SEC:-604800}"
       SESSION_COOKIE_SECURE: "${SESSION_COOKIE_SECURE:-0}"
       SESSION_COOKIE_SAMESITE: "${SESSION_COOKIE_SAMESITE:-lax}"
-      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000,http://localhost:5173,http://127.0.0.1:5173}"
+      AUTO_SYNC_WALKIN_ENABLE: "${AUTO_SYNC_WALKIN_ENABLE:-1}"
+      AUTO_SYNC_WALKIN_INTERVAL_SEC: "${AUTO_SYNC_WALKIN_INTERVAL_SEC:-1800}"
+      AUTO_SYNC_WALKIN_BACKFILL_DAYS: "${AUTO_SYNC_WALKIN_BACKFILL_DAYS:-1}"
+      ALERT_EMAIL_ENABLE: "${ALERT_EMAIL_ENABLE:-0}"
+      ALERT_EMAIL_SCAN_INTERVAL_SEC: "${ALERT_EMAIL_SCAN_INTERVAL_SEC:-60}"
+      ALERT_EMAIL_MAX_PER_SCAN: "${ALERT_EMAIL_MAX_PER_SCAN:-20}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USERNAME: "${SMTP_USERNAME:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-1}"
+      SMTP_USE_SSL: "${SMTP_USE_SSL:-0}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_TO: "${SMTP_TO:-}"
+      SMTP_SUBJECT_PREFIX: "${SMTP_SUBJECT_PREFIX:-[InfraCount]}"
     volumes:
       - infracount-data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/v1/health' % os.getenv('WEB_PORT', '8000'), timeout=3).read()\""]
+      test: ["CMD", "python", "tools/container_healthcheck.py"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
+    init: true
     restart: unless-stopped
+    stop_grace_period: 20s
 
 volumes:
   infracount-data:

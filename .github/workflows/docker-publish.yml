@@ -18,8 +18,15 @@ permissions:
   id-token: write
 
 jobs:
+  validate:
+    name: Validate before publishing
+    uses: ./.github/workflows/validate.yml
+    permissions:
+      contents: read
+
   publish:
-    name: Build and Publish GHCR Image
+    name: Build and publish GHCR image
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,6 +34,7 @@ jobs:
 
       - name: Normalize image name
         id: image
+        shell: bash
         run: echo "name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -45,9 +53,12 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=long,prefix=sha-
 
       - name: Build and push Docker image
         id: push
@@ -55,11 +66,22 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Record published digest
+        shell: bash
+        run: |
+          {
+            echo '### Published GHCR image'
+            echo
+            echo "- Image: \`${{ env.REGISTRY }}/${{ steps.image.outputs.name }}\`"
+            echo "- Digest: \`${{ steps.push.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate artifact attestation
         uses: actions/attest@v4

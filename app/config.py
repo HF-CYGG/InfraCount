@@ -15,6 +15,7 @@ DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "infrared")
 DB_SQLITE_PATH = os.getenv("DB_SQLITE_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "infrared.db"))
+INITIAL_ADMIN_PASSWORD = os.getenv("INITIAL_ADMIN_PASSWORD", "").strip()
 
 SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "session_token")
 SESSION_MAX_AGE_SEC = int(os.getenv("SESSION_MAX_AGE_SEC", str(7 * 24 * 3600)))

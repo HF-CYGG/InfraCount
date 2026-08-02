@@ -17,6 +17,7 @@ ENV WEB_PORT=8000
 ENV TCP_HOST=0.0.0.0
 ENV TCP_PORT=8085
 ENV INFRACOUNT_NO_BROWSER=1
+ENV INFRACOUNT_LOG_MODE=stdio
 ENV DB_DRIVER=sqlite
 ENV DB_SQLITE_PATH=/app/data/infrared.db
 ENV SESSION_COOKIE_SECURE=0
@@ -46,6 +47,6 @@ EXPOSE 8000
 EXPOSE 8085
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/api/v1/health' % os.getenv('WEB_PORT', '8000'), timeout=3).read()" || exit 1
+    CMD ["python", "tools/container_healthcheck.py"]
 
 CMD ["python", "tools/launcher.py"]
