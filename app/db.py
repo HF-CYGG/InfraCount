@@ -8,7 +8,9 @@ from typing import Optional, List, Dict, Any, Callable, Literal, Tuple
 import aiomysql
 import aiosqlite
 from . import config, security
+from app.services import alerting
 from app.storage import sqlite as sqlite_storage
+from app.storage import sqlite_merge as sqlite_merge_storage
 
 _pool = None
 _sqlite = None
@@ -71,9 +73,10 @@ async def authenticate_user(username, password):
 
 async def create_session(user_id):
     token = str(uuid.uuid4())
-    # Expires in 7 days
     import datetime
-    expires = datetime.datetime.now() + datetime.timedelta(days=7)
+    expires = datetime.datetime.utcnow() + datetime.timedelta(
+        seconds=max(1, int(config.SESSION_MAX_AGE_SEC))
+    )
     
     sql = "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)" if use_sqlite() else "INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, %s)"
     
@@ -108,6 +111,11 @@ async def get_user_by_token(token):
             row = await cur.fetchone()
             if row:
                 return {"id": row["id"], "username": row["username"], "role": row["role"]}
+        await _sqlite.execute(
+            "DELETE FROM sessions WHERE token=? AND expires_at <= CURRENT_TIMESTAMP",
+            (token,),
+        )
+        await _sqlite.commit()
     else:
         if not _pool: await init_pool()
         async with _pool.acquire() as conn:
@@ -387,7 +395,10 @@ async def init_sqlite():
             time DATETIME DEFAULT CURRENT_TIMESTAMP,
             notified INTEGER DEFAULT 0,
             notified_at DATETIME,
-            notify_error TEXT
+            notify_error TEXT,
+            resolved_at DATETIME,
+            notify_attempts INTEGER DEFAULT 0,
+            next_notify_at DATETIME
         )
     """)
     try:
@@ -406,6 +417,38 @@ async def init_sqlite():
         await _sqlite.execute("ALTER TABLE alerts ADD COLUMN notify_error TEXT")
     except Exception:
         pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN resolved_at DATETIME")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN notify_attempts INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        await _sqlite.execute("ALTER TABLE alerts ADD COLUMN next_notify_at DATETIME")
+    except Exception:
+        pass
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS alert_states (
+            uuid TEXT NOT NULL,
+            type TEXT NOT NULL,
+            active INTEGER NOT NULL DEFAULT 0,
+            alert_id INTEGER,
+            last_value TEXT,
+            updated_at DATETIME,
+            PRIMARY KEY (uuid, type)
+        )
+    """)
+    await _sqlite.execute("""
+        CREATE TABLE IF NOT EXISTS maintenance_state (
+            key TEXT PRIMARY KEY,
+            active INTEGER NOT NULL DEFAULT 0,
+            owner TEXT,
+            actor TEXT,
+            started_at DATETIME
+        )
+    """)
     await _sqlite.execute("""
         CREATE TABLE IF NOT EXISTS location_academy (
             location_name TEXT PRIMARY KEY,
@@ -574,7 +617,10 @@ async def init_pool():
                         time DATETIME DEFAULT CURRENT_TIMESTAMP,
                         notified INT DEFAULT 0,
                         notified_at DATETIME NULL,
-                        notify_error TEXT
+                        notify_error TEXT,
+                        resolved_at DATETIME NULL,
+                        notify_attempts INT DEFAULT 0,
+                        next_notify_at DATETIME NULL
                     )
                 """)
                 try:
@@ -593,6 +639,29 @@ async def init_pool():
                     await cur.execute("ALTER TABLE alerts ADD COLUMN notify_error TEXT")
                 except Exception:
                     pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN resolved_at DATETIME NULL")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN notify_attempts INT DEFAULT 0")
+                except Exception:
+                    pass
+                try:
+                    await cur.execute("ALTER TABLE alerts ADD COLUMN next_notify_at DATETIME NULL")
+                except Exception:
+                    pass
+                await cur.execute("""
+                    CREATE TABLE IF NOT EXISTS alert_states (
+                        uuid VARCHAR(64) NOT NULL,
+                        type VARCHAR(64) NOT NULL,
+                        active INT NOT NULL DEFAULT 0,
+                        alert_id BIGINT NULL,
+                        last_value VARCHAR(128),
+                        updated_at DATETIME,
+                        PRIMARY KEY (uuid, type)
+                    )
+                """)
                 await cur.execute("""
                     CREATE TABLE IF NOT EXISTS location_academy (
                         location_name VARCHAR(128) PRIMARY KEY,
@@ -1142,6 +1211,14 @@ async def save_device_data(data: dict, ip: str = None):
     if not uuid:
         return
 
+    if use_sqlite():
+        from app.services import db_merge as db_merge_service
+
+        if await db_merge_service.is_maintenance_active():
+            raise db_merge_service.DatabaseMaintenanceError(
+                "database merge maintenance is active"
+            )
+
     def _safe_int(v, default: int | None = 0) -> int | None:
         """
         将任意输入安全转换为 int：
@@ -1247,44 +1324,66 @@ async def save_device_data(data: dict, ip: str = None):
         "warn_status": warn_status,
         "activity_type": activity_type,
     }
-    await admin_create_record(rec)
-    
-    # Update registry last_seen and ip
-    sql_check = "SELECT uuid FROM registry WHERE uuid=?" if use_sqlite() else "SELECT uuid FROM registry WHERE uuid=%s"
-    
+    evaluations = alerting.evaluate_device_alerts(data)
+
     if use_sqlite():
-        if not _sqlite: await init_sqlite()
-        cur = await _sqlite.execute(sql_check, (uuid,))
-        row = await cur.fetchone()
-        if row:
-            sql = "UPDATE registry SET last_seen=CURRENT_TIMESTAMP"
-            params = []
-            if ip:
-                sql += ", ip=?"
-                params.append(ip)
-            sql += " WHERE uuid=?"
-            params.append(uuid)
-            await _sqlite.execute(sql, params)
-        else:
-            await _sqlite.execute("INSERT INTO registry (uuid, last_seen, ip) VALUES (?, CURRENT_TIMESTAMP, ?)", (uuid, ip))
-        await _sqlite.commit()
+        conn = await sqlite_storage.connect(config.DB_SQLITE_PATH)
+        try:
+            await conn.execute("BEGIN IMMEDIATE")
+            await conn.execute(
+                "INSERT INTO records "
+                "(uuid,time,in_count,out_count,battery,btx,rec_type,signal_strength,warn_status,activity_type) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                tuple(
+                    rec[key]
+                    for key in (
+                        "uuid", "time", "in_count", "out_count", "battery", "btx",
+                        "rec_type", "signal_strength", "warn_status", "activity_type",
+                    )
+                ),
+            )
+            await conn.execute(
+                "INSERT INTO registry(uuid,last_seen,ip) VALUES (?,?,?) "
+                "ON CONFLICT(uuid) DO UPDATE SET "
+                "last_seen=excluded.last_seen, ip=COALESCE(excluded.ip, registry.ip)",
+                (uuid, ts, ip),
+            )
+            await alerting.apply_sqlite_alert_states(conn, uuid, ts, evaluations)
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+        finally:
+            await conn.close()
     else:
         if not _pool: await init_pool()
         async with _pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(sql_check, (uuid,))
-                row = await cur.fetchone()
-                if row:
-                    sql = "UPDATE registry SET last_seen=CURRENT_TIMESTAMP"
-                    params = []
-                    if ip:
-                        sql += ", ip=%s"
-                        params.append(ip)
-                    sql += " WHERE uuid=%s"
-                    params.append(uuid)
-                    await cur.execute(sql, params)
-                else:
-                    await cur.execute("INSERT INTO registry (uuid, last_seen, ip) VALUES (%s, CURRENT_TIMESTAMP, %s)", (uuid, ip))
+            await conn.begin()
+            try:
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        "INSERT INTO records "
+                        "(uuid,time,in_count,out_count,battery,btx,rec_type,signal_strength,warn_status,activity_type) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        tuple(
+                            rec[key]
+                            for key in (
+                                "uuid", "time", "in_count", "out_count", "battery", "btx",
+                                "rec_type", "signal_strength", "warn_status", "activity_type",
+                            )
+                        ),
+                    )
+                    await cur.execute(
+                        "INSERT INTO registry(uuid,last_seen,ip) VALUES (%s,%s,%s) "
+                        "ON DUPLICATE KEY UPDATE last_seen=VALUES(last_seen), "
+                        "ip=COALESCE(VALUES(ip), ip)",
+                        (uuid, ts, ip),
+                    )
+                    await alerting.apply_mysql_alert_states(cur, uuid, ts, evaluations)
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
 async def admin_create_record(data):
     # data is dict
@@ -1589,7 +1688,10 @@ async def admin_fetch_range(start, end):
     return await fetch_history(start=start, end=end, limit=100000)
 
 async def list_alerts(uuid=None, limit=100):
-    sql = "SELECT * FROM alerts"
+    sql = (
+        "SELECT id,uuid,type,level,status,info,time,notified,notified_at,"
+        "notify_error,resolved_at FROM alerts"
+    )
     params = []
     if uuid:
         sql += " WHERE uuid=?" if use_sqlite() else " WHERE uuid=%s"
@@ -1610,7 +1712,15 @@ async def list_alerts(uuid=None, limit=100):
                 return await cur.fetchall()
 
 async def list_unnotified_critical_alerts(limit: int = 20):
-    sql = f"SELECT * FROM alerts WHERE level >= 2 AND (status IS NULL OR status = 0) AND (notified IS NULL OR notified = 0) ORDER BY time DESC LIMIT {int(limit or 0)}"
+    now_expression = "CURRENT_TIMESTAMP" if use_sqlite() else "NOW()"
+    sql = (
+        "SELECT * FROM alerts WHERE level >= 2 "
+        "AND (status IS NULL OR status = 0) "
+        "AND (notified IS NULL OR notified = 0) "
+        "AND resolved_at IS NULL "
+        f"AND (next_notify_at IS NULL OR next_notify_at <= {now_expression}) "
+        f"ORDER BY time DESC LIMIT {int(limit or 0)}"
+    )
     params: list = []
     if use_sqlite():
         if not _sqlite: await init_sqlite()
@@ -1631,7 +1741,8 @@ async def mark_alert_notified(alert_id: int, status: int = 1, error: str | None 
     if use_sqlite():
         if not _sqlite: await init_sqlite()
         await _sqlite.execute(
-            "UPDATE alerts SET notified=?, notified_at=CURRENT_TIMESTAMP, notify_error=? WHERE id=?",
+            "UPDATE alerts SET notified=?, notified_at=CURRENT_TIMESTAMP, "
+            "notify_error=?, next_notify_at=NULL WHERE id=?",
             (st, err, sid),
         )
         await _sqlite.commit()
@@ -1641,10 +1752,52 @@ async def mark_alert_notified(alert_id: int, status: int = 1, error: str | None 
         async with _pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "UPDATE alerts SET notified=%s, notified_at=NOW(), notify_error=%s WHERE id=%s",
+                    "UPDATE alerts SET notified=%s, notified_at=NOW(), "
+                    "notify_error=%s, next_notify_at=NULL WHERE id=%s",
                     (st, err, sid),
                 )
                 return True
+
+
+async def mark_alert_notification_failed(alert_id: int, error: str | None = None):
+    sid = int(alert_id)
+    err = str(error or "")[:800] or None
+    if use_sqlite():
+        if not _sqlite:
+            await init_sqlite()
+        async with _sqlite.execute(
+            "SELECT COALESCE(notify_attempts, 0) FROM alerts WHERE id=?",
+            (sid,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        attempts = int(row[0] if row else 0) + 1
+        delay_seconds = min(60 * (2 ** max(0, attempts - 1)), 3600)
+        await _sqlite.execute(
+            "UPDATE alerts SET notified=0, notified_at=NULL, notify_error=?, "
+            "notify_attempts=?, next_notify_at=datetime(CURRENT_TIMESTAMP, ?) WHERE id=?",
+            (err, attempts, f"+{delay_seconds} seconds", sid),
+        )
+        await _sqlite.commit()
+        return True
+
+    if not _pool:
+        await init_pool()
+    async with _pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT COALESCE(notify_attempts, 0) FROM alerts WHERE id=%s",
+                (sid,),
+            )
+            row = await cur.fetchone()
+            attempts = int(row[0] if row else 0) + 1
+            delay_seconds = min(60 * (2 ** max(0, attempts - 1)), 3600)
+            await cur.execute(
+                "UPDATE alerts SET notified=0, notified_at=NULL, notify_error=%s, "
+                "notify_attempts=%s, next_notify_at=DATE_ADD(NOW(), INTERVAL %s SECOND) "
+                "WHERE id=%s",
+                (err, attempts, delay_seconds, sid),
+            )
+            return True
 
 async def set_alert_status(alert_id: int, status: int = 1):
     sid = int(alert_id)
@@ -2692,12 +2845,13 @@ async def sqlite_db_merge_preview(
     """
     if not use_sqlite():
         raise RuntimeError("当前数据库不是 SQLite，无法执行 .db 合并导入")
-    if not _sqlite:
-        await init_sqlite()
-
-    conn = _sqlite
+    conn = await sqlite_merge_storage.connect()
     alias = "importdb"
-    await _sqlite_attach_database(conn, alias, import_db_path)
+    try:
+        await _sqlite_attach_database(conn, alias, import_db_path)
+    except Exception:
+        await conn.close()
+        raise
     try:
         out: Dict[str, Any] = {
             "db_driver": "sqlite",
@@ -2794,6 +2948,7 @@ async def sqlite_db_merge_preview(
         except Exception:
             # 如果 detach 失败（例如仍处在事务中或连接状态异常），不阻断预览结果返回
             pass
+        await conn.close()
 
 async def sqlite_db_merge_execute(
     import_db_path: str,
@@ -2811,10 +2966,7 @@ async def sqlite_db_merge_execute(
     """
     if not use_sqlite():
         raise RuntimeError("当前数据库不是 SQLite，无法执行 .db 合并导入")
-    if not _sqlite:
-        await init_sqlite()
-
-    conn = _sqlite
+    conn = await sqlite_merge_storage.connect()
     alias = "importdb"
 
     def emit(payload: Dict[str, Any]) -> None:
@@ -2824,12 +2976,16 @@ async def sqlite_db_merge_execute(
             except Exception:
                 pass
 
-    await _sqlite_attach_database(conn, alias, import_db_path)
+    try:
+        await _sqlite_attach_database(conn, alias, import_db_path)
+    except Exception:
+        await conn.close()
+        raise
     started_at = time.time()
     emit({"status": "running", "stage": "begin", "started_at": started_at})
 
     try:
-        await conn.execute("BEGIN")
+        await sqlite_merge_storage.begin(conn)
         results: Dict[str, Any] = {
             "db_driver": "sqlite",
             "import_db_path": os.path.abspath(import_db_path),
@@ -3007,6 +3163,7 @@ async def sqlite_db_merge_execute(
             await _sqlite_detach_database(conn, alias)
         except Exception:
             pass
+        await conn.close()
 
 
 

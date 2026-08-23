@@ -10,25 +10,48 @@ PBKDF2_ALGORITHM = "pbkdf2_sha256"
 PBKDF2_ITERATIONS = 260000
 LEGACY_PASSWORD_SALT = "infrared_salt_v1"
 
-_tokens: dict[str, float] = {}
+CSRF_TOKEN_VERSION = "infracount-csrf-v1"
 
-def issue_csrf() -> str:
-    t = secrets.token_urlsafe(32)
-    _tokens[t] = time.time() + config.CSRF_TTL
-    return t
 
-def validate_csrf(token: str) -> bool:
+def issue_csrf(session_token: str, *, now: float | None = None) -> str:
+    issued_at = int(time.time() if now is None else now)
+    message = f"{CSRF_TOKEN_VERSION}:{issued_at}".encode("ascii")
+    signature = hmac.new(
+        str(session_token or "").encode("utf-8"),
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+    return f"{issued_at}.{signature}"
+
+
+def validate_csrf(
+    token: str,
+    session_token: str,
+    *,
+    now: float | None = None,
+) -> bool:
     if not config.CSRF_ENABLE:
         return True
-    exp = _tokens.get(token)
-    if not exp:
+    if not token or not session_token:
         return False
-    if exp < time.time():
-        _tokens.pop(token, None)
+    try:
+        issued_raw, actual_signature = str(token).split(".", 1)
+        issued_at = int(issued_raw)
+    except (TypeError, ValueError):
         return False
-    # one-time token
-    _tokens.pop(token, None)
-    return True
+
+    current_time = int(time.time() if now is None else now)
+    age = current_time - issued_at
+    if age < 0 or age > max(1, int(config.CSRF_TTL)):
+        return False
+
+    message = f"{CSRF_TOKEN_VERSION}:{issued_at}".encode("ascii")
+    expected_signature = hmac.new(
+        str(session_token).encode("utf-8"),
+        message,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(actual_signature, expected_signature)
 
 
 def hash_password_legacy(password: str) -> str:

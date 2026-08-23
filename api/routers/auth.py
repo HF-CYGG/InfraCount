@@ -3,7 +3,7 @@ from typing import Dict
 from fastapi import APIRouter, Body, HTTPException, Request, Response
 
 from api.dependencies import delete_cookie_kwargs, require_session_user, session_cookie_kwargs
-from app import config
+from app import config, security
 from app.services import auth as auth_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -33,6 +33,16 @@ async def auth_logout(request: Request, response: Response):
 async def auth_me(request: Request):
     user = await require_session_user(request)
     return {"user": user}
+
+
+@router.get("/csrf")
+async def auth_csrf(request: Request):
+    await require_session_user(request)
+    session_token = request.cookies.get(config.SESSION_COOKIE_NAME) or ""
+    return {
+        "csrf_token": security.issue_csrf(session_token),
+        "expires_in": int(config.CSRF_TTL),
+    }
 
 
 @router.post("/password")

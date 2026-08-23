@@ -26,11 +26,16 @@ import aiosqlite
 from app import db
 from app import config
 from app.matcher import matcher
+from app.services import db_merge as db_merge_service
+from app.services import uploads
 from api.dependencies import (
     api_auth_middleware,
     require_admin_user,
 )
 from api.routers import auth as auth_router
+from api.routers import alerts as alerts_router
+from api.routers import db_merge as db_merge_router
+from api.routers import imports as imports_router
 from api.routers import users as users_router
 
 app = FastAPI(title="InfraCount API", version="1.0.0")
@@ -159,6 +164,9 @@ def _send_mail_sync(msg: EmailMessage) -> None:
 async def _alert_email_loop():
     while True:
         try:
+            if await db_merge_service.is_maintenance_active():
+                await asyncio.sleep(5)
+                continue
             if not config.ALERT_EMAIL_ENABLE:
                 await asyncio.sleep(5)
                 continue
@@ -175,7 +183,7 @@ async def _alert_email_loop():
                     await asyncio.to_thread(_send_mail_sync, msg)
                     await db.mark_alert_notified(alert_id=int(aid), status=1, error=None)
                 except Exception as e:
-                    await db.mark_alert_notified(alert_id=int(aid), status=-1, error=str(e))
+                    await db.mark_alert_notification_failed(alert_id=int(aid), error=str(e))
         except Exception:
             logging.exception("alert email loop failed")
 
@@ -184,6 +192,9 @@ async def _alert_email_loop():
 async def _auto_sync_walkin_loop():
     while True:
         try:
+            if await db_merge_service.is_maintenance_active():
+                await asyncio.sleep(5)
+                continue
             if config.AUTO_SYNC_WALKIN_BACKFILL_DAYS < 1:
                 days = 1
             else:
@@ -670,6 +681,12 @@ async def system_status(request: Request):
             "alert_email_enable": bool(config.ALERT_EMAIL_ENABLE),
             "alert_email_scan_interval_sec": int(config.ALERT_EMAIL_SCAN_INTERVAL_SEC),
             "time_sync_digits": bool(config.TIME_SYNC_DIGITS),
+            "upload_limits": {
+                "activity_csv": int(config.ACTIVITY_CSV_MAX_BYTES),
+                "activity_excel": int(config.ACTIVITY_EXCEL_MAX_BYTES),
+                "device_log": int(config.DEVICE_LOG_MAX_BYTES),
+                "db_merge": int(config.DB_MERGE_MAX_BYTES),
+            },
         },
         "tasks": {
             "auto_sync_walkin": _task_status(_AUTO_SYNC_TASK),
@@ -681,6 +698,7 @@ async def system_status(request: Request):
 async def startup_event():
     if db.use_sqlite():
         await db.init_sqlite()
+        await db_merge_service.clear_stale_maintenance()
     else:
         await db.init_pool()
     global _AUTO_SYNC_TASK
@@ -692,6 +710,18 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    merge_tasks = [
+        job.get("task")
+        for job in _DB_MERGE_JOB_CACHE.values()
+        if job.get("task") is not None and not job["task"].done()
+    ]
+    for task in merge_tasks:
+        task.cancel()
+    for task in merge_tasks:
+        try:
+            await task
+        except BaseException:
+            pass
     global _AUTO_SYNC_TASK
     if _AUTO_SYNC_TASK is not None:
         _AUTO_SYNC_TASK.cancel()
@@ -711,6 +741,7 @@ async def shutdown_event():
     await db.close_pool()
 
 app.include_router(auth_router.router)
+app.include_router(alerts_router.router)
 app.include_router(users_router.router)
 
 
@@ -899,10 +930,6 @@ async def get_records_history(
 
 # --- Activity API ---
 
-@app.get("/api/v1/activity/options")
-async def activity_options():
-    return await db.activity_get_options()
-
 @app.get("/api/v1/activity/events")
 async def activity_events(
     start_date: Optional[str] = None,
@@ -959,10 +986,19 @@ async def activity_aggregations(
         start_times=time_list
     )
 
-@app.post("/api/v1/activity/upload")
+@imports_router.router.post("/api/v1/activity/upload")
 async def activity_upload(file: UploadFile = File(...)):
     # Simple CSV parser
-    content = await file.read()
+    try:
+        content = await uploads.read_upload_limited(
+            file,
+            max_bytes=config.ACTIVITY_CSV_MAX_BYTES,
+        )
+    except uploads.UploadTooLargeError as exc:
+        raise HTTPException(
+            413,
+            detail={"code": "upload_too_large", "max_bytes": exc.max_bytes},
+        ) from exc
     text = content.decode("utf-8-sig")
     lines = text.splitlines()
     
@@ -1112,17 +1148,6 @@ async def get_device_mapping():
 async def get_device_mapping_singular():
     return await db.get_device_mapping()
 
-# --- Alerts ---
-
-@app.get("/api/v1/alerts")
-async def list_alerts(uuid: Optional[str] = None, limit: int = 100):
-    return await db.list_alerts(uuid, limit)
-
-@app.post("/api/v1/alerts/{alert_id}/ack")
-async def ack_alert(alert_id: int):
-    await db.set_alert_status(alert_id=alert_id, status=1)
-    return {"ok": True}
-
 # --- Admin Records ---
 
 @app.get("/api/v1/admin/records")
@@ -1204,9 +1229,18 @@ async def admin_batch_delete(payload: Dict[str, Any] = Body(...)):
     await db.admin_batch_delete(ids)
     return {"status": "ok"}
 
-@app.post("/api/v1/admin/device-log/preview")
+@imports_router.router.post("/api/v1/admin/device-log/preview")
 async def admin_device_log_preview(file: UploadFile = File(...)):
-    contents = await file.read()
+    try:
+        contents = await uploads.read_upload_limited(
+            file,
+            max_bytes=config.DEVICE_LOG_MAX_BYTES,
+        )
+    except uploads.UploadTooLargeError as exc:
+        raise HTTPException(
+            413,
+            detail={"code": "upload_too_large", "max_bytes": exc.max_bytes},
+        ) from exc
     text = contents.decode("utf-8-sig", errors="ignore")
 
     parsed = _parse_device_log_text(text)
@@ -1272,7 +1306,7 @@ async def admin_device_log_preview(file: UploadFile = File(...)):
         "sample": records[:30],
     }
 
-@app.post("/api/v1/admin/device-log/import")
+@imports_router.router.post("/api/v1/admin/device-log/import")
 async def admin_device_log_import(payload: Dict[str, Any] = Body(...)):
     import_id = str(payload.get("import_id") or "").strip()
     if not import_id or import_id not in _LOG_IMPORT_CACHE:
@@ -1369,7 +1403,7 @@ async def _db_merge_validate_strategy(merge_mode: str, conflict_preference: str)
         raise HTTPException(400, "Invalid conflict_preference")
     return {"merge_mode": mm, "conflict_preference": cp}
 
-@app.post("/api/v1/admin/db-merge/upload")
+@db_merge_router.router.post("/api/v1/admin/db-merge/upload")
 async def admin_db_merge_upload(request: Request, file: UploadFile = File(...)):
     """
     上传 SQLite .db 文件（仅管理员）。
@@ -1392,21 +1426,18 @@ async def admin_db_merge_upload(request: Request, file: UploadFile = File(...)):
     import_id = uuidlib.uuid4().hex
     target_path = os.path.join(_DB_MERGE_UPLOAD_DIR, f"{import_id}.db")
 
-    size_bytes = 0
     try:
-        with open(target_path, "wb") as f:
-            while True:
-                chunk = await file.read(1024 * 1024)
-                if not chunk:
-                    break
-                f.write(chunk)
-                size_bytes += len(chunk)
+        size_bytes = await uploads.save_upload_limited(
+            file,
+            target_path,
+            max_bytes=config.DB_MERGE_MAX_BYTES,
+        )
+    except uploads.UploadTooLargeError as exc:
+        raise HTTPException(
+            413,
+            detail={"code": "upload_too_large", "max_bytes": exc.max_bytes},
+        ) from exc
     except Exception:
-        try:
-            if os.path.isfile(target_path):
-                os.remove(target_path)
-        except Exception:
-            pass
         raise HTTPException(500, "Save file failed")
 
     # 快速校验：确保它是一个能打开的 SQLite 文件
@@ -1437,7 +1468,7 @@ async def admin_db_merge_upload(request: Request, file: UploadFile = File(...)):
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
-@app.post("/api/v1/admin/db-merge/preview")
+@db_merge_router.router.post("/api/v1/admin/db-merge/preview")
 async def admin_db_merge_preview(request: Request, payload: DbMergePreviewPayload):
     """
     预览合并影响范围（仅管理员）。
@@ -1464,7 +1495,14 @@ async def admin_db_merge_preview(request: Request, payload: DbMergePreviewPayloa
         **res,
     }
 
-async def _run_db_merge_job(job_id: str, import_id: str, actor: str, merge_mode: str, conflict_preference: str) -> None:
+async def _run_db_merge_job(
+    job_id: str,
+    import_id: str,
+    actor: str,
+    merge_mode: str,
+    conflict_preference: str,
+    maintenance_owner: str,
+) -> None:
     ctx = _DB_MERGE_UPLOAD_CACHE.get(import_id) or {}
     import_path = str(ctx.get("path") or "").strip()
     job = _DB_MERGE_JOB_CACHE.get(job_id) or {}
@@ -1491,8 +1529,10 @@ async def _run_db_merge_job(job_id: str, import_id: str, actor: str, merge_mode:
         job["status"] = "error"
         job["error"] = str(e)
         job["progress"] = {**(job.get("progress") or {}), "status": "error", "error": str(e)}
+    finally:
+        await db_merge_service.finish_maintenance(maintenance_owner)
 
-@app.post("/api/v1/admin/db-merge/execute")
+@db_merge_router.router.post("/api/v1/admin/db-merge/execute")
 async def admin_db_merge_execute(request: Request, payload: DbMergeExecutePayload):
     """
     启动合并导入任务（仅管理员）。
@@ -1511,6 +1551,12 @@ async def admin_db_merge_execute(request: Request, payload: DbMergeExecutePayloa
         raise HTTPException(404, "Import file not found")
 
     strat = await _db_merge_validate_strategy(payload.merge_mode, payload.conflict_preference)
+    try:
+        maintenance_owner = await db_merge_service.start_maintenance(
+            str(user.get("username") or "")
+        )
+    except db_merge_service.MergeAlreadyRunningError as exc:
+        raise HTTPException(409, "Database merge already running") from exc
     job_id = uuidlib.uuid4().hex
 
     job: Dict[str, Any] = {
@@ -1535,13 +1581,14 @@ async def admin_db_merge_execute(request: Request, payload: DbMergeExecutePayloa
             actor=str(user.get("username") or ""),
             merge_mode=strat["merge_mode"],
             conflict_preference=strat["conflict_preference"],
+            maintenance_owner=maintenance_owner,
         )
     )
     job["task"] = task
 
     return {"job_id": job_id}
 
-@app.get("/api/v1/admin/db-merge/status")
+@db_merge_router.router.get("/api/v1/admin/db-merge/status")
 async def admin_db_merge_status(request: Request, job_id: str = Query(...)):
     """
     查询合并导入任务状态（仅管理员）。
@@ -1560,6 +1607,9 @@ async def admin_db_merge_status(request: Request, job_id: str = Query(...)):
     public_job["running"] = bool(public_job.get("running"))
     public_job["status"] = str(public_job.get("status") or "")
     return {"job": public_job}
+
+
+app.include_router(db_merge_router.router)
 
 # --- Admin Registry ---
 
@@ -1689,12 +1739,21 @@ async def api_activity_delete(id: int):
     if not success: raise HTTPException(404, "Not found")
     return {"status": "ok"}
 
-@app.post("/api/v1/activity/import-excel")
+@imports_router.router.post("/api/v1/activity/import-excel")
 async def api_activity_import_excel(file: UploadFile = File(...)):
     if not file.filename.endswith(('.xls', '.xlsx')):
         raise HTTPException(400, "Invalid file format")
     
-    contents = await file.read()
+    try:
+        contents = await uploads.read_upload_limited(
+            file,
+            max_bytes=config.ACTIVITY_EXCEL_MAX_BYTES,
+        )
+    except uploads.UploadTooLargeError as exc:
+        raise HTTPException(
+            413,
+            detail={"code": "upload_too_large", "max_bytes": exc.max_bytes},
+        ) from exc
     
     # Try Pandas
     try:
@@ -1795,6 +1854,9 @@ async def api_activity_import_excel(file: UploadFile = File(...)):
              count = res
         
     return {"count": count}
+
+
+app.include_router(imports_router.router)
 
 # --- Location Mapping API ---
 

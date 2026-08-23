@@ -16,7 +16,7 @@
 - **双服务一键启动**：统一拉起 TCP Server（默认 `8085`）与 Web Server（默认 `8000`）。
 - **页面能力**：登录、看板、设备、历史、活动、告警、账户管理等页面可用。
 - **启动更省心**：自动检测端口占用并清理历史 InfraCount 相关进程，异常时输出日志尾部便于排障。
-- **默认账号**：首次启动会自动初始化 `admin` 账号，默认密码为 `admin`（建议登录后立刻修改）。
+- **初始账号**：首次启动会自动初始化 `admin` 账号，密码必须通过 `INITIAL_ADMIN_PASSWORD` 提供；已有账号不会被覆盖。
 
 ## 快速开始 (Quick Start)
 
@@ -63,7 +63,7 @@ chmod +x install.sh start.sh
 - 登录页：[http://localhost:8000/login](http://localhost:8000/login)（登录成功后会跳转到活动看板）
 - 综合看板：[http://localhost:8000/dashboard](http://localhost:8000/dashboard)
 
-默认账号：`admin` / `admin`（首次启动自动创建）
+初始账号：`admin`（首次启动自动创建，密码来自必填环境变量 `INITIAL_ADMIN_PASSWORD`）
 
 ## 目录结构
 ```text

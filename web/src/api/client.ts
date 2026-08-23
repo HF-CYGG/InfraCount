@@ -59,6 +59,45 @@ type InFlightEntry = {
 
 const inFlightByRequestKey = new Map<string, InFlightEntry>();
 const requestKeysByCancelKey = new Map<string, Set<string>>();
+let csrfToken = "";
+let csrfExpiresAt = 0;
+let csrfRequest: Promise<string> | null = null;
+
+function clearCsrfToken(): void {
+  csrfToken = "";
+  csrfExpiresAt = 0;
+  csrfRequest = null;
+}
+
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken && Date.now() < csrfExpiresAt) return csrfToken;
+  if (csrfRequest) return csrfRequest;
+
+  csrfRequest = (async () => {
+    const response = await fetch("/api/v1/auth/csrf", {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include"
+    });
+    const data = await parseResponseBody(response);
+    if (!response.ok || !data || typeof data !== "object") {
+      throw new ApiError(`CSRF 令牌获取失败（HTTP ${response.status}）`, response.status, data);
+    }
+    const payload = data as { csrf_token?: unknown; expires_in?: unknown };
+    const token = typeof payload.csrf_token === "string" ? payload.csrf_token : "";
+    if (!token) throw new ApiError("CSRF 令牌响应无效。", response.status, data);
+    const expiresIn = Math.max(1, Number(payload.expires_in || 600));
+    csrfToken = token;
+    csrfExpiresAt = Date.now() + Math.max(1, expiresIn - 5) * 1000;
+    return token;
+  })();
+
+  try {
+    return await csrfRequest;
+  } finally {
+    csrfRequest = null;
+  }
+}
 
 function buildQueryString(query?: ApiRequestOptions["query"]): string {
   if (!query) return "";
@@ -177,6 +216,16 @@ export async function apiRequest<T = unknown>(opts: ApiRequestOptions): Promise<
     ...opts.headers
   };
 
+  const unsafeRequest = opts.method !== "GET" && opts.path !== "/api/v1/auth/login";
+  if (unsafeRequest) {
+    try {
+      headers["X-CSRF-Token"] = await getCsrfToken();
+    } catch (error) {
+      if (opts.path !== "/api/v1/auth/logout") throw error;
+      clearCsrfToken();
+    }
+  }
+
   let body: BodyInit | undefined = undefined;
   if (opts.body !== undefined) {
     /**
@@ -258,6 +307,10 @@ export async function apiRequest<T = unknown>(opts: ApiRequestOptions): Promise<
     if (!res.ok) {
       const msg = typeof data === "string" && data.trim() ? data : `请求失败（HTTP ${res.status}）`;
       throw new ApiError(msg, res.status, data);
+    }
+
+    if (opts.path === "/api/v1/auth/login" || opts.path === "/api/v1/auth/logout") {
+      clearCsrfToken();
     }
 
     return data as T;

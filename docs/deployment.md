@@ -17,7 +17,11 @@ INFRACOUNT_LOG_MODE=stdio
 
 `INITIAL_ADMIN_PASSWORD` 只用于首次初始化管理员账号，必须由部署者设置，不能使用示例值或把密码写入 Git。使用已有 SQLite 数据库启动时不会覆盖现有管理员密码；只有初始化新数据库时才使用该值。
 
-`.env.example` 保留了 Web/TCP 端口、SQLite 路径、鉴权与 CSRF、设备时间同步、告警阈值、Session、CORS、自动同步和 SMTP 告警配置。Compose 会通过 `--env-file .env` 将其声明的参数用于端口映射、镜像选择和运行环境；修改 `.env` 后需要重新创建容器才能使配置生效。
+`.env.example` 保留了 Web/TCP 端口、SQLite 路径、鉴权与 CSRF、上传上限、设备时间同步、告警阈值、Session、CORS、自动同步和 SMTP 告警配置。Compose 会通过 `--env-file .env` 将其声明的参数用于端口映射、镜像选择和运行环境；修改 `.env` 后需要重新创建容器才能使配置生效。
+
+浏览器客户端会自动获取 `/api/v1/auth/csrf` 令牌。使用 curl 或其他脚本调用写接口时，需要先使用同一 Cookie 会话请求该接口，再通过 `X-CSRF-Token` 请求头携带返回的令牌。CSV、Excel、设备日志和 SQLite 合并文件的默认上限分别为 10MB、25MB、25MB 和 512MB，可通过对应的 `*_MAX_BYTES` 环境变量调整。
+
+在线 SQLite 合并会进入短维护窗口：查询和任务状态接口保持可用，其他写接口返回 HTTP 423，TCP 设备上报返回失败 ACK。合并任务完成或失败后会自动退出维护状态。
 
 ## 方式一：从仓库构建
 

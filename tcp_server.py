@@ -55,7 +55,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                                 ip = peer[0] if peer else None
                                 await save_device_data(d, ip=ip)
                             except Exception as e:
-                                logging.error("save_device_data error: %s", e)
+                                from app.services.db_merge import DatabaseMaintenanceError
+
+                                if isinstance(e, DatabaseMaintenanceError):
+                                    logging.warning("device write rejected during database maintenance")
+                                else:
+                                    logging.error("save_device_data error: %s", e)
                                 ret = 1
                             ack = build_ack_xml(d["uuid"], ret)
                             writer.write(ack.encode())
@@ -123,11 +128,9 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
 async def main():
     setup_logging()
-    try:
-        from app.db import init_pool
-        await init_pool()
-    except Exception:
-        pass
+    from app.db import close_pool, init_pool
+
+    await init_pool()
     
     # Retry loop for binding port
     server = None
@@ -147,12 +150,14 @@ async def main():
         logging.critical(f"Port {config.TCP_PORT} is already in use! The service might be already running.")
         return
 
-    async with server:
-        try:
+    try:
+        async with server:
             logging.info(f"TCP Server listening on {config.TCP_HOST}:{config.TCP_PORT}")
             await server.serve_forever()
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logging.info("TCP Server stopped by signal.")
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        logging.info("TCP Server stopped by signal.")
+    finally:
+        await close_pool()
 
 if __name__ == "__main__":
     asyncio.run(main())

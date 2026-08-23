@@ -12,7 +12,7 @@
       "max_age_sec": 604800
     }
   },
-  "generated_at": "2026-07-03T13:59:15.338814+00:00",
+  "generated_at": "2026-08-23T14:56:23.836986+00:00",
   "routes": [
     {
       "auth": "public",
@@ -153,16 +153,6 @@
       ],
       "name": "activity_list",
       "path": "/api/v1/activity/list"
-    },
-    {
-      "auth": "session",
-      "endpoint": "api.main:activity_options",
-      "include_in_schema": true,
-      "methods": [
-        "GET"
-      ],
-      "name": "activity_options",
-      "path": "/api/v1/activity/options"
     },
     {
       "auth": "session",
@@ -426,7 +416,7 @@
     },
     {
       "auth": "session",
-      "endpoint": "api.main:list_alerts",
+      "endpoint": "api.routers.alerts:list_alerts",
       "include_in_schema": true,
       "methods": [
         "GET"
@@ -436,13 +426,23 @@
     },
     {
       "auth": "admin",
-      "endpoint": "api.main:ack_alert",
+      "endpoint": "api.routers.alerts:ack_alert",
       "include_in_schema": true,
       "methods": [
         "POST"
       ],
       "name": "ack_alert",
       "path": "/api/v1/alerts/{alert_id}/ack"
+    },
+    {
+      "auth": "session",
+      "endpoint": "api.routers.auth:auth_csrf",
+      "include_in_schema": true,
+      "methods": [
+        "GET"
+      ],
+      "name": "auth_csrf",
+      "path": "/api/v1/auth/csrf"
     },
     {
       "auth": "public",

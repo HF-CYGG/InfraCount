@@ -158,12 +158,14 @@ jobs:
           api_base="http://127.0.0.1:${CI_WEB_PORT}/api/v1"
           printf '{"username":"admin","password":"%s"}' "$CI_ADMIN_PASSWORD" |
             curl --fail --silent --show-error --cookie-jar "$admin_cookie" --header 'Content-Type: application/json' --data-binary @- "$api_base/auth/login" > /dev/null
+          admin_csrf="$(curl --fail --silent --show-error --cookie "$admin_cookie" "$api_base/auth/csrf" | python -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')"
           printf '{"username":"ci-user","password":"%s","role":"user"}' "$CI_USER_PASSWORD" |
-            curl --fail --silent --show-error --cookie "$admin_cookie" --header 'Content-Type: application/json' --data-binary @- "$api_base/users" > /dev/null
+            curl --fail --silent --show-error --cookie "$admin_cookie" --header "X-CSRF-Token: $admin_csrf" --header 'Content-Type: application/json' --data-binary @- "$api_base/users" > /dev/null
           printf '{"username":"ci-user","password":"%s"}' "$CI_USER_PASSWORD" |
             curl --fail --silent --show-error --cookie-jar "$user_cookie" --header 'Content-Type: application/json' --data-binary @- "$api_base/auth/login" > /dev/null
+          user_csrf="$(curl --fail --silent --show-error --cookie "$user_cookie" "$api_base/auth/csrf" | python -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')"
           printf '{}' |
-            curl --silent --output /dev/null --write-out '%{http_code}' --cookie "$user_cookie" --header 'Content-Type: application/json' --data-binary @- "$api_base/users" | grep --quiet '^403$'
+            curl --silent --output /dev/null --write-out '%{http_code}' --cookie "$user_cookie" --header "X-CSRF-Token: $user_csrf" --header 'Content-Type: application/json' --data-binary @- "$api_base/users" | grep --quiet '^403$'
 
       - name: Restart service and verify ordinary user login
         shell: bash
@@ -189,8 +191,9 @@ jobs:
           user_cookie="$RUNNER_TEMP/infracount-user-restart.cookies"
           printf '{"username":"ci-user","password":"%s"}' "$CI_USER_PASSWORD" |
             curl --fail --silent --show-error --cookie-jar "$user_cookie" --header 'Content-Type: application/json' --data-binary @- "http://127.0.0.1:${CI_WEB_PORT}/api/v1/auth/login" > /dev/null
+          user_csrf="$(curl --fail --silent --show-error --cookie "$user_cookie" "http://127.0.0.1:${CI_WEB_PORT}/api/v1/auth/csrf" | python -c 'import json,sys; print(json.load(sys.stdin)["csrf_token"])')"
           printf '{}' |
-            curl --silent --output /dev/null --write-out '%{http_code}' --cookie "$user_cookie" --header 'Content-Type: application/json' --data-binary @- "http://127.0.0.1:${CI_WEB_PORT}/api/v1/users" | grep --quiet '^403$'
+            curl --silent --output /dev/null --write-out '%{http_code}' --cookie "$user_cookie" --header "X-CSRF-Token: $user_csrf" --header 'Content-Type: application/json' --data-binary @- "http://127.0.0.1:${CI_WEB_PORT}/api/v1/users" | grep --quiet '^403$'
 
       - name: Verify graceful container shutdown
         shell: bash
